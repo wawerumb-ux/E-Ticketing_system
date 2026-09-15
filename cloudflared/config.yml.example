@@ -1,0 +1,38 @@
+# ==============================================================================
+# Cloudflare Tunnel configuration — EXAMPLE
+#
+# TWO MODES — the free one is ACTIVE by default, the paid one is commented out.
+#
+# 1) FREE QUICK TUNNEL  (ACTIVE, zero cost, no account, no token)
+#    docker-compose.yml runs cloudflared with:
+#        tunnel --no-autoupdate --url http://nginx:80
+#    cloudflared then exposes the app at a random *.trycloudflare.com URL.
+#    The URL is printed to the cloudflared container logs on start
+#    (docker compose logs -f cloudflared). No config file needed — this file
+#    is only a reference for the paid mode below.
+#
+# 2) CUSTOM DOMAIN  (IDLE — costs money when enabled. Set CUSTOM_DOMAIN_ENABLED=true)
+#    Requires a registered cloudflare account, a domain, and a named tunnel.
+#    Activate by:
+#      a. Uncommenting the "tunnel"/"credentials-file" lines below and
+#         replacing <SET_TUNNEL_ID> / the credentials path.
+#      b. Setting CF_TUNNEL_TOKEN=<SET_IN_ENV> in .env (named-tunnel token)
+#         so docker-compose uses "tunnel --no-autoupdate run" instead of the
+#         quick-tunnel command.
+#      c. Replacing example.com with your real hostname and adding its DNS
+#         CNAME to <tunnel-id>.cfargotunnel.com in the Cloudflare dashboard.
+#    No credentials are committed to this repo.
+# ==============================================================================
+
+# ─── Custom-domain block — COMMENTED OUT (IDLE — costs money when enabled) ──
+# tunnel: <SET_TUNNEL_ID>
+# credentials-file: /etc/cloudflared/credentials.json
+#
+# ingress:
+#   - hostname: example.com
+#     service: http://nginx:80
+#     originRequest:
+#       noTLSVerify: false
+#
+#   # Catch-all rule (required)
+#   - service: http_status:404

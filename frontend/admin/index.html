@@ -1,0 +1,1188 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICT E-Ticketing System - Admin Portal</title>
+    <link rel="stylesheet" href="/shared/css/style.css">
+    <script>
+        /* Pre-paint restore (FOUC guard): theme + sidebar state on <html>.
+           No network, no layout work. SidebarManager syncs from here. */
+        (function () {
+            try {
+                var el = document.documentElement;
+                var t = localStorage.getItem('admin_theme');
+                if (!t) { var legacy = localStorage.getItem('theme'); if (legacy) { t = legacy; localStorage.setItem('admin_theme', legacy); } }
+                var themes = { 'daylight': 1, 'quiet-light': 1, 'solarized-light': 1, 'abyss': 1, 'night-owl': 1, 'high-contrast': 1, 'flexoki-light': 1, 'catppuccin-latte': 1, 'catppuccin-mocha': 1, 'nord': 1, 'gruvbox': 1 };
+                var name = themes[t] ? t : (t === 'dark' ? 'abyss' : 'daylight');
+                el.setAttribute('data-theme', name);
+                if (name === 'abyss' || name === 'night-owl' || name === 'high-contrast' || name === 'catppuccin-mocha' || name === 'nord' || name === 'gruvbox') el.classList.add('dark-theme');
+                var state = localStorage.getItem('sidebar:state');
+                if (!state) {
+                    if (localStorage.getItem('sidebarMode') === 'rail' || sessionStorage.getItem('sidebarCollapsed') === 'true') state = 'mini';
+                    else state = 'expanded';
+                }
+                var small = window.matchMedia('(max-width: 768px)').matches;
+                var midsize = !small && window.matchMedia('(max-width: 1024px)').matches;
+                if (!small && (midsize || state === 'mini')) el.classList.add('sidebar-mini');
+            } catch (e) {}
+        })();
+    </script>
+    <script src="/vendor/chart.umd.min.js"></script>
+    <script src="/vendor/qrcode.min.js"></script>
+</head>
+<body>
+    <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar" tabindex="-1">
+            <div class="sidebar-header">
+                <h2><button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="false"><i data-icon="ticket-alt" aria-hidden="true"></i></button><span>ICT Admin</span></h2>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="active" data-section="dashboard">
+                        <a href="#/dashboard" aria-current="page"><i data-icon="chart-pie" aria-hidden="true"></i><span>Dashboard</span></a>
+                    </li>
+                    <li data-section="tickets">
+                        <a href="#/tickets"><i data-icon="list" aria-hidden="true"></i><span>All Tickets</span></a>
+                    </li>
+                    <li data-section="create">
+                        <a href="#/create"><i data-icon="plus-circle" aria-hidden="true"></i><span>Create Ticket</span></a>
+                    </li>
+                    <li data-section="users">
+                        <a href="#/users"><i data-icon="users" aria-hidden="true"></i><span>Users</span></a>
+                    </li>
+                    <li data-section="reports">
+                        <a href="#/reports"><i data-icon="chart-line" aria-hidden="true"></i><span>Reports</span></a>
+                    </li>
+                    <li data-section="knowledge">
+                        <a href="#/knowledge"><i data-icon="book" aria-hidden="true"></i><span>Knowledge Base</span></a>
+                    </li>
+                    <li data-section="announcements">
+                        <a href="#/announcements"><i data-icon="bullhorn" aria-hidden="true"></i><span>Announcements</span></a>
+                    </li>
+                    <li data-section="integrations">
+                        <a href="#/integrations"><i data-icon="plug" aria-hidden="true"></i><span>Integrations</span></a>
+                    </li>
+                    <li data-section="settings">
+                        <a href="#/settings"><i data-icon="sliders-h" aria-hidden="true"></i><span>Settings</span></a>
+                    </li>
+                    <li data-section="audit">
+                        <a href="#/audit"><i data-icon="history" aria-hidden="true"></i><span>Audit Log</span></a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <div id="identityLauncher" class="identity-launcher" role="button" tabindex="0" aria-haspopup="menu" aria-expanded="false" aria-controls="identityMenu">
+                    <div class="sidebar-avatar" id="sidebarAvatar" aria-hidden="true">U</div>
+                    <div class="identity-text">
+                        <span class="identity-name" id="sidebarUserName">Admin</span>
+                        <span class="identity-role" id="sidebarUserRole">Administrator</span>
+                    </div>
+                    <i data-icon="chevron-right" aria-hidden="true" class="identity-chevron"></i>
+                </div>
+                <div id="identityMenu" class="identity-menu" role="menu" aria-label="Account" hidden>
+                    <div class="identity-menu-group">
+                        <span class="identity-menu-heading">Self</span>
+                        <button class="identity-menu-item" role="menuitem" id="menuViewProfile">View profile</button>
+                        <button class="identity-menu-item" role="menuitem" id="menuChangePassword">Change password</button>
+                        <button class="identity-menu-item" role="menuitem" id="menuTheme">Appearance &amp; theme</button>
+                    </div>
+                    <div class="identity-menu-group">
+                        <span class="identity-menu-heading">Manage</span>
+                        <button class="identity-menu-item" role="menuitem" id="menuFindUser">Find user</button>
+                        <button class="identity-menu-item" role="menuitem" id="menuAddUser">Add new user</button>
+                        <button class="identity-menu-item" role="menuitem" id="menuBulk">Bulk actions</button>
+                    </div>
+                    <div class="identity-menu-group">
+                        <span class="identity-menu-heading">Session</span>
+                        <button class="identity-menu-item" role="menuitem" id="menuLogout">Sign out</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left">
+                    <button id="toggleSidebarMobile" class="btn-icon header-menu-toggle" type="button" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false"><i data-icon="bars" aria-hidden="true"></i></button>
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <button class="btn-secondary btn-sm" id="logoutBtn">
+                        <i data-icon="sign-out-alt" aria-hidden="true"></i> Log Out
+                    </button>
+                </div>
+            </header>
+
+            <section id="dashboard" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card" data-drill="all" style="cursor:pointer;">
+                        <div class="stat-icon" style="background: #e3f2fd;">
+                            <i data-icon="ticket" aria-hidden="true" style="color: #1976d2;"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Total Tickets</h3>
+                            <p class="stat-number" id="totalTickets">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-drill="open" style="cursor:pointer;">
+                        <div class="stat-icon" style="background: #fce4ec;">
+                            <i data-icon="clock" aria-hidden="true" style="color: #c62828;"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Open</h3>
+                            <p class="stat-number" id="openTickets">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-drill="in_progress" style="cursor:pointer;">
+                        <div class="stat-icon" style="background: #fff3e0;">
+                            <i data-icon="spinner" aria-hidden="true" style="color: #e65100;"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>In Progress</h3>
+                            <p class="stat-number" id="inProgressTickets">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-drill="resolved" style="cursor:pointer;">
+                        <div class="stat-icon" style="background: #e8f5e9;">
+                            <i data-icon="check-circle" aria-hidden="true" style="color: #2e7d32;"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>Resolved</h3>
+                            <p class="stat-number" id="resolvedTickets">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-drill="sla_response" style="cursor:pointer;">
+                        <div class="stat-icon" style="background: #fde8e8;">
+                            <i data-icon="exclamation-triangle" aria-hidden="true" style="color: #b91c1c;"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>SLA Response Breached</h3>
+                            <p class="stat-number" id="slaResponseBreached">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-drill="sla_resolution" style="cursor:pointer;">
+                        <div class="stat-icon" style="background: #fde8e8;">
+                            <i data-icon="hourglass-end" aria-hidden="true" style="color: #b91c1c;"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>SLA Resolution Breached</h3>
+                            <p class="stat-number" id="slaResolutionBreached">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-card" style="margin-bottom:30px;">
+                    <h3>Technician Workload</h3>
+                    <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">Open tickets currently assigned per technician.</p>
+                    <div id="workloadList">
+                        <p style="color:#999;">Loading...</p>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div class="chart-card">
+                        <h3>Priority Distribution</h3>
+                        <div class="priority-chart">
+                            <div class="priority-bar">
+                                <span class="priority-label">High</span>
+                                <div class="bar-container">
+                                    <div class="bar" style="width: 0%; background: #ef5350;" id="highBar"></div>
+                                </div>
+                                <span class="priority-count" id="highCount">0</span>
+                            </div>
+                            <div class="priority-bar">
+                                <span class="priority-label">Medium</span>
+                                <div class="bar-container">
+                                    <div class="bar" style="width: 0%; background: #ffa726;" id="mediumBar"></div>
+                                </div>
+                                <span class="priority-count" id="mediumCount">0</span>
+                            </div>
+                            <div class="priority-bar">
+                                <span class="priority-label">Low</span>
+                                <div class="bar-container">
+                                    <div class="bar" style="width: 0%; background: #66bb6a;" id="lowBar"></div>
+                                </div>
+                                <span class="priority-count" id="lowCount">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tickets" class="content-section">
+                <div class="queue-bar">
+                    <button class="queue-chip active" data-queue="all">
+                        All <span class="queue-count" id="queueCount_all">0</span>
+                    </button>
+                    <button class="queue-chip" data-queue="unassigned">
+                        <i data-icon="inbox" aria-hidden="true"></i> Unassigned <span class="queue-count" id="queueCount_unassigned">0</span>
+                    </button>
+                    <button class="queue-chip" data-queue="high_priority">
+                        <i data-icon="exclamation-triangle" aria-hidden="true"></i> High Priority <span class="queue-count" id="queueCount_high_priority">0</span>
+                    </button>
+                    <button class="queue-chip" data-queue="in_progress">
+                        <i data-icon="spinner" aria-hidden="true"></i> In Progress <span class="queue-count" id="queueCount_in_progress">0</span>
+                    </button>
+                    <button class="queue-chip" data-queue="recently_resolved">
+                        <i data-icon="check-circle" aria-hidden="true"></i> Recently Resolved <span class="queue-count" id="queueCount_recently_resolved">0</span>
+                    </button>
+                    <button class="queue-chip" data-queue="sla_response">
+                        <i data-icon="exclamation-triangle" aria-hidden="true"></i> SLA Response Breached <span class="queue-count" id="queueCount_sla_response">0</span>
+                    </button>
+                    <button class="queue-chip" data-queue="sla_resolution">
+                        <i data-icon="hourglass-end" aria-hidden="true"></i> SLA Resolution Breached <span class="queue-count" id="queueCount_sla_resolution">0</span>
+                    </button>
+                </div>
+                <div class="section-header">
+                    <div class="filter-controls">
+                        <select id="statusFilter">
+                            <option value="all">All Status</option>
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                        <select id="priorityFilter">
+                            <option value="all">All Priority</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                        <input type="text" id="searchTicket" placeholder="Search tickets...">
+                    </div>
+                </div>
+                <div class="bulk-actions-bar" id="bulkActionsBar" style="display:none;">
+                    <span id="bulkSelectedCount">0 selected</span>
+                    <select id="bulkStatusSelect">
+                        <option value="">Change Status...</option>
+                        <option value="open">Open</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                    </select>
+                    <select id="bulkAssignSelect">
+                        <option value="">Assign To...</option>
+                    </select>
+                    <button class="btn-primary btn-sm" id="bulkApplyBtn">Apply</button>
+                    <button class="btn-secondary btn-sm" id="bulkClearBtn">Clear Selection</button>
+                </div>
+                <div class="table-container">
+                    <table class="ticket-table">
+                        <thead>
+                            <tr>
+                                <th><label class="ticket-check-wrap"><input type="checkbox" id="selectAllTickets"></label></th>
+                                <th>Ticket #</th>
+                                <th>Title</th>
+                                <th>Category</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>SLA</th>
+                                <th>Assigned To</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticketTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="create" class="content-section">
+                <div class="create-ticket-form">
+                    <h2>Create New Ticket</h2>
+                    <form id="ticketForm">
+                        <div class="form-group">
+                            <label for="title">Ticket Title *</label>
+                            <input type="text" id="title" required placeholder="Enter ticket title">
+                        </div>
+                        <div class="form-group">
+                            <label for="description">Description *</label>
+                            <textarea id="description" required rows="4" placeholder="Describe the issue..."></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="category">Category *</label>
+                                <select id="category" required>
+                                    <option value="">Select category</option>
+                                    <option value="hardware">Hardware</option>
+                                    <option value="software">Software</option>
+                                    <option value="network">Network</option>
+                                    <option value="security">Security</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="priority">Priority</label>
+                                <select id="priority">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignedTo">Assign To (Optional)</label>
+                            <select id="assignedTo">
+                                <option value="">Unassigned</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <i data-icon="paper-plane" aria-hidden="true"></i> Create Ticket
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <section id="users" class="content-section">
+                <div class="users-container">
+                    <div class="section-header">
+                        <h2>User Management</h2>
+                        <button class="btn-primary" id="showAddUserModal">
+                            <i data-icon="user-plus" aria-hidden="true"></i> Add User
+                        </button>
+                    </div>
+                    <div class="filter-controls">
+                        <input type="text" id="searchUser" placeholder="Search users...">
+                        <select id="userRoleFilter">
+                            <option value="all">All Roles</option>
+                            <option value="admin">Admin</option>
+                            <option value="staff">Staff</option>
+                        </select>
+                        <select id="userStatusFilter">
+                            <option value="all">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                        <select id="userDepartmentFilter">
+                            <option value="all">All Departments</option>
+                        </select>
+                    </div>
+                    <div class="table-container">
+                        <table class="user-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Department</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody"></tbody>
+                        </table>
+                    </div>
+                    <p class="filter-result-count" id="userResultCount"></p>
+                </div>
+            </section>
+
+            <section id="reports" class="content-section">
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3>Reports &amp; Analytics</h3>
+                    <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                        Filter by ticket creation date (both optional). Exports include the current filter.
+                    </p>
+                    <div class="filter-controls" style="flex-wrap:wrap;">
+                        <label style="font-size:0.85rem;">From
+                            <input type="date" id="reportFrom">
+                        </label>
+                        <label style="font-size:0.85rem;">To
+                            <input type="date" id="reportTo">
+                        </label>
+                        <button class="btn-primary btn-sm" id="runReportBtn">
+                            <i data-icon="sync-alt" aria-hidden="true"></i> Generate
+                        </button>
+                        <button class="btn-secondary btn-sm" id="exportTicketsBtn">Tickets CSV</button>
+                        <button class="btn-secondary btn-sm" id="exportUsersBtn">Users CSV</button>
+                        <button class="btn-secondary btn-sm" id="exportAuditBtn">Audit CSV</button>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3>Total In Period</h3>
+                            <p class="stat-number" id="reportTotal">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3>Resolved</h3>
+                            <p class="stat-number" id="reportResolved">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3>Resolution Rate</h3>
+                            <p class="stat-number" id="reportRate">0%</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3>Avg Resolution</h3>
+                            <p class="stat-number" id="reportAvgResolution">—</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3>Avg First Response</h3>
+                            <p class="stat-number" id="reportAvgResponse">—</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info" style="border-left:3px solid #c62828;">
+                            <h3>SLA Breaches (Active)</h3>
+                            <p class="stat-number" id="reportSlaBreaches">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="personal-panels" style="grid-template-columns: 1fr 1fr; margin-top:20px;">
+                    <div class="chart-card">
+                        <h3>Ticket Trend (created vs resolved)</h3>
+                        <div style="position:relative;height:260px;">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>By Category</h3>
+                        <div style="position:relative;height:260px;">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="personal-panels" style="grid-template-columns: 1fr 1fr 1fr; margin-top:20px;">
+                    <div class="chart-card">
+                        <h3>By Priority</h3>
+                        <div id="reportPriorities"><p style="color:#999;">No data.</p></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Technician Workload</h3>
+                        <div id="reportTechnicians"><p style="color:#999;">No data.</p></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="knowledge" class="content-section">
+                <div class="section-header">
+                    <h2>Knowledge Base Management</h2>
+                    <button class="btn-primary" id="newArticleBtn">
+                        <i data-icon="plus" aria-hidden="true"></i> New Article
+                    </button>
+                </div>
+                <div class="filter-controls" style="margin-bottom:15px;">
+                    <input type="text" id="kbSearch" placeholder="Search articles..." style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;min-width:220px;">
+                    <select id="kbCategoryFilter">
+                        <option value="all">All Categories</option>
+                    </select>
+                </div>
+                <div class="chart-card">
+                    <div class="table-container">
+                        <table class="ticket-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Category</th>
+                                    <th>Author</th>
+                                    <th>Status</th>
+                                    <th>Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kbArticleBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="announcements" class="content-section">
+                <div class="chart-card" style="max-width:640px;">
+                    <h2>Broadcast Announcement</h2>
+                    <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                        Sends an in-app notification to every matching active user, and an email when SMTP is configured.
+                    </p>
+                    <form id="broadcastForm">
+                        <div class="form-group">
+                            <label for="broadcastTitle">Title</label>
+                            <input type="text" id="broadcastTitle" placeholder="e.g. Scheduled maintenance">
+                        </div>
+                        <div class="form-group">
+                            <label for="broadcastMessage">Message *</label>
+                            <textarea id="broadcastMessage" rows="4" required placeholder="Write the announcement..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="broadcastRole">Audience</label>
+                            <select id="broadcastRole">
+                                <option value="all">Everyone</option>
+                                <option value="admin">Admins only</option>
+                                <option value="staff">Staff only</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <i data-icon="paper-plane" aria-hidden="true"></i> Send Broadcast
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <section id="integrations" class="content-section">
+                <div class="personal-panels" style="grid-template-columns: 1fr 1fr;">
+                    <div class="chart-card">
+                        <h3>API Tokens</h3>
+                        <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                            Let external systems read tickets, stats and the knowledge base via <code>/api/v1/*</code>. Use the token in the <code>Authorization: Bearer &lt;token&gt;</code> header.
+                        </p>
+                        <form id="tokenForm" style="display:grid;gap:10px;margin-bottom:15px;">
+                            <div style="display:flex;gap:8px;">
+                                <input type="text" id="tokenName" placeholder="Name e.g. Monitoring dashboard" style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;" required>
+                                <input type="number" id="tokenDays" placeholder="Expire in days (blank = never)" style="width:150px;padding:8px 12px;border:1px solid #ddd;border-radius:6px;" min="1">
+                            </div>
+                            <button type="submit" class="btn-primary btn-sm" style="justify-self:start;">
+                                <i data-icon="key" aria-hidden="true"></i> Generate Token
+                            </button>
+                        </form>
+                        <div id="newTokenBox" style="display:none;background:#f6f8fa;border:1px dashed #cbd5e1;border-radius:6px;padding:12px;margin-bottom:15px;">
+                            <p style="font-size:0.85rem;margin-bottom:6px;">Copy this token now — it is shown only once:</p>
+                            <code id="newTokenValue" style="word-break:break-all;display:block;background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:8px;margin-bottom:8px;"></code>
+                            <button type="button" class="btn-secondary btn-sm" onclick="app.copyToken()">Copy</button>
+                        </div>
+                        <div id="tokenList"><p style="color:#999;">Loading...</p></div>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>Outbound Webhooks</h3>
+                        <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                            Receive a POST for each subscribed event. Payloads are signed with HMAC-SHA256 in the <code>X-Ict-Signature: sha256=&lt;hex&gt;</code> header using your secret.
+                        </p>
+                        <form id="webhookForm" style="display:grid;gap:10px;margin-bottom:15px;">
+                            <input type="text" id="webhookUrl" placeholder="URL e.g. https://hooks.example.com/ict" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;" required>
+                            <div style="display:flex;gap:8px;">
+                                <input type="text" id="webhookEvents" value="ticket.created,ticket.updated" placeholder="Events (comma-separated)" style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;">
+                                <input type="text" id="webhookSecret" placeholder="Signing secret (optional)" style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;">
+                            </div>
+                            <button type="submit" class="btn-primary btn-sm" style="justify-self:start;">
+                                <i data-icon="plus" aria-hidden="true"></i> Add Webhook
+                            </button>
+                        </form>
+                        <div id="webhookList"><p style="color:#999;">Loading...</p></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="settings" class="content-section">
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3>Appearance</h3>
+                    <p style="font-size:0.85rem;color:#999;margin-bottom:15px;">
+                        Choose how this portal looks. Your choice is stored on this device and applies only to the admin portal.
+                    </p>
+                    <div class="theme-picker" id="themeControl" role="radiogroup" aria-label="Theme">
+                        <button type="button" class="theme-card" role="radio" data-theme="daylight" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">Daylight</span>
+                            <span class="tc-desc">Default light</span>
+                        </button>
+                        <button type="button" class="theme-card" role="radio" data-theme="quiet-light" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">Quiet Light</span>
+                            <span class="tc-desc">Soft warm white</span>
+                        </button>
+                        <button type="button" class="theme-card" role="radio" data-theme="solarized-light" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">Solarized Light</span>
+                            <span class="tc-desc">Cream, solarized-inspired</span>
+                        </button>
+                        <button type="button" class="theme-card" role="radio" data-theme="abyss" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">Abyss</span>
+                            <span class="tc-desc">Deep-navy dark</span>
+                        </button>
+                        <button type="button" class="theme-card" role="radio" data-theme="night-owl" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">Night Owl</span>
+                            <span class="tc-desc">Warm near-black</span>
+                        </button>
+                        <button type="button" class="theme-card" role="radio" data-theme="high-contrast" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">High Contrast</span>
+                            <span class="tc-desc">Maximum contrast</span>
+                        </button>
+                        <button type="button" class="theme-card" role="radio" data-theme="flexoki-light" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">Flexoki Light</span>
+                            <span class="tc-desc">Warm paper-like light</span>
+                        </button>
+                        <button type="button" class="theme-card" role="radio" data-theme="catppuccin-latte" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">Catppuccin Latte</span>
+                            <span class="tc-desc">Warm off-white light</span>
+                        </button>
+                        <button type="button" class="theme-card" role="radio" data-theme="catppuccin-mocha" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">Catppuccin Mocha</span>
+                            <span class="tc-desc">Warm muted dark</span>
+                        </button>
+                        <button type="button" class="theme-card" role="radio" data-theme="nord" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">Nord</span>
+                            <span class="tc-desc">Cool blue-gray dark</span>
+                        </button>
+                        <button type="button" class="theme-card" role="radio" data-theme="gruvbox" aria-checked="false">
+                            <span class="tc-preview" aria-hidden="true">
+                                <span class="tc-swatch tc-swatch-surface"></span>
+                                <span class="tc-swatch tc-swatch-text"></span>
+                                <span class="tc-swatch tc-swatch-accent"></span>
+                            </span>
+                            <span class="tc-name">Gruvbox</span>
+                            <span class="tc-desc">Warm retro dark</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3>Notifications</h3>
+                    <div id="notificationPrefs" data-notification-prefs></div>
+                </div>
+                <div class="personal-panels" style="grid-template-columns: 1fr 1fr;">
+                    <div class="chart-card">
+                        <h3>Ticket Categories</h3>
+                        <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                            These appear as options when creating a ticket, in both portals.
+                        </p>
+                        <form id="addCategoryForm" style="display:flex;gap:10px;margin-bottom:15px;">
+                            <input type="text" id="newCategoryName" placeholder="New category name" style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;" required>
+                            <button type="submit" class="btn-primary btn-sm">Add</button>
+                        </form>
+                        <div id="categoryList"><p style="color:#999;">Loading...</p></div>
+                    </div>
+
+                    <div class="chart-card">
+                        <h3>Departments</h3>
+                        <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                            These appear as options when creating or editing a user.
+                        </p>
+                        <form id="addDepartmentForm" style="display:flex;gap:10px;margin-bottom:15px;">
+                            <input type="text" id="newDepartmentName" placeholder="New department name" style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;" required>
+                            <button type="submit" class="btn-primary btn-sm">Add</button>
+                        </form>
+                        <div id="departmentList"><p style="color:#999;">Loading...</p></div>
+                    </div>
+                </div>
+
+                <div class="chart-card" style="margin-top:20px;">
+                    <h3>User Roles</h3>
+                    <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                        Roles are classification labels assignable to users. Only the <strong>admin</strong> role grants elevated access; every other role gets the same access as staff. Changing a role takes effect at that user's next login.
+                    </p>
+                    <form id="addRoleForm" style="display:flex;gap:10px;margin-bottom:15px;">
+                        <input type="text" id="newRoleName" placeholder="New role name (e.g. manager)" style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;" required maxlength="20">
+                        <button type="submit" class="btn-primary btn-sm">Add Role</button>
+                    </form>
+                    <div id="roleList"><p style="color:#999;">Loading...</p></div>
+                </div>
+
+                <div class="chart-card" style="margin-top:20px;">
+                    <h3>SLA Timers &amp; System Settings</h3>
+                    <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                        Response/resolution windows (minutes) are applied when a ticket is created or its priority changes. Existing tickets are not retroactively adjusted.
+                    </p>
+                    <form id="systemSettingsForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;">
+                        <div class="form-group">
+                            <label for="set_sla_response_high">Response — High (min)</label>
+                            <input type="number" id="set_sla_response_high" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="set_sla_response_medium">Response — Medium (min)</label>
+                            <input type="number" id="set_sla_response_medium" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="set_sla_response_low">Response — Low (min)</label>
+                            <input type="number" id="set_sla_response_low" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="set_sla_resolution_high">Resolution — High (min)</label>
+                            <input type="number" id="set_sla_resolution_high" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="set_sla_resolution_medium">Resolution — Medium (min)</label>
+                            <input type="number" id="set_sla_resolution_medium" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="set_sla_resolution_low">Resolution — Low (min)</label>
+                            <input type="number" id="set_sla_resolution_low" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="set_ticket_prefix">Ticket Number Prefix</label>
+                            <input type="text" id="set_ticket_prefix" maxlength="10" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="set_site_name">Site Name</label>
+                            <input type="text" id="set_site_name" maxlength="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="set_email_enabled">Email Notifications</label>
+                            <select id="set_email_enabled">
+                                <option value="true">Enabled</option>
+                                <option value="false">Disabled</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="set_sla_sweep_interval">SLA Sweep Interval (min)</label>
+                            <input type="number" id="set_sla_sweep_interval" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="set_auto_escalate">Auto-Escalate on Breach</label>
+                            <select id="set_auto_escalate">
+                                <option value="true">On</option>
+                                <option value="false">Off</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="set_inbound_email_enabled">Inbound Email (ticket-by-email)</label>
+                            <select id="set_inbound_email_enabled">
+                                <option value="true">Enabled</option>
+                                <option value="false">Disabled</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="set_inbound_poll_interval">Inbound Poll Interval (min)</label>
+                            <input type="number" id="set_inbound_poll_interval" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="set_inbound_default_category">Inbound Default Category</label>
+                            <select id="set_inbound_default_category">
+                                <option value="hardware">Hardware</option>
+                                <option value="software">Software</option>
+                                <option value="network">Network</option>
+                                <option value="security">Security</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="align-self:flex-end;">
+                            <button type="submit" class="btn-primary"><i data-icon="save" aria-hidden="true"></i> Save Settings</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="chart-card" style="margin-top:20px;">
+                    <h3>Security &amp; Two-Factor Authentication</h3>
+                    <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                        Manage the 2FA state of your own admin account. Users can enable 2FA themselves from their profile; admins can reset
+                        a locked-out user below.
+                    </p>
+                    <div id="admin2FAPanel">
+                        <p style="color:#999;">Loading...</p>
+                    </div>
+                    <div style="margin-top:20px;border-top:1px solid #f0f0f0;padding-top:15px;">
+                        <h3 style="margin-bottom:12px;">Reset 2FA for a user</h3>
+                        <select id="reset2faUser" style="padding:8px 12px;border:1px solid #ddd;border-radius:6px;min-width:220px;"></select>
+                        <button type="button" class="btn-secondary btn-sm" id="reset2faBtn">Clear 2FA</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="audit" class="content-section">
+                <div class="section-header">
+                    <div class="filter-controls">
+                        <select id="auditEntityFilter">
+                            <option value="">All Entities</option>
+                            <option value="ticket">Ticket</option>
+                            <option value="user">User</option>
+                            <option value="auth">Authentication</option>
+                            <option value="attachment">Attachment</option>
+                            <option value="category">Category</option>
+                            <option value="department">Department</option>
+                            <option value="kb_article">Knowledge Base</option>
+                            <option value="setting">Settings</option>
+                            <option value="notification">Notification</option>
+                            <option value="audit">Audit</option>
+                        </select>
+                        <button type="button" class="btn-secondary btn-sm" onclick="app.loadAuditLogs()">
+                            <i data-icon="sync-alt" aria-hidden="true"></i> Refresh
+                        </button>
+                        <button type="button" class="btn-secondary btn-sm" onclick="app.toggleAuditDetails()">
+                            <i data-icon="code" aria-hidden="true"></i> Details
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                        A chronological record of important actions across the system. Auto-limited to the most recent 300 entries.
+                    </p>
+                    <div class="table-container">
+                        <table class="ticket-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Actor</th>
+                                    <th>Action</th>
+                                    <th>Entity</th>
+                                    <th>Target</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditLogBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Add New User</h2>
+            <form id="userForm">
+                <div class="form-group">
+                    <label for="username">Username *</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email *</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="form-group password-field" data-password-field data-mode="create" data-length="16">
+                    <label for="password">Password *</label>
+                    <input type="password" id="password" required minlength="8"
+                        autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role">
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="department">Department</label>
+                    <select id="department">
+                        <option value="">Select department</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary">Create User</button>
+            </form>
+        </div>
+    </div>
+    <div id="editUserModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="closeEditUserModal">&times;</span>
+        <h2>Manage User</h2>
+        <form id="editUserForm">
+            <div class="form-group">
+                <label for="editUsername">Username</label>
+                <input type="text" id="editUsername" maxlength="50" minlength="2" required>
+                <p style="font-size:0.8rem;color:#999;margin-top:6px;">Renaming updates this account's existing tickets, comments and history. If you rename yourself, you will be signed in as the new name immediately.</p>
+            </div>
+            <div class="form-group">
+                <label for="editEmail">Email</label>
+                <input type="email" id="editEmail" required>
+            </div>
+            <div class="form-group">
+                <label for="editRole">Role</label>
+                <select id="editRole">
+                    <option value="staff">Staff</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="editDepartment">Department</label>
+                <select id="editDepartment">
+                    <option value="">Select department</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="editPhone">Phone (USSD)</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <input type="tel" id="editPhone" placeholder="e.g. +254712345678" style="flex:1;">
+                    <button type="button" id="linkPhoneBtn" class="btn-secondary">Link Phone</button>
+                </div>
+                <p style="font-size:0.8rem;color:#999;margin-top:6px;">USSD tickets from an unlinked phone will appear as created_by = ussd:&lt;phone&gt; and can be linked retroactively.</p>
+            </div>
+            <button type="submit" class="btn-primary">Save Changes</button>
+        </form>
+    </div>
+    </div>
+
+    <div id="userDetailModal" class="modal">
+    <div class="modal-content">
+        <span class="close" id="closeUserDetailModal">&times;</span>
+        <div class="user-detail-header">
+            <span id="userDetailAvatar" class="user-avatar" aria-hidden="true"></span>
+            <div>
+                <h2 id="userDetailName" style="margin:0;"></h2>
+                <span id="userDetailRole" class="role-badge"></span>
+            </div>
+        </div>
+        <dl class="user-detail-list">
+            <dt>Email</dt>
+            <dd id="userDetailEmail"></dd>
+            <dt>Department</dt>
+            <dd id="userDetailDepartment"></dd>
+            <dt>Phone (USSD)</dt>
+            <dd id="userDetailPhone"></dd>
+            <dt>Status</dt>
+            <dd id="userDetailStatus"></dd>
+            <dt>Two-Factor Auth</dt>
+            <dd id="userDetail2fa"></dd>
+            <dt>Account Lock</dt>
+            <dd id="userDetailLock"></dd>
+        </dl>
+        <div class="modal-actions">
+            <button type="button" class="btn-secondary btn-sm" id="userDetailEditBtn">Edit</button>
+            <button type="button" class="btn-secondary btn-sm" id="userDetailReset2faBtn">Reset 2FA</button>
+            <button type="button" class="btn-danger btn-sm" id="userDetailToggleActiveBtn">Deactivate</button>
+        </div>
+    </div>
+    </div>
+
+    <div id="kbModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeKbModal">&times;</span>
+            <h2 id="kbModalTitle">New Article</h2>
+            <form id="kbForm">
+                <div class="form-group">
+                    <label for="kbTitle">Title *</label>
+                    <input type="text" id="kbTitle" required>
+                </div>
+                <div class="form-group">
+                    <label for="kbCategory">Category *</label>
+                    <input type="text" id="kbCategory" list="kbCategoryOptions" required placeholder="e.g. software">
+                    <datalist id="kbCategoryOptions"></datalist>
+                </div>
+                <div class="form-group">
+                    <label for="kbContent">Content *</label>
+                    <textarea id="kbContent" rows="8" required placeholder="Step-by-step guide..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:8px;">
+                        <input type="checkbox" id="kbPublished" checked>
+                        Published (visible to users)
+                    </label>
+                </div>
+                <button type="submit" class="btn-primary">Save Article</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="profileModal" class="modal">
+        <div class="modal-content" style="max-width:540px;">
+            <span class="close" id="closeProfileModal">&times;</span>
+            <h2>My Profile</h2>
+            <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin-bottom:16px;">
+                <div style="text-align:center;flex-shrink:0;width:110px;">
+                    <div id="adminProfileAvatarPreview" style="width:72px;height:72px;margin:0 auto 10px;border-radius:50%;background:var(--primary-soft, #eef2ff);border:1px solid var(--border, #eee);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.6rem;overflow:hidden;">A</div>
+                    <button type="button" class="btn-secondary btn-sm" id="adminUploadAvatarBtn" style="width:100%;margin-bottom:6px;"><i data-icon="upload" aria-hidden="true"></i> Upload</button>
+                    <button type="button" class="btn-secondary btn-sm" id="adminRemoveAvatarBtn" style="width:100%;display:none;">Remove</button>
+                    <input type="file" id="adminAvatarFileInput" accept="image/*" style="display:none;" aria-label="Choose a profile picture">
+                </div>
+                <div style="flex:1;min-width:240px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="form-group">
+                            <label for="adminProfileDisplayName">Display Name</label>
+                            <input type="text" id="adminProfileDisplayName" placeholder="Your display name">
+                        </div>
+                        <div class="form-group">
+                            <label for="adminProfilePhone">Phone</label>
+                            <input type="tel" id="adminProfilePhone" placeholder="e.g. +254 7XX XXX XXX">
+                        </div>
+                        <div class="form-group">
+                            <label for="adminProfileDepartment">Department</label>
+                            <select id="adminProfileDepartment">
+                                <option value="">Select department</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="adminProfileEmail">Email</label>
+                            <input type="email" id="adminProfileEmail">
+                        </div>
+                        <div class="form-group">
+                            <label for="adminProfileUsername">Username</label>
+                            <input type="text" id="adminProfileUsername" readonly style="background:var(--surface-muted, #f3f4f6);cursor:not-allowed;">
+                        </div>
+                        <div class="form-group">
+                            <label for="adminProfileRole">Role</label>
+                            <input type="text" id="adminProfileRole" readonly style="background:var(--surface-muted, #f3f4f6);cursor:not-allowed;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:12px;">
+                <button type="button" class="btn-primary btn-sm" id="adminSaveProfileBtn">Save Profile</button>
+                <span id="adminProfileSaveMsg" style="display:none;font-size:0.85rem;color:var(--success, #22c55e);align-self:center;">Saved.</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content" style="max-width:420px;">
+            <span class="close" id="closeChangePasswordModal">&times;</span>
+            <h2>Change Password</h2>
+            <form id="changePasswordForm">
+                <div class="form-group password-field" data-password-field data-mode="enter">
+                    <label for="adminCurrentPassword">Current Password *</label>
+                    <input type="password" id="adminCurrentPassword" required autocomplete="current-password">
+                </div>
+                <div class="form-group password-field" data-password-field data-mode="create" data-length="16">
+                    <label for="adminNewPassword">New Password *</label>
+                    <input type="password" id="adminNewPassword" required minlength="8" autocomplete="new-password">
+                </div>
+                <div class="form-group password-field" data-password-field data-mode="confirm">
+                    <label for="adminConfirmPassword">Confirm New Password *</label>
+                    <input type="password" id="adminConfirmPassword" required minlength="8" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn-primary">Update Password</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="ticketDetailModal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <span class="close" id="closeTicketDetail" aria-label="Close" role="button" tabindex="0">&times;</span>
+            <div id="ticketDetailBody">
+                <!-- populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <div id="ticketWorkspaceModal" class="modal">
+        <div class="modal-content" style="max-width:650px;">
+            <span class="close">&times;</span>
+            <h2 id="workspaceTicketTitle" style="margin-bottom:5px;"></h2>
+            <p style="color:#999;margin-bottom:20px;" id="workspaceTicketNumber"></p>
+
+            <p style="margin-bottom:10px;"><strong>Requester:</strong> <span id="workspaceRequester"></span></p>
+            <p style="margin-bottom:20px;"><strong>Description:</strong><br><span id="workspaceDescription"></span></p>
+
+            <div class="sla-due-wrap" id="workspaceSla" style="margin-bottom:20px;"></div>
+
+            <form id="ticketWorkspaceForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="workspaceStatus">Status</label>
+                        <select id="workspaceStatus">
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="workspacePriority">Priority</label>
+                        <select id="workspacePriority">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="workspaceAssignedTo">Assigned Technician</label>
+                    <select id="workspaceAssignedTo"></select>
+                </div>
+                <div class="form-group">
+                    <label for="workspaceResolution">Resolution Notes</label>
+                    <textarea id="workspaceResolution" rows="3" placeholder="Describe how this was resolved..."></textarea>
+                </div>
+
+                <div style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                    <p>Created: <span id="workspaceCreated"></span></p>
+                    <p>Last updated: <span id="workspaceUpdated"></span></p>
+                </div>
+            </form>
+
+            <div style="border-top:1px solid #f0f0f0;padding-top:15px;margin-top:5px;">
+                <h3 style="margin-bottom:12px;">Conversation</h3>
+                <div id="workspaceCommentList"><p style="color:#999;">Loading...</p></div>
+
+                <form id="workspaceCommentForm" style="margin-top:15px;">
+                    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+                        <select id="noteTemplateSelect" style="flex:1;">
+                            <option value="">Note templates...</option>
+                            <option value="Escalating to Network Team for further investigation.">Escalating to Network Team</option>
+                            <option value="Requesting additional information from the user to proceed.">Requesting User Information</option>
+                            <option value="This is a known issue. A workaround has been applied.">Known Issue / Workaround</option>
+                            <option value="We have approved a replacement device. Please collect it from the IT desk.">Hardware / Replacement approved</option>
+                            <option value="The application has been updated to the latest version. Please close and reopen it.">Software / Update applied</option>
+                            <option value="We secured the affected account and reviewed recent activity. Please set a new password at the next login.">Security / Account secured</option>
+                            <option value="Mail delivery has been restored on the server. Please resend anything that was stuck.">Mail / Delivery restored</option>
+                            <option value="The connectivity fault is resolved on our side. Please reconnect and confirm you are back online.">Network / Connectivity restored</option>
+                            <option value="The fix is now in place. Please confirm the issue is resolved, or reply and we will reopen it.">Fix applied / Awaiting confirmation</option>
+                            <option value="This ticket is now marked resolved. If the issue recurs, please open a new ticket and reference this one.">Resolved / Reopen reference</option>
+                        </select>
+                        <label style="display:flex;align-items:center;gap:5px;white-space:nowrap;font-size:0.82rem;cursor:pointer;" title="Staff-only note. The requester never sees it or gets notified.">
+                            <input type="checkbox" id="workspaceCommentInternal">
+                            Internal note
+                        </label>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <input type="text" id="workspaceCommentInput" placeholder="Add a reply..." style="flex:1;padding:10px;border:1px solid #ddd;border-radius:6px;" required>
+                        <button type="submit" class="btn-primary btn-sm">Send</button>
+                    </div>
+                </form>
+            </div>
+
+            <div style="border-top:1px solid #f0f0f0;padding-top:15px;margin-top:5px;">
+                <h3 style="margin-bottom:12px;">Attachments</h3>
+                <div id="workspaceAttachmentList"><p style="color:#999;">Loading...</p></div>
+                <form id="workspaceAttachmentForm" style="margin-top:12px;display:flex;gap:10px;align-items:center;">
+                    <input type="file" id="workspaceAttachmentInput" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem;">
+                    <button type="submit" class="btn-primary btn-sm"><i data-icon="upload" aria-hidden="true"></i> Upload</button>
+                </form>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;gap:10px;margin-top:20px;">
+                <button type="button" class="btn-danger" id="workspaceDeleteBtn">
+                    <i data-icon="trash" aria-hidden="true"></i> Delete Ticket
+                </button>
+                <button type="submit" form="ticketWorkspaceForm" class="btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/shared/js/api.js"></script>
+    <script src="/shared/js/events.js"></script>
+    <script src="/shared/js/icons.js"></script>
+    <script src="/shared/js/password-field.js"></script>
+    <script src="/shared/js/notification-prefs.js"></script>
+    <script src="/admin/js/app.js"></script>
+</body>
+</html>

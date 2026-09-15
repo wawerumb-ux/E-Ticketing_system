@@ -1,0 +1,102 @@
+version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ict_ticketing}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend
+
+  flask:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-ict_ticketing}
+    volumes:
+      - uploads:/app/uploads
+      # Read-only mount so app.py can import the idle monitoring hook from
+      # scripts/monitoring_hook.py (no-op unless MONITORING_ENABLED=true).
+      - ./scripts:/app/scripts:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - flask
+    networks:
+      - backend
+
+  # Free Cloudflare quick tunnel (default, zero cost): exposes the app at a
+  # random *.trycloudflare.com URL printed in the container logs.
+  # CUSTOM DOMAIN — IDLE — costs money when enabled. Set CUSTOM_DOMAIN_ENABLED=true
+  # and CF_TUNNEL_TOKEN in .env, then remove/override the quick-tunnel command
+  # (see cloudflared/config.yml.example for the named-tunnel block).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://nginx:80
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:-}
+    depends_on:
+      - nginx
+    networks:
+      - backend
+
+  # IDLE — costs money when enabled. Set MONITORING_ENABLED=true in .env.
+  # Paid sidecar: a tiny heartbeat agent that posts to MONITORING_ENDPOINT.
+  # Lives under the "paid" profile so `docker compose up` (no profile) starts
+  # ONLY the free stack. Start it explicitly with:
+  #   docker compose --profile paid up -d monitoring-agent
+  monitoring-agent:
+    profiles: ["paid"]
+    image: python:3.11-slim
+    command: ["python", "-m", "monitoring_hook"]
+    working_dir: /app
+    env_file:
+      - .env
+    volumes:
+      - ./scripts/monitoring_hook.py:/app/monitoring_hook.py:ro
+    restart: "no"
+    networks:
+      - backend
+
+volumes:
+  mysql_data:
+    driver: local
+  uploads:
+    driver: local
+
+networks:
+  backend:
+    driver: bridge

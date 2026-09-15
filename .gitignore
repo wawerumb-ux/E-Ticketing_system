@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+backend/venv_311/
+backend/.venv/
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend runtime / uploads
+backend/uploads/
+backend/instance/
+
+# Secrets
+backend/.env
+*.pem
+*.key
+
+# Docker
+docker-compose.override.yml

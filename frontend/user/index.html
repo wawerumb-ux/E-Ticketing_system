@@ -1,0 +1,605 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ICT E-Ticketing System - User Portal</title>
+    <!-- IDLE — costs money when enabled (paid push provider). Runtime flag read
+         by maybePushNotify() in user/js/app.js. False = no push, no network call. -->
+    <script>window.__PUSH_ENABLED = false;</script>
+    <link rel="stylesheet" href="/shared/css/style.css">
+    <script>
+        /* Pre-paint restore (FOUC guard): theme + sidebar state on <html>.
+           No network, no layout work. SidebarManager syncs from here. */
+        (function () {
+            try {
+                var el = document.documentElement;
+                var t = localStorage.getItem('user_theme');
+                if (!t) { var legacy = localStorage.getItem('theme'); if (legacy) { t = legacy; localStorage.setItem('user_theme', legacy); } }
+                var themes = { 'daylight': 1, 'quiet-light': 1, 'solarized-light': 1, 'abyss': 1, 'night-owl': 1, 'high-contrast': 1, 'flexoki-light': 1, 'catppuccin-latte': 1, 'catppuccin-mocha': 1, 'nord': 1, 'gruvbox': 1 };
+                var name = themes[t] ? t : (t === 'dark' ? 'abyss' : 'daylight');
+                el.setAttribute('data-theme', name);
+                if (name === 'abyss' || name === 'night-owl' || name === 'high-contrast' || name === 'catppuccin-mocha' || name === 'nord' || name === 'gruvbox') el.classList.add('dark-theme');
+                var state = localStorage.getItem('sidebar:state');
+                if (!state) {
+                    if (localStorage.getItem('sidebarMode') === 'rail' || sessionStorage.getItem('sidebarCollapsed') === 'true') state = 'mini';
+                    else state = 'expanded';
+                }
+                var small = window.matchMedia('(max-width: 768px)').matches;
+                var midsize = !small && window.matchMedia('(max-width: 1024px)').matches;
+                if (!small && (midsize || state === 'mini')) el.classList.add('sidebar-mini');
+            } catch (e) {}
+        })();
+    </script>
+    <script src="/vendor/qrcode.min.js"></script>
+</head>
+<body>
+    <div id="offlineBanner" style="display:none;align-items:center;justify-content:center;gap:8px;padding:10px 16px;background:var(--danger,#dc2626);color:#ffffff;font-size:0.9rem;font-weight:500;">
+        <i data-icon="wifi" aria-hidden="true" style="transform:rotate(180deg);"></i> You are offline — your ticket submission will be saved and sent when you reconnect.
+    </div>
+    <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar" tabindex="-1">
+            <div class="sidebar-header">
+                <h2><button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="false"><i data-icon="ticket-alt" aria-hidden="true"></i></button><span>ICT Tickets</span></h2>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="active" data-section="dashboard">
+                        <a href="#/dashboard" aria-current="page"><i data-icon="chart-pie" aria-hidden="true"></i><span>Dashboard</span></a>
+                    </li>
+                    <li data-section="tickets">
+                        <a href="#/tickets"><i data-icon="list" aria-hidden="true"></i><span>All Tickets</span></a>
+                    </li>
+                    <li data-section="create">
+                        <a href="#/create"><i data-icon="plus-circle" aria-hidden="true"></i><span>Create Ticket</span></a>
+                    </li>
+                    <li data-section="knowledge">
+                        <a href="#/knowledge"><i data-icon="book" aria-hidden="true"></i><span>Knowledge Base</span></a>
+                    </li>
+                    <li data-section="profile">
+                        <a href="#/profile"><i data-icon="user" aria-hidden="true"></i><span>Profile</span></a>
+                    </li>
+                    <li data-section="settings">
+                        <a href="#/settings"><i data-icon="sliders-h" aria-hidden="true"></i><span>Settings</span></a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-avatar" id="sidebarAvatar" aria-hidden="true">U</div>
+                <div class="identity-text">
+                    <span class="identity-name" id="sidebarUserName">User</span>
+                    <span class="identity-role" id="sidebarUserRole">User</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left">
+                    <button id="toggleSidebarMobile" class="btn-icon header-menu-toggle" type="button" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false"><i data-icon="bars" aria-hidden="true"></i></button>
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <button class="btn-secondary btn-sm" id="focusModeToggleBtn" data-tooltip="Reduce visual clutter and motion">
+                        <i data-icon="eye" aria-hidden="true"></i> Focus Mode
+                    </button>
+                    <button type="button" class="notification-badge" id="notificationBell" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" data-tooltip="Notifications">
+                        <i data-icon="bell" aria-hidden="true"></i>
+                        <span class="badge" id="notificationBadge" style="display:none;">0</span>
+                    </button>
+                    <span class="visually-hidden" id="notificationA11yAnnounce" aria-live="polite"></span>
+                    <button class="btn-secondary btn-sm" id="logoutBtn">
+                        <i data-icon="sign-out-alt" aria-hidden="true"></i> Log Out
+                    </button>
+                </div>
+            </header>
+
+            <div class="notification-dropdown" id="notificationDropdown" style="display:none;" role="dialog" aria-modal="false" aria-labelledby="notificationTitle">
+                <div class="notification-dropdown-header">
+                    <span class="notification-title" id="notificationTitle">
+                        Notifications
+                        <span class="notification-unread-pill" id="notificationUnreadPill" hidden></span>
+                    </span>
+                    <button type="button" class="notification-header-action" id="markAllRead" onclick="app.markAllNotificationsRead()">Mark all read</button>
+                </div>
+                <div class="notification-tabs" aria-label="Filter notifications">
+                    <button type="button" class="notification-tab" id="notificationTabAll" aria-pressed="true" data-filter="all" onclick="app.setNotificationFilter('all')">All</button>
+                    <button type="button" class="notification-tab" id="notificationTabUnread" aria-pressed="false" data-filter="unread" onclick="app.setNotificationFilter('unread')">Unread <span class="notification-tab-count" id="notificationUnreadTabCount" hidden></span></button>
+                </div>
+                <div id="notificationList" aria-label="Notifications list"></div>
+                <div class="notification-footer">
+                    <span class="notification-last-synced" id="notificationLastSynced" hidden></span>
+                </div>
+            </div>
+
+            <section id="dashboard" class="content-section active">
+                <div class="welcome-banner">
+                    <h2 id="welcomeMessage">Welcome back!</h2>
+                    <p>How can we help you today?</p>
+                </div>
+
+                <div class="quick-actions">
+                    <div class="quick-action-btn" id="quickReportIssue">
+                        <i data-icon="plus-circle" aria-hidden="true"></i>
+                        <div>
+                            <strong>Report an Issue</strong>
+                            <div style="font-size:0.8rem;color:#999;">Submit a new support ticket</div>
+                        </div>
+                    </div>
+                    <div class="quick-action-btn" id="quickViewTickets">
+                        <i data-icon="list" aria-hidden="true"></i>
+                        <div>
+                            <strong>View My Tickets</strong>
+                            <div style="font-size:0.8rem;color:#999;">See all your requests</div>
+                        </div>
+                    </div>
+                    <div class="quick-action-btn" id="quickKnowledgeBase">
+                        <i data-icon="book" aria-hidden="true"></i>
+                        <div>
+                            <strong>Knowledge Base</strong>
+                            <div style="font-size:0.8rem;color:#999;">Find answers fast</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="personal-panels">
+                    <div class="chart-card">
+                        <h3>My Active Tickets</h3>
+                        <div id="myActiveTickets">
+                            <p style="color:#999;">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Recent Updates</h3>
+                        <div id="recentUpdates">
+                            <p style="color:#999;">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-card" style="margin-bottom:30px;">
+                    <h3>Service Status</h3>
+                    <div class="service-status-badge">
+                        <span class="dot"></span> All Systems Operational
+                    </div>
+                    <p style="font-size:0.8rem;color:#999;margin-top:8px;">
+                        Live service monitoring isn't connected yet — this is a placeholder until that integration exists.
+                    </p>
+                </div>
+
+                <div class="chart-card" style="margin-bottom:30px;">
+                    <h3>My Ticket Summary</h3>
+                    <div id="myTicketSummary" style="margin-top:10px;color:#555;">
+                        <p style="color:#999;">Loading...</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tickets" class="content-section">
+                <div class="section-header">
+                    <div class="filter-controls">
+                        <select id="statusFilter">
+                            <option value="all">All Status</option>
+                            <option value="open">Open</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="resolved">Resolved</option>
+                        </select>
+                        <select id="priorityFilter">
+                            <option value="all">All Priority</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                        <input type="text" id="searchTicket" placeholder="Search tickets...">
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+                    <span id="pendingBadge" style="display:none;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-sm,6px);background:var(--warning,#f59e0b);color:#ffffff;font-size:0.8rem;font-weight:600;"></span>
+                    <span id="lastSynced" style="font-size:0.8rem;color:var(--text-muted,#888888);">last synced: —</span>
+                </div>
+                <div class="table-container">
+                    <table class="ticket-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="ticket_number">Ticket # <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th data-sort="title">Title <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th data-sort="category">Category <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th data-sort="priority">Priority <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th data-sort="status">Status <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th>SLA</th>
+                                <th data-sort="assigned_to">Assigned To <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th data-sort="created_at">Created <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticketTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="paginationControls" style="display:flex;justify-content:center;align-items:center;gap:15px;margin-top:20px;"></div>
+            </section>
+
+            <section id="create" class="content-section">
+                <div class="create-ticket-form">
+                    <h2>Create New Ticket</h2>
+                    <form id="ticketForm">
+                        <div class="form-group" id="titleGroup">
+                            <label for="title">Ticket Title *</label>
+                            <input type="text" id="title" required placeholder="Enter ticket title">
+                            <span class="field-error">Please enter a title so we know what to call this ticket.</span>
+                        </div>
+                        <div class="form-group" id="descriptionGroup">
+                            <label for="description">Description *</label>
+                            <textarea id="description" required rows="4" placeholder="Describe the issue..."></textarea>
+                            <span class="field-error">A short description helps us route this faster.</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" id="categoryGroup">
+                                <label for="category">Category *</label>
+                                <select id="category" required>
+                                    <option value="">Select category</option>
+                                </select>
+                                <span class="field-error">Please pick the closest matching category.</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="priority">Priority</label>
+                                <select id="priority">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <i data-icon="paper-plane" aria-hidden="true"></i> Create Ticket
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <section id="knowledge" class="content-section">
+                <div class="section-header">
+                    <div class="filter-controls">
+                        <input type="text" id="kbSearch" placeholder="Search the knowledge base...">
+                        <select id="kbCategoryFilter">
+                            <option value="all">All Categories</option>
+                            <option value="account">Account</option>
+                            <option value="hardware">Hardware</option>
+                            <option value="software">Software</option>
+                            <option value="network">Network</option>
+                            <option value="security">Security</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="kbArticleList" class="personal-panels" style="grid-template-columns: 1fr;">
+                    <p style="color:#999;">Loading...</p>
+                </div>
+                <div class="chart-card" style="text-align:center;margin-top:20px;">
+                    <p style="margin-bottom:10px;">Still need help?</p>
+                    <button class="btn-primary" onclick="app.switchSection('create')">
+                        <i data-icon="plus-circle" aria-hidden="true"></i> Create a Ticket
+                    </button>
+                </div>
+            </section>
+            
+            <section id="profile" class="content-section">
+                <div class="personal-panels" style="grid-template-columns: 1fr 1fr;">
+                    <div class="chart-card" style="grid-column:1 / -1;">
+                        <h3>Account Information</h3>
+                        <p style="font-size:0.85rem;color:#999;margin-bottom:14px;">Update your personal details and profile picture. They are saved on this device and shown in the sidebar and on your tickets.</p>
+                        <div id="accountInfo"><p style="color:#999;">Loading...</p></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Change Password</h3>
+                        <form id="passwordForm">
+                            <div class="form-group password-field" data-password-field data-mode="enter">
+                                <label for="currentPassword">Current Password</label>
+                                <input type="password" id="currentPassword" required autocomplete="current-password">
+                            </div>
+                            <div class="form-group password-field" data-password-field data-mode="create" data-length="16">
+                                <label for="newPassword">New Password</label>
+                                <input type="password" id="newPassword" required minlength="8" autocomplete="new-password">
+                            </div>
+                            <div class="form-group password-field" data-password-field data-mode="confirm">
+                                <label for="confirmPassword">Confirm New Password</label>
+                                <input type="password" id="confirmPassword" required minlength="8" autocomplete="new-password">
+                            </div>
+                            <button type="submit" class="btn-primary">Update Password</button>
+                        </form>
+                    </div>
+                <div class="chart-card">
+                        <h3>Notification Preferences</h3>
+                        <p style="font-size:0.85rem;color:#999;margin-bottom:12px;">Choose how you want to hear about ticket updates and announcements.</p>
+                        <div style="display:flex;flex-direction:column;gap:12px;">
+                            <label style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:12px;">
+                                <span><strong>Email notifications</strong><div style="font-size:0.8rem;color:#999;">Receive ticket updates in your inbox</div></span>
+                                <span class="toggle-switch"><input type="checkbox" id="prefEmail" checked><span class="slider"></span></span>
+                            </label>
+                            <label style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:12px;">
+                                <span><strong>In-app notifications</strong><div style="font-size:0.8rem;color:#999;">Show alerts in the notification bell</div></span>
+                                <span class="toggle-switch"><input type="checkbox" id="prefInApp" checked><span class="slider"></span></span>
+                            </label>
+                            <p id="prefSaveMsg" style="font-size:0.8rem;color:var(--success,#22c55e);display:none;">Preferences saved.</p>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Two-Factor Authentication</h3>
+                        <div id="twofaPanel">
+                            <p style="font-size:0.85rem;color:#999;margin-bottom:12px;">Add an extra layer of security to your account using an authenticator app.</p>
+                            <div id="twofaState"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <h3>Contact IT Support</h3>
+                    <p style="margin-bottom:8px;"><strong>Email:</strong> countyassemblynakuru@gmail.com</p>
+                    <p style="margin-bottom:8px;"><strong>Phone:</strong> <a href="tel:+254700000000">188-ICT SUPPORT</a></p>
+                    <p style="color:#999;font-size:0.85rem;">Update these contact details to match your real ICT team.</p>
+                </div>
+            </section>
+
+            <section id="settings" class="content-section">
+                <div class="personal-panels" style="grid-template-columns: 1fr 1fr;">
+                    <div class="chart-card" style="grid-column:1 / -1;">
+                        <h3>Appearance</h3>
+                        <div class="setting-group">
+                            <div class="setting-row setting-row-stack">
+                            <div class="setting-label">
+                                <strong>Theme</strong>
+                                <p>Stored on this device. Applies to this portal only.</p>
+                            </div>
+                            <div class="theme-picker" id="themeControl" role="radiogroup" aria-label="Theme">
+                                <button type="button" class="theme-card" role="radio" data-theme="daylight" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">Daylight</span>
+                                    <span class="tc-desc">Default light</span>
+                                </button>
+                                <button type="button" class="theme-card" role="radio" data-theme="quiet-light" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">Quiet Light</span>
+                                    <span class="tc-desc">Soft warm white</span>
+                                </button>
+                                <button type="button" class="theme-card" role="radio" data-theme="solarized-light" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">Solarized Light</span>
+                                    <span class="tc-desc">Cream, solarized-inspired</span>
+                                </button>
+                                <button type="button" class="theme-card" role="radio" data-theme="abyss" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">Abyss</span>
+                                    <span class="tc-desc">Deep-navy dark</span>
+                                </button>
+                                <button type="button" class="theme-card" role="radio" data-theme="night-owl" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">Night Owl</span>
+                                    <span class="tc-desc">Warm near-black</span>
+                                </button>
+                                <button type="button" class="theme-card" role="radio" data-theme="high-contrast" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">High Contrast</span>
+                                    <span class="tc-desc">Maximum contrast</span>
+                                </button>
+                                <button type="button" class="theme-card" role="radio" data-theme="flexoki-light" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">Flexoki Light</span>
+                                    <span class="tc-desc">Warm paper-like light</span>
+                                </button>
+                                <button type="button" class="theme-card" role="radio" data-theme="catppuccin-latte" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">Catppuccin Latte</span>
+                                    <span class="tc-desc">Warm off-white light</span>
+                                </button>
+                                <button type="button" class="theme-card" role="radio" data-theme="catppuccin-mocha" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">Catppuccin Mocha</span>
+                                    <span class="tc-desc">Warm muted dark</span>
+                                </button>
+                                <button type="button" class="theme-card" role="radio" data-theme="nord" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">Nord</span>
+                                    <span class="tc-desc">Cool blue-gray dark</span>
+                                </button>
+                                <button type="button" class="theme-card" role="radio" data-theme="gruvbox" aria-checked="false">
+                                    <span class="tc-preview" aria-hidden="true">
+                                        <span class="tc-swatch tc-swatch-surface"></span>
+                                        <span class="tc-swatch tc-swatch-text"></span>
+                                        <span class="tc-swatch tc-swatch-accent"></span>
+                                    </span>
+                                    <span class="tc-name">Gruvbox</span>
+                                    <span class="tc-desc">Warm retro dark</span>
+                                </button>
+                            </div>
+                        </div>
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <strong>Density</strong>
+                                    <p>Compact shows more rows in ticket lists and dashboards.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <div class="segmented" id="densityControl" role="radiogroup" aria-label="Density">
+                                        <button type="button" role="radio" aria-checked="true" data-value="comfortable">Comfortable</button>
+                                        <button type="button" role="radio" aria-checked="false" data-value="compact">Compact</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <strong>Text size</strong>
+                                    <p>Changes how large text appears in the portal.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <div class="segmented" id="textSizeControl" role="radiogroup" aria-label="Text size">
+                                        <button type="button" role="radio" aria-checked="false" data-value="small">Small</button>
+                                        <button type="button" role="radio" aria-checked="true" data-value="default">Default</button>
+                                        <button type="button" role="radio" aria-checked="false" data-value="large">Large</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <strong>Reduce motion</strong>
+                                    <p>Disables animations and transitions, overriding your operating system's setting.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch" title="Reduce motion">
+                                        <input type="checkbox" id="reduceMotionToggle" aria-label="Reduce motion">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Behavior</h3>
+                        <div class="setting-group">
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <strong>Default landing page</strong>
+                                    <p>The section you see first after logging in.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <div class="segmented" id="landingControl" role="radiogroup" aria-label="Default landing page">
+                                        <button type="button" role="radio" aria-checked="true" data-value="dashboard">Dashboard</button>
+                                        <button type="button" role="radio" aria-checked="false" data-value="tickets">My Tickets</button>
+                                        <button type="button" role="radio" aria-checked="false" data-value="knowledge">Knowledge Base</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <strong>Show only my tickets by default</strong>
+                                    <p>Starts the All Tickets list filtered to tickets you created.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch" title="Show only my tickets by default">
+                                        <input type="checkbox" id="myTicketsToggle" aria-label="Show only my tickets by default">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <strong>Rows per page</strong>
+                                    <p>How many tickets appear per page in All Tickets.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <select id="pageSizeSelect" aria-label="Rows per page">
+                                        <option value="10">10</option>
+                                        <option value="25">25</option>
+                                        <option value="50">50</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Privacy &amp; Session</h3>
+                        <div class="setting-group">
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <strong>Auto-logout after inactivity</strong>
+                                    <p>Logs you out of this device after a period of no activity.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <select id="idleLogoutSelect" aria-label="Auto-logout after inactivity">
+                                        <option value="0">Never</option>
+                                        <option value="15">15 minutes</option>
+                                        <option value="30">30 minutes</option>
+                                        <option value="60">1 hour</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="setting-row">
+                                <div class="setting-label">
+                                    <strong>Clear local data</strong>
+                                    <p>Removes saved settings, profile, theme, and any offline submissions waiting to sync. Your tickets on the server are not affected.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <button type="button" class="btn-danger-outline" id="clearLocalDataBtn">
+                                        <i data-icon="trash" aria-hidden="true"></i> Clear local data
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Notifications</h3>
+                        <div id="notificationPrefs" data-notification-prefs></div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    
+
+    <div id="ticketDetailModal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <span class="close" id="closeTicketDetail" aria-label="Close" role="button" tabindex="0">&times;</span>
+            <div id="ticketDetailBody">
+                <!-- populated dynamically -->
+            </div>
+        </div>
+    </div>
+    <script src="/shared/js/api.js"></script>
+    <script src="/shared/js/events.js"></script>
+    <script src="/shared/js/icons.js"></script>
+    <script src="/shared/js/password-field.js"></script>
+    <script src="/shared/js/notification-prefs.js"></script>
+    <script src="/user/js/app.js"></script>
+    <script>
+        // Register the offline-capability service worker. Scope '/' is honoured
+        // because the backend sends Service-Worker-Allowed: / for sw.js.
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/user/sw.js', { scope: '/' }).catch(function (error) {
+                // Non-fatal: the portal works online regardless; offline queueing
+                // still functions because the page catches network errors itself.
+                console.warn('Service worker registration failed:', error);
+            });
+        }
+    </script>
+</body>
+</html>

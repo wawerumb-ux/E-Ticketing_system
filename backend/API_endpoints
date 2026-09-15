@@ -1,0 +1,15 @@
+GET /api/tickets - Get all tickets
+
+POST /api/tickets - Create new ticket
+
+GET /api/tickets/:id - Get specific ticket
+
+PUT /api/tickets/:id - Update ticket
+
+DELETE /api/tickets/:id - Delete ticket
+
+GET /api/dashboard/stats - Get statistics
+
+GET /api/users - Get all users
+
+POST /api/users - Create new user

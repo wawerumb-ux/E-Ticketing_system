@@ -1,0 +1,23 @@
+id (INT, PRIMARY KEY)
+
+ticket_number (VARCHAR, UNIQUE)
+
+title (VARCHAR)
+
+description (TEXT)
+
+category (VARCHAR)
+
+priority (VARCHAR)
+
+status (VARCHAR)
+
+assigned_to (VARCHAR)
+
+created_by (VARCHAR)
+
+created_at (DATETIME)
+
+updated_at (DATETIME)
+
+resolution (TEXT)

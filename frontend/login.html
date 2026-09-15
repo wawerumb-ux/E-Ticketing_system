@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ICT E-Ticketing System - Login</title>
+<link rel="stylesheet" href="/shared/css/style.css">
+</head>
+
+<body class="auth-fog" style="font-size:15px">
+
+  <div id="toast-container" class="auth-toast"></div>
+
+  <div class="reveal-once auth-shell">
+
+    <!-- ============ BRAND PANEL ============ -->
+    <section class="auth-brand auth-panel">
+      <div style="display:flex; align-items:center">
+        <svg class="auth-logo" width="26" height="30" viewBox="0 0 28 32" fill="none" role="img" aria-label="ICT E-Ticketing logo">
+          <path d="M2 30V14C2 7.373 7.373 2 14 2C20.627 2 26 7.373 26 14V30" stroke="var(--auth-brass)" stroke-width="1.6"/>
+        </svg>
+      </div>
+
+      <div class="auth-panel-intro">
+        <h1 id="panel-headline" class="auth-headline">
+          Good to see you again.
+        </h1>
+        <p id="panel-body" class="auth-headline-body">
+          
+        </p>
+      </div>
+
+      <p class="auth-footnote">
+        Encrypted in transit and at rest.
+      </p>
+
+      <svg viewBox="0 0 420 420" class="auth-graph" aria-hidden="true">
+        <g stroke="var(--auth-brass)" stroke-width="1" fill="none">
+          <line x1="60" y1="340" x2="180" y2="260"/>
+          <line x1="180" y1="260" x2="300" y2="300"/>
+          <line x1="180" y1="260" x2="220" y2="150"/>
+          <line x1="220" y1="150" x2="340" y2="120"/>
+          <line x1="220" y1="150" x2="140" y2="80"/>
+          <line x1="300" y1="300" x2="380" y2="250"/>
+        </g>
+        <g fill="var(--auth-brass)">
+          <circle cx="60" cy="340" r="3" opacity="0.6"/>
+          <circle cx="300" cy="300" r="3" opacity="0.6"/>
+          <circle cx="340" cy="120" r="3" opacity="0.6"/>
+          <circle cx="140" cy="80" r="3" opacity="0.6"/>
+          <circle cx="380" cy="250" r="3" opacity="0.6"/>
+        </g>
+        <circle cx="180" cy="260" r="5" fill="var(--auth-brass)"/>
+        <circle cx="180" cy="260" r="11" fill="none" stroke="var(--auth-brass)" stroke-width="1" opacity="0.7"/>
+      </svg>
+    </section>
+
+    <!-- ============ FORM PANEL ============ -->
+    <section class="auth-form-panel">
+      <div class="auth-card">
+
+        <!-- Tabs -->
+        <div id="tab-row" class="auth-tab-row" role="tablist">
+          <button id="tab-signin" type="button" role="tab" aria-selected="true" aria-controls="signin-form"
+            class="auth-tab">Sign in</button>
+          <button id="tab-signup" type="button" role="tab" aria-selected="false" aria-controls="signup-form"
+            class="auth-tab">Create account</button>
+          <span id="tab-underline" class="auth-tab-underline"></span>
+        </div>
+
+        <!-- ============ SIGN IN ============ -->
+        <form id="signin-form" novalidate class="auth-form">
+          <div>
+            <label for="signin-username" class="auth-field-label">Username</label>
+            <div class="auth-input-wrap">
+              <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+              <input id="signin-username" name="username" type="text" autocomplete="username" placeholder="e.g. admin"
+                class="auth-input">
+            </div>
+            <p id="signin-username-error" class="auth-error" hidden role="alert"></p>
+          </div>
+
+          <div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem">
+              <label for="signin-password" class="auth-field-label" style="margin-bottom:0">Password</label>
+              <button type="button" id="forgot-password" class="auth-text-link">Forgot password?</button>
+            </div>
+            <div class="password-field" data-password-field data-mode="enter">
+              <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+              <input id="signin-password" name="password" type="password" autocomplete="current-password" minlength="8" placeholder="••••••••" class="auth-input">
+            </div>
+            <p id="signin-password-error" class="auth-error" hidden role="alert"></p>
+          </div>
+
+          <label class="auth-checkbox-row">
+            <input type="checkbox" id="signin-remember">
+            <span class="auth-checkbox-label">Remember me on this device</span>
+          </label>
+
+          <!-- Turnstile anti-automation. Site key is public — paste it from the
+               Cloudflare dashboard (Turnstile > widget). Empty = dev mode: the
+               slot is hidden and the backend skips verification when the secret
+               is unset. Height is reserved so the widget never shifts the form. -->
+          <div id="cf-turnstile-signin"
+               class="cf-turnstile-wrap"
+               data-sitekey=""
+               style="min-height:65px"></div>
+          <p id="cf-turnstile-signin-error" class="auth-error" hidden role="alert" aria-live="polite">
+            Verification could not load — check your connection.
+          </p>
+
+          <button type="submit" id="signin-submit" class="auth-submit">
+            <span class="signin-spinner" hidden><span class="spinner-icon"></span></span>
+            <span class="submit-label">Sign in</span>
+            <svg class="auth-submit-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </form>
+
+        <!-- ============ TWO-FACTOR STEP ============ -->
+        <form id="twofa-form" novalidate class="auth-form" hidden>
+          <div>
+            <h2 class="auth-invalid-heading">Two-factor authentication</h2>
+            <p class="auth-invalid-body">Enter the 6-digit verification code from your authenticator app.</p>
+          </div>
+          <div>
+            <label for="twofa-code" class="auth-field-label">Verification code</label>
+            <div class="auth-input-wrap">
+              <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+              <input id="twofa-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••"
+                class="auth-input auth-input-otp">
+            </div>
+            <p id="twofa-code-error" class="auth-error" hidden role="alert"></p>
+          </div>
+          <button type="submit" id="twofa-submit" class="auth-submit">
+            <span class="twofa-spinner" hidden><span class="spinner-icon"></span></span>
+            <span class="submit-label">Verify code</span>
+            <svg class="auth-submit-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+          <p class="auth-back-link">
+            <button type="button" id="twofa-back">Back to sign in</button>
+          </p>
+        </form>
+
+        <!-- ============ SIGN UP ============ -->
+        <form id="signup-form" novalidate class="auth-form" hidden>
+          <div>
+            <label for="signup-name" class="auth-field-label">Full name</label>
+            <div class="auth-input-wrap">
+              <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+              <input id="signup-name" name="name" type="text" autocomplete="name" minlength="2" placeholder="Jordan Ellis"
+                class="auth-input">
+            </div>
+            <p id="signup-name-error" class="auth-error" hidden role="alert"></p>
+          </div>
+
+          <div>
+            <label for="signup-username" class="auth-field-label">Username</label>
+            <div class="auth-input-wrap">
+              <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+              <input id="signup-username" name="username" type="text" autocomplete="username" minlength="2" placeholder="e.g. jordan"
+                class="auth-input">
+            </div>
+            <p id="signup-username-error" class="auth-error" hidden role="alert"></p>
+          </div>
+
+          <div>
+            <label for="signup-email" class="auth-field-label">Email address</label>
+            <div class="auth-input-wrap">
+              <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+              <input id="signup-email" name="email" type="email" autocomplete="email" placeholder="you@example.com"
+                class="auth-input">
+            </div>
+            <p id="signup-email-error" class="auth-error" hidden role="alert"></p>
+          </div>
+
+          <div>
+            <label for="signup-password" class="auth-field-label">Create a password</label>
+            <div class="password-field" data-password-field data-mode="create" data-length="16">
+              <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+              <input id="signup-password" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="••••••••" class="auth-input">
+            </div>
+            <p id="signup-password-error" class="auth-error" hidden role="alert"></p>
+          </div>
+
+          <label class="auth-checkbox-row auth-checkbox-terms">
+            <input type="checkbox" id="signup-terms">
+            <span class="auth-checkbox-terms-text">
+              I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>
+            </span>
+          </label>
+          <p id="signup-terms-error" class="auth-error" hidden role="alert" style="margin-top:-0.75rem"></p>
+
+          <button type="submit" id="signup-submit" class="auth-submit">
+            <span class="signup-spinner" hidden><span class="spinner-icon"></span></span>
+            <span class="submit-label">Create account</span>
+            <svg class="auth-submit-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+        </form>
+
+        <!-- ============ FORGOT PASSWORD ============ -->
+        <form id="forgot-form" novalidate class="auth-form" hidden>
+          <div>
+            <h2 class="auth-invalid-heading">Reset your password</h2>
+            <p class="auth-invalid-body">Enter the email address on your account and we'll send you a reset link.</p>
+          </div>
+          <div>
+            <label for="forgot-email" class="auth-field-label">Email address</label>
+            <div class="auth-input-wrap">
+              <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+              <input id="forgot-email" name="email" type="email" autocomplete="email" placeholder="you@example.com"
+                class="auth-input">
+            </div>
+            <p id="forgot-email-error" class="auth-error" hidden role="alert"></p>
+          </div>
+          <button type="submit" id="forgot-submit" class="auth-submit">
+            <span class="forgot-spinner" hidden><span class="spinner-icon"></span></span>
+            <span class="submit-label">Send reset link</span>
+            <svg class="auth-submit-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+          <p class="auth-back-link">
+            <button type="button" id="forgot-cancel">Back to sign in</button>
+          </p>
+        </form>
+
+        <!-- Divider -->
+        <div id="divider-block" class="auth-divider">
+          <div class="auth-divider-label">
+            <span class="auth-divider-text">Or continue with</span>
+          </div>
+        </div>
+
+        <!-- Social: Google, Facebook, Instagram -->
+        <div id="social-block" class="auth-socials">
+          <button type="button" data-provider="Google" class="auth-social-btn">
+            <svg class="auth-social-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.761H12.545z"/></svg>
+            Google
+          </button>
+          <button type="button" data-provider="Facebook" class="auth-social-btn">
+            <svg class="auth-social-icon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            Facebook
+          </button>
+          <button type="button" data-provider="Instagram" class="auth-social-btn">
+            <svg class="auth-social-icon" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C8.74 0 8.333.015 7.053.072 5.775.132 4.905.333 4.14.63c-.789.306-1.459.717-2.126 1.384S.935 3.35.63 4.14C.333 4.905.131 5.775.072 7.053.012 8.333 0 8.74 0 12s.015 3.667.072 4.947c.06 1.277.261 2.148.558 2.913.306.788.717 1.459 1.384 2.126.667.666 1.336 1.079 2.126 1.384.766.296 1.636.499 2.913.558C8.333 23.988 8.74 24 12 24s3.667-.015 4.947-.072c1.277-.06 2.148-.262 2.913-.558.788-.306 1.459-.718 2.126-1.384.666-.667 1.079-1.335 1.384-2.126.296-.765.499-1.636.558-2.913.06-1.28.072-1.687.072-4.947s-.015-3.667-.072-4.947c-.06-1.277-.262-2.149-.558-2.913-.306-.789-.718-1.459-1.384-2.126C21.319 1.347 20.651.935 19.86.63c-.765-.297-1.636-.499-2.913-.558C15.667.012 15.26 0 12 0zm0 2.16c3.203 0 3.585.016 4.85.071 1.17.055 1.805.249 2.227.415.562.217.96.477 1.382.896.419.42.679.819.896 1.381.164.422.36 1.057.413 2.227.057 1.266.07 1.646.07 4.85s-.015 3.585-.074 4.85c-.061 1.17-.256 1.805-.421 2.227-.224.562-.479.96-.899 1.382-.419.419-.824.679-1.38.896-.42.164-1.065.36-2.235.413-1.274.057-1.649.07-4.859.07-3.211 0-3.586-.015-4.859-.074-1.171-.061-1.816-.256-2.236-.421-.569-.224-.96-.479-1.379-.899-.421-.419-.69-.824-.9-1.38-.165-.42-.359-1.065-.42-2.235-.045-1.26-.061-1.649-.061-4.844 0-3.196.016-3.586.061-4.861.061-1.17.255-1.814.42-2.234.21-.57.479-.96.9-1.381.419-.419.81-.689 1.379-.898.42-.166 1.051-.361 2.221-.421 1.275-.045 1.65-.06 4.859-.06l.045.03zm0 3.678a6.162 6.162 0 100 12.324 6.162 6.162 0 100-12.324zM12 16c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm7.846-10.405a1.441 1.441 0 11-2.882 0 1.441 1.441 0 012.882 0z"/></svg>
+            Instagram
+          </button>
+        </div>
+
+      </div>
+    </section>
+  </div>
+
+<script src="/shared/js/api.js"></script>
+<script src="/shared/js/auth.js"></script>
+<script src="/shared/js/icons.js"></script>
+<script src="/shared/js/password-field.js"></script>
+<script>
+(function(){
+  var $ = _auth$;
+
+  // ---------- Rate limiting ----------
+  var rateLimit = { attempts: 0, lastAttempt: 0, maxAttempts: 5, windowMs: 60000, blockUntil: 0 };
+  function checkRateLimit(){
+    var now = Date.now();
+    if (now - rateLimit.lastAttempt > rateLimit.windowMs) rateLimit.attempts = 0;
+    if (now < rateLimit.blockUntil){
+      showToast('Too many attempts. Try again in ' + Math.ceil((rateLimit.blockUntil - now)/1000) + 's.', 'warning');
+      return false;
+    }
+    if (rateLimit.attempts >= rateLimit.maxAttempts){
+      rateLimit.blockUntil = now + 30000;
+      showToast('Too many attempts. Please wait 30s before trying again.', 'warning');
+      return false;
+    }
+    return true;
+  }
+  function registerAttempt(){ rateLimit.attempts++; rateLimit.lastAttempt = Date.now(); }
+
+  // ---------- Turnstile (lazy-loaded) ----------
+  // Login needs a network connection anyway, so the managed widget from
+  // challenges.cloudflare.com is a narrow, documented O1 exception. It loads
+  // asynchronously and never blocks first paint of the form.
+  var cfSigninWrap = $('cf-turnstile-signin');
+  var cfSigninErr  = $('cf-turnstile-signin-error');
+  var cfSigninKey  = cfSigninWrap.getAttribute('data-sitekey') || '';
+
+  function showTurnstileError(){ cfSigninErr.removeAttribute('hidden'); }
+
+  function initTurnstile(){
+    if (!cfSigninKey || !window.turnstile) return;
+    try { window.turnstile.render(cfSigninWrap, { sitekey: cfSigninKey }); }
+    catch (e){ showTurnstileError(); }
+  }
+
+  if (cfSigninKey){
+    window.onloadTurnstileCallback = initTurnstile;
+    var cfScript = document.createElement('script');
+    cfScript.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback';
+    cfScript.async = true;
+    cfScript.onerror = showTurnstileError;
+    document.head.appendChild(cfScript);
+  } else {
+    // Dev mode: no site key configured. The backend skips verification when
+    // CF_TURNSTILE_SECRET_KEY is empty, so hide the reserved slot entirely.
+    cfSigninWrap.style.display = 'none';
+  }
+
+  // ---------- Validation ----------
+  var validEmail = function(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); };
+  var validPassword = function(v){ return v.length >= 8; };
+  var validName = function(v){ return v.trim().length >= 2; };
+
+  // ---------- Tabs ----------
+  var tabSignin   = $('tab-signin');
+  var tabSignup   = $('tab-signup');
+  var underline   = $('tab-underline');
+  var signinForm  = $('signin-form');
+  var signupForm  = $('signup-form');
+  var forgotForm  = $('forgot-form');
+  var twofaForm   = $('twofa-form');
+  var tabRow      = $('tab-row');
+  var dividerBlock = $('divider-block');
+  var socialBlock  = $('social-block');
+  var panelHeadline = $('panel-headline');
+  var panelBody     = $('panel-body');
+
+  var copy = {
+    signin: { headline: 'Good to see you again.', body: 'Pick up your projects right where you left them.' },
+    signup: { headline: "Let's get you set up.", body: 'Create an account to start organizing your work in one place.' }
+  };
+
+  function moveUnderline(el){
+    underline.style.width = el.offsetWidth + 'px';
+    underline.style.left  = el.offsetLeft  + 'px';
+  }
+
+  function showForgot(show){
+    var isShow = !!show;
+    tabRow.toggleAttribute('hidden', isShow);
+    signinForm.toggleAttribute('hidden', isShow);
+    signupForm.setAttribute('hidden', '');
+    forgotForm.toggleAttribute('hidden', !isShow);
+    dividerBlock.toggleAttribute('hidden', isShow);
+    socialBlock.toggleAttribute('hidden', isShow);
+    if (isShow){
+      panelHeadline.textContent = 'Hold on a sec.';
+      panelBody.textContent     = 'We\u2019ll email you a link to reset your password.';
+    } else {
+      tabSignin.setAttribute('aria-selected', 'true');
+      tabSignup.setAttribute('aria-selected', 'false');
+      tabSignin.className = 'auth-tab'; tabSignin.setAttribute('aria-selected','true');
+      tabSignup.className = 'auth-tab'; tabSignup.setAttribute('aria-selected','false');
+      signinForm.removeAttribute('hidden');
+      moveUnderline(tabSignin);
+      panelHeadline.textContent = copy.signin.headline;
+      panelBody.textContent     = copy.signin.body;
+      forgotForm.reset();
+    }
+    hideFieldError('forgot-email-error');
+  }
+
+  function switchForm(type){
+    var isSignin = type === 'signin';
+    tabSignin.setAttribute('aria-selected', String(isSignin));
+    tabSignup.setAttribute('aria-selected', String(!isSignin));
+    tabSignin.className  = 'auth-tab';
+    tabSignup.className  = 'auth-tab';
+    signinForm.toggleAttribute('hidden', !isSignin);
+    signupForm.toggleAttribute('hidden', isSignin);
+    moveUnderline(isSignin ? tabSignin : tabSignup);
+    panelHeadline.textContent = copy[type].headline;
+    panelBody.textContent     = copy[type].body;
+    signinForm.reset(); signupForm.reset();
+    ['signin-username-error','signin-password-error','signup-name-error',
+     'signup-username-error','signup-email-error','signup-password-error','signup-terms-error']
+      .forEach(hideFieldError);
+  }
+
+  tabSignin.addEventListener('click',  function(){ switchForm('signin'); });
+  tabSignup.addEventListener('click',  function(){ switchForm('signup'); });
+  window.addEventListener('load',  function(){ moveUnderline(tabSignin); });
+  window.addEventListener('resize', function(){ moveUnderline(tabSignin.getAttribute('aria-selected')==='true' ? tabSignin : tabSignup); });
+
+  // ---------- Forgot password / social ----------
+  $('forgot-password').addEventListener('click', function(){ showForgot(true); });
+  $('forgot-cancel').addEventListener('click',   function(){ showForgot(false); });
+
+  forgotForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var email = $('forgot-email').value.trim();
+    if (!validEmail(email)){ showFieldError('forgot-email-error', 'Enter a valid email address.'); return; }
+    hideFieldError('forgot-email-error');
+    var btn = $('forgot-submit'); btn.disabled = true;
+    document.querySelector('.forgot-spinner').removeAttribute('hidden');
+    AuthAPI.forgotPassword(email)
+      .then(function(data){
+        btn.disabled = false; document.querySelector('.forgot-spinner').setAttribute('hidden', '');
+        showToast(data.message || 'If an account exists with that email, a reset link has been sent.', 'success');
+        showForgot(false);
+      })
+      .catch(function(err){
+        btn.disabled = false; document.querySelector('.forgot-spinner').setAttribute('hidden', '');
+        showToast(err.message || 'Request failed. Please try again.', 'error');
+      });
+  });
+
+  document.querySelectorAll('.auth-social-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      window.location.href = '/api/auth/' + btn.dataset.provider.toLowerCase() + '/login?redirect=' + encodeURIComponent('/user');
+    });
+  });
+
+  // ---------- Complete OAuth login ----------
+  (function finishOAuth(){
+    if (!window.location.hash) return;
+    if (!window.location.hash.includes('access_token')) {
+      var err = window.location.hash.match(/social_error=([^&]*)/);
+      if (err) showToast('Social sign-in failed: ' + decodeURIComponent(err[1]).replace(/_/g, ' ') + '.', 'error');
+      return;
+    }
+    var params = new URLSearchParams(window.location.hash.substring(1));
+    var access  = params.get('access_token');
+    var refresh = params.get('refresh_token');
+    var redirectTarget = params.get('redirect') || '/user';
+    if (access) {
+      AuthAPI.setTokens(access, refresh);
+      showToast('Signed in with social account. Redirecting...', 'success');
+      setTimeout(function(){ window.location.href = redirectTarget; }, 800);
+    }
+  })();
+
+  // ---------- Submit helpers ----------
+  function setSubmitting(formPrefix, submitting){
+    var btn = $(formPrefix + '-submit');
+    var spinner = document.querySelector('.' + formPrefix + '-spinner');
+    btn.disabled = submitting;
+    spinner.toggleAttribute('hidden', !submitting);
+  }
+
+  // ---------- SIGN IN ----------
+  signinForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (!checkRateLimit()) return;
+    var username = $('signin-username').value.trim();
+    var password = $('signin-password').value;
+    var valid = true;
+    if (!username){ showFieldError('signin-username-error', 'Username is required.'); valid = false; }
+    else hideFieldError('signin-username-error');
+    if (!validPassword(password)){ showFieldError('signin-password-error', 'Password must be at least 8 characters.'); valid = false; }
+    else hideFieldError('signin-password-error');
+    if (!valid){ registerAttempt(); showToast('Check the highlighted fields and try again.', 'error'); return; }
+    setSubmitting('signin', true);
+    AuthAPI.login(username, password)
+      .then(function(user){
+        setSubmitting('signin', false);
+        if (user && user.needs2fa){
+          rateLimit.attempts = 0;
+          signinForm.setAttribute('hidden', '');
+          dividerBlock.setAttribute('hidden', '');
+          socialBlock.setAttribute('hidden', '');
+          tabRow.setAttribute('hidden', '');
+          twofaForm.removeAttribute('hidden');
+          panelHeadline.textContent = 'Almost there.';
+          panelBody.textContent     = 'Verify with your authenticator app to finish signing in.';
+          $('twofa-code').value = '';
+          setTimeout(function(){ $('twofa-code').focus(); }, 50);
+          return;
+        }
+        rateLimit.attempts = 0;
+        showToast('Signed in successfully. Redirecting...', 'success');
+        setTimeout(function(){ window.location.href = (user.role === 'admin') ? '/admin' : '/user'; }, 800);
+      })
+      .catch(function(err){
+        setSubmitting('signin', false); registerAttempt();
+        showToast(err.message || 'Invalid credentials. Please try again.', 'error');
+      });
+  });
+
+  // ---------- TWO-FACTOR ----------
+  twofaForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    var code = $('twofa-code').value.trim();
+    if (!/^\d{6}$/.test(code)){ showFieldError('twofa-code-error', 'Enter the 6-digit code from your authenticator app.'); return; }
+    hideFieldError('twofa-code-error');
+    setSubmitting('twofa', true);
+    AuthAPI.login2fa(code)
+      .then(function(user){
+        setSubmitting('twofa', false);
+        showToast('Signed in successfully. Redirecting...', 'success');
+        setTimeout(function(){ window.location.href = (user.role === 'admin') ? '/admin' : '/user'; }, 800);
+      })
+      .catch(function(err){
+        setSubmitting('twofa', false);
+        showToast(err.message || 'Invalid verification code. Please try again.', 'error');
+        $('twofa-code').value = ''; $('twofa-code').focus();
+      });
+  });
+  $('twofa-back').addEventListener('click', function(){
+    sessionStorage.removeItem('pending_token');
+    twofaForm.setAttribute('hidden', '');
+    tabRow.removeAttribute('hidden');
+    dividerBlock.removeAttribute('hidden');
+    socialBlock.removeAttribute('hidden');
+    switchForm('signin');
+  });
+
+  // ---------- SIGN UP ----------
+  signupForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (!checkRateLimit()) return;
+    var name     = $('signup-name').value;
+    var username = $('signup-username').value.trim();
+    var email    = $('signup-email').value.trim();
+    var password = $('signup-password').value;
+    var terms    = $('signup-terms').checked;
+    var valid    = true;
+    if (!validName(name)){ showFieldError('signup-name-error', 'Enter your full name.'); valid = false; }
+    else hideFieldError('signup-name-error');
+    if (!username || username.length < 2){ showFieldError('signup-username-error', 'Username must be at least 2 characters.'); valid = false; }
+    else hideFieldError('signup-username-error');
+    if (!validEmail(email)){ showFieldError('signup-email-error', 'Enter a valid email address.'); valid = false; }
+    else hideFieldError('signup-email-error');
+    if (!validPassword(password)){ showFieldError('signup-password-error', 'Password must be at least 8 characters.'); valid = false; }
+    else hideFieldError('signup-password-error');
+    if (!terms){ showFieldError('signup-terms-error', 'You need to accept the terms to continue.'); valid = false; }
+    else hideFieldError('signup-terms-error');
+    if (!valid){ registerAttempt(); showToast('Check the highlighted fields and try again.', 'error'); return; }
+    setSubmitting('signup', true);
+    AuthAPI.register(username, email, password, name)
+      .then(function(data){
+        setSubmitting('signup', false); rateLimit.attempts = 0;
+        showToast(data.message || 'Account created! You can now sign in.', 'success');
+        setTimeout(function(){ switchForm('signin'); }, 1500);
+      })
+      .catch(function(err){
+        setSubmitting('signup', false); registerAttempt();
+        showToast(err.message || 'Registration failed. Contact an administrator.', 'error');
+      });
+  });
+
+})();
+</script>
+</body>
+</html>
