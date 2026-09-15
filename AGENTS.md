@@ -182,7 +182,7 @@ From the project's knowledge base, Section 7:
 
 | ID | Risk | Check |
 |---|---|---|
-| E1 | **venv Python version drift.** The venv named `venv_311` actually runs Python 3.13.x — verified working across the refactor's 61-test suite — but its name is misleading and Python version mismatch was the project's original blocking bug. Do not assume a venv matches its name. | Run `python --version` inside the active venv before trusting any test. |
+| E1 | **venv Python version drift (2026-09-15 fixed).** The venv was formerly named `venv_311` but ran Python 3.13; it is now `backend/venv313` (Python 3.13.12, verified working). The original naming mismatch was the project's original blocking bug. Always run `python --version` inside the active venv before trusting any test. | Run `python --version` inside the active venv before trusting any test. |
 | E2 | **XAMPP dependency.** MySQL is XAMPP's bundled instance at `/opt/lampp/bin/mysql`. Startup failures are often simply XAMPP's MySQL not being started. | Check `sudo /opt/lampp/lampp startmysql` before deeper debugging. |
 | E3 | **Migrations are manual.** `db.create_all()` creates new tables but never alters existing ones. Every schema change to an existing table requires a manual `ALTER TABLE`. | This has been a repeated source of "code is right but the column doesn't exist" crashes. |
 | E4 | **Prior destructive incident.** A junior developer accidentally deleted all user rows via phpMyAdmin. A documented recovery procedure exists (a Python script using `generate_password_hash`). | Any access-control or DB work must preserve the recovery path. |
@@ -317,6 +317,15 @@ If a change spans more than two files, split it. State the split.
 - Any offline check relevant to the change.
 - Any schema check relevant to the change (does the column
   actually exist? has the manual `ALTER TABLE` been stated?).
+- Automated helpers (added 2026-09-15, all no-dependency):
+  - `bash scripts/preflight.sh` — the Section 9 checks in one shot.
+  - `node scripts/validate-frontend.js` — JS syntax, HTML tag
+    balance, `getElementById`↔`id=` (incl. JS-injected markup), no
+    remote URLs, CSS `var()` token coverage. Exit 0 = clean.
+  - `backend/venv313/bin/python scripts/check-schema-drift.py` —
+    compares `models.py` against the live DB and prints the exact
+    `ALTER TABLE`/`CREATE TABLE` statements (E3). Read-only, exit 1
+    when drift is found. Run before any task that touches schema.
 
 ### Step 6 — Report
 
@@ -363,7 +372,14 @@ find . -maxdepth 3 -type d -name "venv*"  # locate venvs
 git status                                # uncommitted work
 ```
 
-Report the results. If the venv Python version is not 3.11.x,
+The same checks, scripted in one shot (also covers XAMPP MySQL, venv
+name/Python, and single-copy):
+
+```
+bash scripts/preflight.sh
+```
+
+Report the results. If the venv Python version is not 3.13.x,
 stop and report (this is E1).
 
 ---
@@ -373,7 +389,7 @@ stop and report (this is E1).
 - A change would violate S1–S7.
 - A change would violate O1–O9.
 - The task requires a deferred feature (Section 5).
-- The venv Python version is not 3.11.x.
+- The venv Python version is not 3.13.x (see E1 for the verified state).
 - A schema change would alter an existing table without a stated
   `ALTER TABLE`.
 - The task touches `login.html` or `reset-password.html` without

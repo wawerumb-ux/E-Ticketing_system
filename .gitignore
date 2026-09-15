@@ -10,7 +10,7 @@ build/
 # Virtual environments
 .venv/
 venv/
-backend/venv_311/
+backend/venv313/
 backend/.venv/
 .Python
 
