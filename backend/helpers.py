@@ -952,6 +952,26 @@ def render_explanation(template, payload):
         return template
 
 
+def format_priority_reason(result):
+    """Render a human-readable one-line reason from an ``evaluate_priority`` result.
+
+    Used to persist an explainable derivation record on the Ticket row (and to
+    surface it in the UI), separate from the structured audit log entry.
+    """
+    if not result:
+        return None
+    if result.get('fallback'):
+        return f"No configured rule matched — defaulted to {result.get('priority')}."
+    rule = result.get('rule_name')
+    field = result.get('matched_field')
+    keyword = result.get('matched_keyword')
+    if keyword:
+        return f"Matched rule “{rule}” via keyword “{keyword}” in {field} → {result.get('priority')}."
+    if field:
+        return f"Matched rule “{rule}” ({field}) → {result.get('priority')}."
+    return f"Matched rule “{rule}” → {result.get('priority')}."
+
+
 def build_priority_config():
     """Assemble the current rule configuration: rules, default priority, version.
 
@@ -1278,6 +1298,8 @@ def serialize_ticket(t):
         'description': t.description,
         'category': t.category,
         'priority': t.priority,
+        'priority_source': t.priority_source,
+        'priority_explanation': t.priority_explanation,
         'status': t.status,
         'assigned_to': t.assigned_to,
         'created_by': t.created_by,

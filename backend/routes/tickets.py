@@ -26,6 +26,7 @@ from helpers import (
     email_global_enabled,
     emit_event,
     evaluate_priority,
+    format_priority_reason,
     get_setting,
     get_notification_prefs,
     log_audit,
@@ -100,6 +101,11 @@ def create_ticket():
         return jsonify({'error': 'Title, description and category are required'}), 400
 
     priority, priority_source, priority_explanation = _derive_ticket_priority(data, claims)
+    readable_explanation = None
+    if priority_source == 'rule_engine' and isinstance(priority_explanation, dict):
+        readable_explanation = format_priority_reason(priority_explanation)
+    elif data.get('priority_explanation'):
+        readable_explanation = str(data['priority_explanation'])
 
     client_uuid = data.get('client_uuid')
     if client_uuid:
@@ -121,6 +127,8 @@ def create_ticket():
             description=data['description'],
             category=data['category'],
             priority=priority,
+            priority_source=priority_source,
+            priority_explanation=readable_explanation,
             created_by=actor,
             assigned_to=data.get('assigned_to'),
             client_uuid=client_uuid,
@@ -218,6 +226,13 @@ def update_ticket(ticket_id):
         setattr(ticket, f, v)
 
     if ticket.priority != old_priority:
+        prev_explanation = ticket.priority_explanation
+        ticket.priority_source = 'manual'
+        ticket.priority_explanation = (
+            f"Priority manually set to {ticket.priority} by {actor} "
+            f"(was {old_priority})."
+            + (f" Prior derivation: {prev_explanation}" if prev_explanation else '')
+        )
         apply_sla(ticket)
 
     if ticket.status != old_status:

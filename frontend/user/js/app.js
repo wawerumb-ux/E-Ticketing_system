@@ -117,6 +117,13 @@ class TicketingApp {
             await this.handleTicketSubmit(e);
         });
 
+        ['title', 'description', 'category'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', () => this.previewDerivedPriority());
+            if (el) el.addEventListener('change', () => this.previewDerivedPriority());
+        });
+        this.previewDerivedPriority();
+
         document.getElementById('statusFilter').addEventListener('change', () => this.filterTickets());
         document.getElementById('priorityFilter').addEventListener('change', () => this.filterTickets());
         document.getElementById('searchTicket').addEventListener('input', () => this.filterTickets());
@@ -592,6 +599,11 @@ openTicketDetail(id) {
             <span class="priority-badge ${ticket.priority}">${this.capitalize(ticket.priority)} priority</span>
         </div>
 
+        ${ticket.priority_explanation && ticket.priority_source ? `<div class="priority-cause" style="margin-bottom:20px;">
+            <strong>Priority reason (${this.capitalize(ticket.priority_source.replace('_', ' '))}):</strong>
+            <p style="margin:4px 0 0;color:var(--text-muted);">${escapeHtml(ticket.priority_explanation)}</p>
+        </div>` : ''}
+
         <div style="margin-bottom:20px;">
             <strong>Service level:</strong>
             <div class="sla-due-wrap" style="margin-top:6px;">
@@ -831,7 +843,6 @@ openTicketDetail(id) {
             title: document.getElementById('title').value,
             description: document.getElementById('description').value,
             category: document.getElementById('category').value,
-            priority: document.getElementById('priority').value,
             created_by: this.currentUser ? this.currentUser.username : 'anonymous'
         };
 
@@ -931,6 +942,44 @@ openTicketDetail(id) {
             }
         });
         return valid;
+    }
+
+    // Live preview of the system-assigned initial priority. Uses the same
+    // client-side evaluator + cached rule config as the offline queue, so the
+    // preview matches what the server derives while online and what the local
+    // queue stamps while offline.
+    previewDerivedPriority() {
+        const box = document.getElementById('priorityDerived');
+        if (!box) return;
+        const title = (document.getElementById('title').value || '').trim();
+        const description = (document.getElementById('description').value || '').trim();
+        const category = (document.getElementById('category').value || '').trim();
+
+        if (!title && !description && !category) {
+            box.innerHTML = `<span class="priority-badge medium">Medium</span>
+                    <span class="priority-derived-note">Will be derived automatically from your description.</span>`;
+            return;
+        }
+
+        const me = this.currentUser || null;
+        const evidence = {
+            title,
+            description,
+            category,
+            department: undefined,
+            role: (me && me.role) ? me.role : 'staff',
+            created_at: new Date().toISOString()
+        };
+        const cache = TicketAPI.getCachedPriorityConfig();
+        const config = cache && cache.config ? cache.config : TicketAPI.getBuiltinPriorityConfig();
+        const result = TicketAPI.evaluatePriorityClient(evidence, config);
+        const cap = String(result.priority).charAt(0).toUpperCase() + String(result.priority).slice(1);
+        const reason = result.fallback
+            ? 'No configured rule matched — using the system default.'
+            : `Matched: ${escapeHtml(result.rule_name || 'a rule')}.`;
+        const version = result.rules_version === 'builtin' ? 'built-in rules' : `rule version ${escapeHtml(String(result.rules_version))}`;
+        box.innerHTML = `<span class="priority-badge ${result.priority}">${cap}</span>
+                    <span class="priority-derived-note">${reason} Using ${version}.</span>`;
     }
 
     // ============ Knowledge Base ============

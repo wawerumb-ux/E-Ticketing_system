@@ -1687,6 +1687,32 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     color: var(--success-dark);
 }
 
+.priority-cause {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.priority-derived {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    background: var(--surface, var(--bg));
+    border: 1px solid var(--border, rgba(0,0,0,0.12));
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+.priority-derived-note {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
 .sla-badge {
     padding: 5px 14px;
     border-radius: 999px;

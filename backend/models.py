@@ -21,6 +21,8 @@ class Ticket(db.Model):
     description = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(50), nullable=False)
     priority = db.Column(db.String(20), default='medium')
+    priority_source = db.Column(db.String(20))  # 'manual' | 'rule_engine' | None (legacy)
+    priority_explanation = db.Column(db.Text)   # human-readable derivation record
     status = db.Column(db.String(20), default='open')
     assigned_to = db.Column(db.String(100))
     created_by = db.Column(db.String(100), nullable=False)

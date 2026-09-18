@@ -952,6 +952,19 @@ static async createTicketCommentOffline(ticketId, message, isInternal = false, c
         return data;
     }
 
+    static async previewPriorityRules(evidence, candidate) {
+        const body = { evidence };
+        if (candidate) body.candidate = candidate;
+        const response = await apiFetch(`${API_BASE_URL}/rules/priority/preview`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to preview priority rules');
+        return data;
+    }
+
     static async updatePriorityRule(ruleId, changes) {
         const response = await apiFetch(`${API_BASE_URL}/rules/priority/${encodeURIComponent(ruleId)}`, {
             method: 'PUT',

@@ -1617,6 +1617,11 @@ class TicketingApp {
                 <span class="priority-badge ${ticket.priority}">${this.capitalize(ticket.priority)} priority</span>
             </div>
 
+            ${ticket.priority_explanation && ticket.priority_source ? `<div class="priority-cause" style="margin-bottom:20px;">
+                <strong>Priority reason (${this.capitalize(ticket.priority_source.replace('_', ' '))}):</strong>
+                <p style="margin:4px 0 0;color:var(--text-muted);">${this._esc(ticket.priority_explanation)}</p>
+            </div>` : ''}
+
             <div style="margin-bottom:20px;">
                 <strong>Service level:</strong>
                 <div class="sla-due-wrap" style="margin-top:6px;">
@@ -2810,7 +2815,35 @@ class TicketingApp {
             </div>
             ${rules.length === 0
                 ? '<p style="color:var(--text-muted, #8191a1);">No rules configured.</p>'
-                : rules.map((rule, idx) => this.renderPriorityRuleCard(rule, idx, rules.length)).join('')}`;
+                : rules.map((rule, idx) => this.renderPriorityRuleCard(rule, idx, rules.length)).join('')}
+
+            <div style="border-top:1px solid var(--surface-muted, #e0e0e0);margin-top:16px;padding-top:16px;">
+                <strong style="display:block;margin-bottom:8px;">Test a ticket against these rules</strong>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;">
+                    <div class="form-group" style="flex:1 1 200px;min-width:0;">
+                        <label for="previewTitle">Title</label>
+                        <input type="text" id="previewTitle" placeholder="e.g. Office computer won't boot">
+                    </div>
+                    <div class="form-group" style="flex:1 1 240px;min-width:0;">
+                        <label for="previewDesc">Description</label>
+                        <input type="text" id="previewDesc" placeholder="e.g. blue screen on login">
+                    </div>
+                    <div class="form-group" style="flex:1 1 140px;min-width:0;">
+                        <label for="previewCategory">Category</label>
+                        <select id="previewCategory">
+                            <option value="">Any</option>
+                            <option>Network</option>
+                            <option>Hardware</option>
+                            <option>Software</option>
+                            <option>Security</option>
+                            <option>General</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn-primary btn-sm" onclick="app.previewPriorityTest()">${Icons.render('exclamation-triangle')} Preview</button>
+                </div>
+                <div id="priorityPreviewResult" aria-live="polite" style="margin-top:10px;"></div>
+            </div>`;
     }
 
     renderPriorityRuleCard(rule, idx, total) {
@@ -2927,6 +2960,35 @@ class TicketingApp {
             await this.loadPriorityRules();
         } catch (error) {
             this.showToast(error.message || 'Failed to save rule.', true);
+        }
+    }
+
+    async previewPriorityTest() {
+        const resultEl = document.getElementById('priorityPreviewResult');
+        if (!resultEl) return;
+        const title = document.getElementById('previewTitle').value;
+        const desc = document.getElementById('previewDesc').value;
+        const category = document.getElementById('previewCategory').value || '';
+
+        // Tests against the live/staged config (what a new ticket would see).
+        // What-if preview of unsaved edits in the panel is out of scope.
+        resultEl.innerHTML = '<span style="display:inline-flex;gap:8px;align-items:center;">' + Icons.render('spinner') + ' Evaluating…</span>';
+        try {
+            const res = await TicketAPI.previewPriorityRules(
+                { title, description: desc, category, department: null, role: 'staff', created_at: new Date().toISOString() },
+                null
+            );
+            const priority = res.priority || 'medium';
+            const source = res.fallback ? 'fallback' : (res.priority_source || 'rule_engine');
+            resultEl.innerHTML = `
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span class="priority-badge ${priority}">${this.capitalize(priority)}</span>
+                    <span style="font-size:0.8rem;color:var(--text-muted, #8191a1);">via ${this._esc(source.replace('_', ' '))}</span>
+                </div>
+                <p style="margin:0;color:var(--text, inherit);font-size:0.88rem;line-height:1.5;">${this._esc(res.explanation || '')}</p>
+                ${res.rules_version ? `<p style="margin:6px 0 0;font-size:0.75rem;color:var(--text-muted, #8191a1);">Rules version: ${this._esc(res.rules_version)}</p>` : ''}`;
+        } catch (error) {
+            resultEl.innerHTML = `<p style="margin:0;color:var(--danger-dark, #b91c1c);font-size:0.88rem;">${this._esc(error.message || 'Preview failed.')}</p>`;
         }
     }
 

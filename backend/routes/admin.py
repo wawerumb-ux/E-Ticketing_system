@@ -25,6 +25,8 @@ from helpers import (
     cache_get,
     cache_key,
     cache_set,
+    evaluate_priority,
+    format_priority_reason,
     get_setting,
     log_audit,
     role_required,
@@ -252,6 +254,49 @@ def get_priority_rules():
             'limits': PRIORITY_RULE_LIMITS,
         },
     }), 200
+
+
+@admin_bp.route('/api/rules/priority/preview', methods=['POST'])
+@role_required('admin')
+def preview_priority_rules():
+    """Evaluate sample evidence against the current (or a candidate) config.
+
+    Read-only test mode: accepts ``evidence`` (title, description, category,
+    department, role, created_at) and an optional ``candidate`` rules list in
+    the same shape the client mirror uses. If ``candidate`` is supplied it is
+    validated as a whole (401/400 on developer-boundary violation) and used
+    for the preview; otherwise the current live config is used. Nothing is
+    persisted and nothing is audited — this is a dry run.
+    """
+    data = request.json or {}
+    ev = data.get('evidence') if isinstance(data.get('evidence'), dict) else data
+    evidence = {
+        'title': str(ev.get('title', '')),
+        'description': str(ev.get('description', '')),
+        'category': str(ev.get('category', '')),
+        'department': ev.get('department') or None,
+        'role': ev.get('role') or 'staff',
+        'created_at': ev.get('created_at') or utcnow(),
+    }
+
+    candidate = data.get('candidate')
+    if candidate is not None:
+        if not isinstance(candidate, list):
+            return jsonify({'error': 'candidate must be a list of rule objects'}), 400
+        ok, errors = validate_priority_rules(candidate)
+        if not ok:
+            return jsonify({'error': 'Invalid candidate config: ' + '; '.join(errors[:5])}), 400
+        config = {
+            'rules': candidate,
+            'default_priority': data.get('default_priority', PRIORITY_ALLOWED[1]),
+            'version': data.get('version') or 'candidate',
+        }
+    else:
+        config = build_priority_config()
+
+    result = evaluate_priority(evidence, config)
+    result['explanation'] = format_priority_reason(result)
+    return jsonify(result), 200
 
 
 @admin_bp.route('/api/rules/priority/<rule_id>', methods=['PUT'])

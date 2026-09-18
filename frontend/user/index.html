@@ -241,13 +241,13 @@
                                 </select>
                                 <span class="field-error">Please pick the closest matching category.</span>
                             </div>
-                            <div class="form-group">
-                                <label for="priority">Priority</label>
-                                <select id="priority">
-                                    <option value="low">Low</option>
-                                    <option value="medium" selected>Medium</option>
-                                    <option value="high">High</option>
-                                </select>
+                            <div class="form-group" id="priorityDerivedGroup">
+                                <label>Initial priority (system-assigned)</label>
+                                <div id="priorityDerived" class="priority-derived" aria-live="polite">
+                                    <span class="priority-badge medium">Medium</span>
+                                    <span class="priority-derived-note">Will be derived automatically from your description.</span>
+                                </div>
+                                <span class="field-error">Priority is assigned by the system based on your description.</span>
                             </div>
                         </div>
                         <button type="submit" class="btn-primary">

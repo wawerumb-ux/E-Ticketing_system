@@ -380,6 +380,78 @@ class CreateTicketPriorityTestCase(BaseTestCase):
         audit = AuditLog.query.filter_by(action='priority_derived').all()
         self.assertEqual(len(audit), 0)
 
+    def test_create_row_persists_source_and_explanation(self):
+        """G2: what was shown to the user survives on the row, not just in the
+        audit log — the UI explainability path depends on the row, not on a
+        JS-side mirror re-deriving on every view."""
+        r = self.client.post('/api/tickets',
+                             json={'title': 'No internet on the 2nd floor',
+                                   'description': 'Cannot reach the office wifi',
+                                   'category': 'other'},
+                             headers=self.admin_headers())
+        self.assertEqual(r.status_code, 201, r.get_json())
+        data = r.get_json()
+
+        row = Ticket.query.filter_by(
+            ticket_number=data['ticket_number']).first()
+        self.assertEqual(row.priority, 'high')
+        detail = self.client.get(f"/api/tickets/{row.id}",
+                                 headers=self.admin_headers())
+        self.assertEqual(detail.status_code, 200, detail.get_json())
+        d = detail.get_json()
+        self.assertEqual(d['priority'], row.priority)
+        self.assertEqual(d['priority_source'], row.priority_source)
+        self.assertEqual(d['priority_explanation'], row.priority_explanation)
+        self.assertEqual(row.priority_source, 'rule_engine')
+        self.assertIsNotNone(row.priority_explanation)
+        self.assertIn('network', row.priority_explanation.lower())
+
+        detail = self.client.get(f"/api/tickets/{row.id}",
+                                 headers=self.admin_headers())
+        self.assertEqual(detail.status_code, 200, detail.get_json())
+        d = detail.get_json()
+        self.assertEqual(d['priority'], row.priority)
+        self.assertEqual(d['priority_source'], row.priority_source)
+        self.assertEqual(d['priority_explanation'], row.priority_explanation)
+
+    def test_human_triage_override_stamps_manual_and_reaudits(self):
+        """G3: a technician/admin change broadcasts 'this is now human set'
+        (priority_source='manual') and keeps the prior derivation in the
+        explanation so the chain is never lost."""
+        r = self.client.post('/api/tickets',
+                             json={'title': 'No internet on the 2nd floor',
+                                   'description': 'Cannot reach the office wifi',
+                                   'category': 'other'},
+                             headers=self.admin_headers())
+        data = r.get_json()
+
+        row = Ticket.query.filter_by(
+            ticket_number=data['ticket_number']).first()
+
+        upd = self.client.put(f"/api/tickets/{row.id}",
+                              json={'priority': 'low'},
+                              headers=self.admin_headers())
+        self.assertEqual(upd.status_code, 200, upd.get_json())
+
+        detail = self.client.get(f"/api/tickets/{row.id}",
+                                 headers=self.admin_headers())
+        self.assertEqual(detail.status_code, 200, detail.get_json())
+        u = detail.get_json()
+        self.assertEqual(u['priority'], 'low')
+        self.assertEqual(u['priority_source'], 'manual')
+        self.assertIsNotNone(u['priority_explanation'])
+
+        row = Ticket.query.filter_by(ticket_number=data['ticket_number']).first()
+        self.assertEqual(row.priority_source, 'manual')
+        self.assertIn(
+            f"Priority manually set to low by {self._admin_username() if hasattr(self, '_admin_username') else 'admin'}",
+            row.priority_explanation or '')
+        audit = AuditLog.query.filter_by(action='update', entity_type='ticket').all()
+        diff_details = json.loads(audit[-1].details)
+        self.assertIn('priority', diff_details)
+        self.assertEqual(diff_details['priority'],
+                         {'from': 'high', 'to': 'low'})
+
     def test_client_rule_engine_explanation_persisted(self):
         client_explanation = {
             'rule_id': 'client_mirror',
