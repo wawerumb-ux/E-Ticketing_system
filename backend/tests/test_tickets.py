@@ -17,7 +17,9 @@ class CreateTicketTestCase(BaseTestCase):
         self.assertEqual(data['ticket_number'], 'ICT-00001')
 
         detail = self.client.get(f"/api/tickets/{_latest_ticket().id}", headers=self.admin_headers())
-        self.assertEqual(detail.get_json()['priority'], 'high')
+        # The rule engine derives the initial priority from evidence: hardware
+        # category with no matching keyword falls back to 'medium'.
+        self.assertEqual(detail.get_json()['priority'], 'medium')
         self.assertIn('sla_response_due', detail.get_json())
 
     def test_staff_creates_ticket(self):

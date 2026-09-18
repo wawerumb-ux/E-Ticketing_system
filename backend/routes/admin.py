@@ -14,16 +14,23 @@ from flask_jwt_extended import get_jwt
 from extensions import db, utcnow
 from helpers import (
     DEFAULT_SETTINGS,
+    PRIORITY_ALLOWED,
+    PRIORITY_ALLOWED_FIELDS,
+    PRIORITY_ALLOWED_OPS,
+    PRIORITY_DEFAULT_RULES,
+    PRIORITY_RULE_LIMITS,
     SLA_SETTING_KEYS,
     _as_str,
+    build_priority_config,
     cache_get,
     cache_key,
     cache_set,
     get_setting,
     log_audit,
     role_required,
+    validate_priority_rules,
 )
-from models import ApiToken, AuditLog, Category, Department, Role, SystemSetting, Ticket, TicketComment, User, Webhook
+from models import ApiToken, AuditLog, Category, Department, PriorityRule, Role, SystemSetting, Ticket, TicketComment, User, Webhook
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -212,6 +219,183 @@ def update_settings():
     log_audit(actor, 'update', 'setting', None, json.dumps(diff))
     db.session.commit()
     return jsonify({'message': 'Settings updated successfully', 'settings': updates}), 200
+
+
+# ============ PRIORITY RULES (configurable ticket priority engine) ============
+
+def _serialize_priority_rule(row):
+    return {
+        'rule_id': row.rule_id,
+        'name': row.name,
+        'enabled': bool(row.enabled),
+        'condition': json.loads(row.condition_json) if row.condition_json else [],
+        'resulting_priority': row.resulting_priority,
+        'stop': bool(row.stop),
+        'explanation_template': row.explanation_template,
+        'sort_order': row.sort_order,
+    }
+
+
+@admin_bp.route('/api/rules/priority', methods=['GET'])
+@role_required('admin')
+def get_priority_rules():
+    """Full rule configuration plus the developer surfaces an admin may edit."""
+    config = build_priority_config()
+    return jsonify({
+        'rules': config['rules'],
+        'default_priority': config['default_priority'],
+        'version': config['version'],
+        'meta': {
+            'allowed_priorities': list(PRIORITY_ALLOWED),
+            'allowed_fields': list(PRIORITY_ALLOWED_FIELDS),
+            'allowed_ops': list(PRIORITY_ALLOWED_OPS),
+            'limits': PRIORITY_RULE_LIMITS,
+        },
+    }), 200
+
+
+@admin_bp.route('/api/rules/priority/<rule_id>', methods=['PUT'])
+@role_required('admin')
+def update_priority_rule(rule_id):
+    """Adjust an existing rule within the developer's boundaries.
+
+    Admins may change: enabled, stop, resulting_priority (within the allowed
+    set) and condition **values**. Shape (rule_id, name, condition field/op,
+    condition count, default_priority) is developer-governed — attempting to
+    change it is rejected with 403, never silently ignored.
+    """
+    row = PriorityRule.query.filter_by(rule_id=rule_id).first_or_404()
+    data = request.json or {}
+    actor = get_jwt().get('username', 'admin')
+
+    restricted = set(data) & {'rule_id', 'name', 'field', 'op', 'default_priority'}
+    if restricted:
+        return jsonify({'error': 'Developer-controlled setting(s) cannot be edited: '
+                                  f'{", ".join(sorted(restricted))}'}), 403
+
+    allowed = {'enabled', 'condition', 'resulting_priority', 'stop'}
+    unknown = set(data) - allowed
+    if unknown:
+        return jsonify({'error': 'Unknown setting(s): ' + ', '.join(sorted(unknown))}), 400
+
+    old = _serialize_priority_rule(row)
+    current_condition = json.loads(row.condition_json) if row.condition_json else []
+
+    if 'condition' in data:
+        if not isinstance(data['condition'], list):
+            return jsonify({'error': 'condition must be a list of condition objects'}), 400
+        if len(data['condition']) != len(current_condition):
+            return jsonify({'error': 'The number of conditions is developer-controlled'}), 403
+        for new_cond, old_cond in zip(data['condition'], current_condition):
+            if not isinstance(new_cond, dict):
+                return jsonify({'error': 'each condition must be an object'}), 400
+            if (new_cond.get('field'), new_cond.get('op')) != (old_cond.get('field'), old_cond.get('op')):
+                return jsonify({'error': 'Condition fields and operators are developer-controlled'}), 403
+
+    if 'enabled' in data and not isinstance(data['enabled'], bool):
+        return jsonify({'error': 'enabled must be true or false'}), 400
+    if 'stop' in data and not isinstance(data['stop'], bool):
+        return jsonify({'error': 'stop must be true or false'}), 400
+    if 'resulting_priority' in data and data['resulting_priority'] not in PRIORITY_ALLOWED:
+        return jsonify({'error': 'resulting_priority must be one of low, medium, high'}), 400
+
+    preview = _serialize_priority_rule(row)
+    if 'enabled' in data:
+        preview['enabled'] = data['enabled']
+    if 'stop' in data:
+        preview['stop'] = data['stop']
+    if 'resulting_priority' in data:
+        preview['resulting_priority'] = data['resulting_priority']
+    if 'condition' in data:
+        preview['condition'] = data['condition']
+
+    assembled = [
+        preview if r['rule_id'] == rule_id else r
+        for r in build_priority_config()['rules']
+    ]
+    ok, errors = validate_priority_rules(assembled)
+    if not ok:
+        return jsonify({'error': 'Invalid rule configuration: ' + '; '.join(errors[:5])}), 400
+
+    if 'enabled' in data:
+        row.enabled = data['enabled']
+    if 'stop' in data:
+        row.stop = data['stop']
+    if 'resulting_priority' in data:
+        row.resulting_priority = data['resulting_priority']
+    if 'condition' in data:
+        row.condition_json = json.dumps(data['condition'])
+    row.updated_at = utcnow()
+    new = _serialize_priority_rule(row)
+
+    action = 'priority_rule_updated'
+    if 'enabled' in data:
+        action = 'priority_rule_enabled' if data['enabled'] else 'priority_rule_disabled'
+    log_audit(actor, action, 'priority_rule', rule_id,
+              json.dumps({'previous_value': old, 'new_value': new}))
+    db.session.commit()
+    return jsonify({'message': 'Priority rule updated', 'rule': new}), 200
+
+
+@admin_bp.route('/api/rules/priority/reorder', methods=['POST'])
+@role_required('admin')
+def reorder_priority_rules():
+    """Replace the full ordering — a complete permutation of rule ids."""
+    data = request.json or {}
+    ordered_ids = data.get('rule_ids')
+    if not isinstance(ordered_ids, list) or not ordered_ids:
+        return jsonify({'error': 'rule_ids must be a non-empty list'}), 400
+    if len(ordered_ids) != len(set(ordered_ids)):
+        return jsonify({'error': 'rule_ids must not contain duplicates'}), 400
+
+    rows = PriorityRule.query.all()
+    by_id = {r.rule_id: r for r in rows}
+    if set(ordered_ids) != set(by_id):
+        return jsonify({'error': 'rule_ids must contain exactly the current rule ids'}), 400
+
+    previous = [r.rule_id for r in sorted(rows, key=lambda r: r.sort_order)]
+    actor = get_jwt().get('username', 'admin')
+    for position, rule_id in enumerate(ordered_ids):
+        by_id[rule_id].sort_order = position + 1
+    log_audit(actor, 'priority_rule_reordered', 'priority_rule', None,
+              json.dumps({'previous_order': previous, 'new_order': ordered_ids}))
+    db.session.commit()
+    return jsonify({'message': 'Priority rules reordered', 'order': ordered_ids}), 200
+
+
+@admin_bp.route('/api/rules/priority/reset', methods=['POST'])
+@role_required('admin')
+def reset_priority_rules():
+    """Restore the developer-defined default rule set."""
+    actor = get_jwt().get('username', 'admin')
+    previous_version = build_priority_config().get('version')
+
+    PriorityRule.query.delete()
+    for order, rule in enumerate(PRIORITY_DEFAULT_RULES):
+        db.session.add(PriorityRule(
+            rule_id=rule['rule_id'],
+            name=rule['name'],
+            enabled=rule['enabled'],
+            condition_json=json.dumps(rule['condition']),
+            resulting_priority=rule['resulting_priority'],
+            stop=rule['stop'],
+            explanation_template=rule['explanation_template'],
+            sort_order=order + 1,
+        ))
+    db.session.commit()
+
+    new_config = build_priority_config()
+    log_audit(actor, 'priority_rules_reset', 'priority_rule', 'all',
+              json.dumps({'previous_config_version': previous_version,
+                          'new_config_version': new_config.get('version'),
+                          'rules': new_config.get('rules')}))
+    db.session.commit()
+    return jsonify({
+        'message': 'Priority rules reset to developer defaults',
+        'rules': new_config['rules'],
+        'default_priority': new_config['default_priority'],
+        'version': new_config['version'],
+    }), 200
 
 
 # ============ REPORTING & ANALYTICS ============

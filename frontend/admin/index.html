@@ -278,14 +278,14 @@
                         <thead>
                             <tr>
                                 <th><label class="ticket-check-wrap"><input type="checkbox" id="selectAllTickets"></label></th>
-                                <th>Ticket #</th>
-                                <th>Title</th>
-                                <th>Category</th>
-                                <th>Priority</th>
-                                <th>Status</th>
+                                <th data-sort="ticket_number">Ticket # <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th data-sort="title">Title <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th data-sort="category">Category <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th data-sort="priority">Priority <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th data-sort="status">Status <i data-icon="sort" aria-hidden="true"></i></th>
                                 <th>SLA</th>
-                                <th>Assigned To</th>
-                                <th>Created</th>
+                                <th data-sort="assigned_to">Assigned To <i data-icon="sort" aria-hidden="true"></i></th>
+                                <th data-sort="created_at">Created <i data-icon="sort" aria-hidden="true"></i></th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -811,6 +811,16 @@
                 </div>
 
                 <div class="chart-card" style="margin-top:20px;">
+                    <h3>Ticket Priority Rules</h3>
+                    <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
+                        New tickets are assigned an initial priority by evaluating these rules top to bottom. The first match wins unless the rule is set to keep evaluating. You can tune a rule's priority, order, and values — not its shape, which is developer-controlled. When no rule matches, the fallback priority is used. Existing tickets are not revisited.
+                    </p>
+                    <div id="priorityRulesPanel">
+                        <p style="color:#999;">Loading...</p>
+                    </div>
+                </div>
+
+                <div class="chart-card" style="margin-top:20px;">
                     <h3>Security &amp; Two-Factor Authentication</h3>
                     <p style="font-size:0.8rem;color:#999;margin-bottom:15px;">
                         Manage the 2FA state of your own admin account. Users can enable 2FA themselves from their profile; admins can reset
@@ -840,6 +850,7 @@
                             <option value="department">Department</option>
                             <option value="kb_article">Knowledge Base</option>
                             <option value="setting">Settings</option>
+                            <option value="priority_rule">Priority Rules</option>
                             <option value="notification">Notification</option>
                             <option value="audit">Audit</option>
                         </select>

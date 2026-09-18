@@ -6,6 +6,11 @@ const IS_TUNNEL = window.location.port === '' || /\.ngrok-(free\.)?(app|dev|io)$
     ? `${window.location.origin}/api`
     : `${window.location.protocol}//${window.location.hostname}:5000/api`;
 
+// Cached copy of the admin-served priority rules config, persisted so an
+// offline portal can derive the SAME priority the server would have. The
+// cache is refreshed whenever the admin panel fetches or resets the rules.
+const PRIORITY_CONFIG_CACHE_KEY = 'ict_priority_config_v1';
+
 // ============ AUTH TOKEN MANAGEMENT ============
 // Tokens are kept in sessionStorage rather than localStorage: cleared when the
 // tab closes, not persisted indefinitely. Still JS-readable (not immune to XSS) —
@@ -331,6 +336,224 @@ class TicketAPI {
         return payload;
     }
 
+    // ============ PRIORITY RULES — OFFLINE MIRROR ============
+    // Deterministic client-side copy of the backend engine (helpers.py
+    // evaluate_priority). Same matching semantics: contains/in/equals/between,
+    // case-insensitive substring keyword match, first-match-wins with the
+    // stop flag, non-stopping matches as running best, fallback priority when
+    // nothing matches. No network, no ML (S2). The builtin config below is a
+    // faithful mirror of PRIORITY_DEFAULT_RULES so derivation works even when
+    // the admin-served cache has never touched this browser.
+
+    static getBuiltinPriorityConfig() {
+        return {
+            version: 'builtin',
+            default_priority: 'medium',
+            rules: [
+                { rule_id: 'security_incident', name: 'Security or breach keywords in the ticket text', enabled: true,
+                  condition: [{ field: 'title_or_description', op: 'contains',
+                                values: ['breach', 'ransomware', 'unauthorized access', 'phishing', 'data leak'] }],
+                  resulting_priority: 'high', stop: true,
+                  explanation_template: 'Security keyword "{matched_keyword}" in the {matched_field} raised priority to high.' },
+                { rule_id: 'network_outage', name: 'Network or connectivity keywords in the title', enabled: true,
+                  condition: [{ field: 'title', op: 'contains',
+                                values: ['internet down', 'no internet', 'network down', 'connectivity'] }],
+                  resulting_priority: 'high', stop: true,
+                  explanation_template: 'Network keyword "{matched_keyword}" in the {matched_field} raised priority to high.' },
+                { rule_id: 'critical_outage', name: 'Ticket category is Network or Security', enabled: true,
+                  condition: [{ field: 'category', op: 'in', values: ['Network', 'Security'] }],
+                  resulting_priority: 'high', stop: true,
+                  explanation_template: 'Category is {matched_value}, which is treated as critical.' },
+                { rule_id: 'hardware_failure', name: 'Hardware failure keywords in the ticket text', enabled: true,
+                  condition: [{ field: 'title_or_description', op: 'contains',
+                                values: ["won't power on", 'wont boot', 'no display', 'not powering on'] }],
+                  resulting_priority: 'medium', stop: true,
+                  explanation_template: 'Hardware keyword "{matched_keyword}" in the {matched_field} set priority to medium.' },
+                { rule_id: 'software_issue', name: 'Ticket category is Software', enabled: true,
+                  condition: [{ field: 'category', op: 'equals', value: 'Software' }],
+                  resulting_priority: 'medium', stop: true,
+                  explanation_template: 'Category is Software, set priority to medium.' },
+                { rule_id: 'low_priority', name: 'Ticket category is General or Other', enabled: true,
+                  condition: [{ field: 'category', op: 'in', values: ['General', 'Other'] }],
+                  resulting_priority: 'low', stop: false,
+                  explanation_template: 'Category is {matched_value}, set priority to low.' }
+            ]
+        };
+    }
+
+    static getCachedPriorityConfig() {
+        try {
+            const raw = localStorage.getItem(PRIORITY_CONFIG_CACHE_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    static cachePriorityConfig(config) {
+        try {
+            localStorage.setItem(PRIORITY_CONFIG_CACHE_KEY,
+                JSON.stringify({ config, cached_at: new Date().toISOString() }));
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    static evaluatePriorityClient(evidence, config) {
+        const ALLOWED = ['low', 'medium', 'high'];
+        const defaultPriority = config && config.default_priority && ALLOWED.indexOf(config.default_priority) >= 0
+            ? config.default_priority
+            : 'medium';
+        const rules = config && Array.isArray(config.rules) ? config.rules : [];
+        const rulesVersion = config ? config.version : 'builtin';
+        const evaluatedAt = new Date().toISOString();
+
+        const parseHHMM = (v) => {
+            if (typeof v !== 'string') return null;
+            const m = /^(\d{1,2}):(\d{2})$/.exec(v.trim());
+            if (!m) return null;
+            const h = parseInt(m[1], 10);
+            const min = parseInt(m[2], 10);
+            return (h >= 0 && h <= 23 && min >= 0 && min <= 59) ? h * 60 + min : null;
+        };
+        const evidenceTime = () => {
+            const created = evidence.created_at;
+            if (!created) return null;
+            const d = new Date(created);
+            if (isNaN(d.getTime())) return null;
+            // Server evaluates against UTC wall-clock (utcnow() naive UTC), so
+            // mirror with the UTC component, not the viewer's local zone.
+            return d.getUTCHours() * 60 + d.getUTCMinutes();
+        };
+        const textFor = (field) => {
+            if (field === 'title') return String(evidence.title == null ? '' : evidence.title);
+            if (field === 'description') return String(evidence.description == null ? '' : evidence.description);
+            if (field === 'title_or_description') return String(evidence.title == null ? '' : evidence.title);
+            return '';
+        };
+        const conditionMatches = (cond) => {
+            const field = cond.field;
+            const op = cond.op;
+            if (['category', 'department', 'title', 'description', 'title_or_description',
+                 'created_by_role', 'time_of_day'].indexOf(field) < 0) return null;
+            if (['equals', 'contains', 'in', 'between'].indexOf(op) < 0) return null;
+
+            if (op === 'contains') {
+                if (['title', 'description', 'title_or_description'].indexOf(field) < 0) return null;
+                const keywords = Array.isArray(cond.values) && cond.values.length
+                    ? cond.values
+                    : (cond.value != null ? [cond.value] : []);
+                for (const name of ['title', 'description']) {
+                    const raw = textFor(name);
+                    const text = raw.toLowerCase();
+                    if (!text) continue;
+                    for (const keyword of keywords) {
+                        const needle = String(keyword).trim().toLowerCase();
+                        if (needle && text.indexOf(needle) >= 0) {
+                            return { field: name, value: raw, keyword: String(keyword) };
+                        }
+                    }
+                }
+                return null;
+            }
+
+            if (op === 'between') {
+                if (field !== 'time_of_day') return null;
+                const times = Array.isArray(cond.values) ? cond.values : [];
+                if (times.length < 2) return null;
+                const start = parseHHMM(times[0]);
+                const end = parseHHMM(times[1]);
+                const now = evidenceTime();
+                if (start === null || end === null || now === null) return null;
+                const inside = start <= end ? (start <= now && now <= end) : (now >= start || now <= end);
+                if (!inside) return null;
+                return { field: 'time_of_day',
+                         value: String(Math.floor(now / 60)).padStart(2, '0') + ':' + String(now % 60).padStart(2, '0'),
+                         keyword: null };
+            }
+
+            if (op === 'equals' || op === 'in') {
+                let expected = Array.isArray(cond.values) && cond.values.length ? cond.values : [];
+                if (expected.length === 0) {
+                    if (cond.value == null) return null;
+                    expected = [cond.value];
+                }
+                const evidenceKey = field === 'created_by_role' ? 'role' : field;
+                const actual = String(evidence[evidenceKey] == null ? '' : evidence[evidenceKey]).trim().toLowerCase();
+                for (const candidate of expected) {
+                    if (actual === String(candidate).trim().toLowerCase()) {
+                        return { field, value: String(candidate), keyword: null };
+                    }
+                }
+                return null;
+            }
+            return null;
+        };
+        const ruleMatches = (rule) => {
+            if (!Array.isArray(rule.condition) || rule.condition.length === 0) return null;
+            let payload = null;
+            for (const cond of rule.condition) {
+                payload = conditionMatches(cond);
+                if (payload === null) return null;
+            }
+            return payload;
+        };
+        const result = (rule, payload, fallback) => {
+            let priority = rule ? (rule.resulting_priority || defaultPriority) : defaultPriority;
+            if (ALLOWED.indexOf(priority) < 0) priority = defaultPriority;
+            return {
+                priority,
+                rule_id: rule ? rule.rule_id : null,
+                rule_name: rule ? rule.name : null,
+                matched_field: payload ? payload.field : null,
+                matched_value: payload ? payload.value : null,
+                matched_keyword: payload ? payload.keyword : null,
+                resulting_priority: priority,
+                evaluated_at: evaluatedAt,
+                rules_version: rulesVersion,
+                stop: rule ? Boolean(rule.stop) : false,
+                fallback: Boolean(fallback)
+            };
+        };
+
+        let runningBest = null;
+        for (const rule of rules) {
+            if (rule.enabled === false) continue;
+            const payload = ruleMatches(rule);
+            if (payload === null) continue;
+            if (rule.stop) return result(rule, payload, false);
+            runningBest = { rule, payload };
+        }
+        if (runningBest) return result(runningBest.rule, runningBest.payload, false);
+        return result(null, null, true);
+    }
+
+    // Derives an honest priority for a ticket being queued offline, stamping
+    // the payload with priority_source + priority_explanation the exact way
+    // the backend persists them (Phase 6). Uses the cached admin config when
+    // present, else the builtin mirror. Idempotent: never re-stamps a payload
+    // that already carries a source.
+    static derivePriorityOffline(payload) {
+        if (payload.priority_source) return payload;
+        const me = (typeof AuthAPI !== 'undefined' && AuthAPI.getCurrentUser) ? AuthAPI.getCurrentUser() : null;
+        const evidence = {
+            title: payload.title,
+            description: payload.description,
+            category: payload.category,
+            department: undefined,
+            role: (me && me.role) ? me.role : 'staff',
+            created_at: new Date().toISOString()
+        };
+        const cache = TicketAPI.getCachedPriorityConfig();
+        const config = cache && cache.config ? cache.config : TicketAPI.getBuiltinPriorityConfig();
+        const result = TicketAPI.evaluatePriorityClient(evidence, config);
+        payload.priority = result.priority;
+        payload.priority_source = 'rule_engine';
+        payload.priority_explanation = result;
+        return payload;
+    }
+
     // Offline-aware create that distinguishes network failures (retryable:
     // queue locally) from HTTP errors (the server rejected the request — do not
     // silently queue). Returns { ok, status, network, data?, error? }.
@@ -346,7 +569,9 @@ class TicketAPI {
             });
         } catch (error) {
             // fetch() threw before we got an HTTP response (offline, DNS, refused) —
-            // this is a network failure, safe to queue and retry later.
+            // this is a network failure, safe to queue and retry later. Stamp the
+            // honest offline derivation before the caller enqueues the payload.
+            TicketAPI.derivePriorityOffline(payload);
             return { ok: false, network: true, status: 0, error };
         }
         let data = {};
@@ -709,6 +934,59 @@ static async createTicketCommentOffline(ticketId, message, isInternal = false, c
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to update settings');
+        return data;
+    }
+
+    // ============ PRIORITY RULES (admin-only config) ============
+    // Throws on failure (unlike getSettings) so the panel can tell "no rules"
+    // apart from "cannot reach the server" and render an honest state.
+    static async getPriorityRules() {
+        const response = await apiFetch(`${API_BASE_URL}/rules/priority`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to fetch priority rules');
+        TicketAPI.cachePriorityConfig({
+            rules: data.rules,
+            default_priority: data.default_priority,
+            version: data.version
+        });
+        return data;
+    }
+
+    static async updatePriorityRule(ruleId, changes) {
+        const response = await apiFetch(`${API_BASE_URL}/rules/priority/${encodeURIComponent(ruleId)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(changes)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to update priority rule');
+        return data;
+    }
+
+    static async reorderPriorityRules(ruleIds) {
+        const response = await apiFetch(`${API_BASE_URL}/rules/priority/reorder`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rule_ids: ruleIds })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to reorder priority rules');
+        return data;
+    }
+
+    static async resetPriorityRules() {
+        const response = await apiFetch(`${API_BASE_URL}/rules/priority/reset`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to reset priority rules');
+        TicketAPI.cachePriorityConfig({
+            rules: data.rules,
+            default_priority: data.default_priority,
+            version: data.version
+        });
         return data;
     }
 

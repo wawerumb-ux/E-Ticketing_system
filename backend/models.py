@@ -183,6 +183,35 @@ class Role(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Priority Rules (configurable ticket priority engine)
+# ---------------------------------------------------------------------------
+
+class PriorityRule(db.Model):
+    """One row per rule in the developer-governed priority rule set.
+
+    Rules are evaluated by ``evaluate_priority`` in ``helpers.py`` in
+    ``sort_order`` (first-match-wins scan with the per-rule ``stop`` flag).
+    The condition shape (field/op) is developer-defined; admins adjust the
+    values, enabled state, resulting priority, stop flag and ordering within
+    the developer's boundaries (enforced server-side in
+    ``validate_priority_rules`` and the admin endpoints).
+    """
+    __tablename__ = 'priority_rules'
+
+    id = db.Column(db.Integer, primary_key=True)
+    rule_id = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    enabled = db.Column(db.Boolean, default=True)
+    condition_json = db.Column(db.Text, nullable=False)
+    resulting_priority = db.Column(db.String(10), nullable=False)
+    stop = db.Column(db.Boolean, default=True)
+    explanation_template = db.Column(db.Text, nullable=False)
+    sort_order = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+
+# ---------------------------------------------------------------------------
 # Password Resets
 # ---------------------------------------------------------------------------
 

@@ -389,6 +389,20 @@ def log_audit(actor, action, entity_type, entity_id=None, details=None):
     ))
 
 
+def log_priority_derived(actor, ticket_id, priority, source, explanation=None):
+    """Audit an auto-derived ticket priority and its explanation.
+
+    ``explanation`` is only ever the value produced at derivation time (by the
+    engine server-side, or by the portal's offline mirror described in the
+    explanation it attached) — never fabricated after the fact (S2). Stored in
+    the existing audit log so the decision survives later rule-config changes
+    without re-deriving.
+    """
+    record = {'priority': priority, 'source': source, 'explanation': explanation}
+    log_audit(actor, 'priority_derived', 'ticket', ticket_id,
+              json.dumps(record, default=str))
+
+
 def notify_users(usernames, ntype, message, link, email_subject, email_body):
     seen = set()
     for uname in usernames:
@@ -488,6 +502,453 @@ def apply_sla(ticket):
     s = settings_int(f'sla_resolution_{ticket.priority}', 2880)
     ticket.sla_response_due = utcnow() + timedelta(minutes=r)
     ticket.sla_resolution_due = utcnow() + timedelta(minutes=s)
+
+# ============ PRIORITY RULES ENGINE ============
+
+PRIORITY_ALLOWED = ('low', 'medium', 'high')
+
+# Developer-governed default when no rule matches. Seeded, not admin-editable.
+PRIORITY_DEFAULT_PRIORITY = 'medium'
+
+PRIORITY_ALLOWED_FIELDS = (
+    'category', 'department', 'title', 'description', 'title_or_description',
+    'created_by_role', 'time_of_day',
+)
+
+PRIORITY_ALLOWED_OPS = ('equals', 'contains', 'in', 'between')
+
+PRIORITY_RULE_LIMITS = {'max_rules': 20, 'max_conditions': 4}
+
+# Rule field names map onto evidence keys passed by callers.
+_PRIORITY_EVIDENCE_KEYS = {'created_by_role': 'role'}
+
+PRIORITY_SECURITY_KEYWORDS = (
+    'breach', 'ransomware', 'unauthorized access', 'phishing', 'data leak',
+)
+
+PRIORITY_NETWORK_KEYWORDS = (
+    'internet down', 'no internet', 'network down', 'connectivity',
+)
+
+PRIORITY_HARDWARE_KEYWORDS = (
+    "won't power on", 'wont boot', 'no display', 'not powering on',
+)
+
+
+def _priority_parse_hhmm(value):
+    try:
+        hours, minutes = str(value).strip().split(':', 1)
+        return int(hours) * 60 + int(minutes)
+    except (TypeError, ValueError):
+        return None
+
+
+def _priority_evidence_text(evidence, field):
+    raw = evidence.get(field) if field in ('title', 'description') else (
+        evidence.get('title') if field == 'title_or_description' else None)
+    return str(raw) if raw is not None else ''
+
+
+def _priority_evidence_time(evidence):
+    created = evidence.get('created_at')
+    if created is None:
+        return None
+    if isinstance(created, str):
+        for candidate in (created, created.replace('Z', '+00:00')):
+            try:
+                parsed = datetime.fromisoformat(candidate)
+                return parsed.hour * 60 + parsed.minute
+            except ValueError:
+                continue
+        return None
+    if hasattr(created, 'hour'):
+        return created.hour * 60 + created.minute
+    return None
+
+
+def _priority_condition_matches(cond, evidence):
+    field = cond.get('field')
+    op = cond.get('op')
+    if field not in PRIORITY_ALLOWED_FIELDS or op not in PRIORITY_ALLOWED_OPS:
+        return None
+
+    if op == 'contains':
+        if field not in ('title', 'description', 'title_or_description'):
+            return None
+        keywords = cond.get('values') or ([cond['value']] if cond.get('value') else [])
+        candidates = (
+            ('title', _priority_evidence_text(evidence, 'title')),
+            ('description', _priority_evidence_text(evidence, 'description')),
+        )
+        for name, raw in candidates:
+            text = raw.lower()
+            if not text:
+                continue
+            for keyword in keywords:
+                needle = str(keyword).strip().lower()
+                if needle and needle in text:
+                    return {'field': name, 'value': raw, 'keyword': str(keyword)}
+        return None
+
+    if op == 'between':
+        if field != 'time_of_day':
+            return None
+        times = cond.get('values') or []
+        if len(times) < 2:
+            return None
+        start = _priority_parse_hhmm(times[0])
+        end = _priority_parse_hhmm(times[1])
+        current = _priority_evidence_time(evidence)
+        if start is None or end is None or current is None:
+            return None
+        if start <= end:
+            inside = start <= current <= end
+        else:
+            inside = current >= start or current <= end
+        if not inside:
+            return None
+        return {
+            'field': 'time_of_day',
+            'value': '%02d:%02d' % (current // 60, current % 60),
+            'keyword': None,
+        }
+
+    if op in ('equals', 'in'):
+        expected = cond.get('values')
+        if not expected:
+            single = cond.get('value')
+            if single is None:
+                return None
+            expected = [single]
+        evidence_key = _PRIORITY_EVIDENCE_KEYS.get(field, field)
+        actual = str(evidence.get(evidence_key) or '').strip().lower()
+        for candidate in expected:
+            if actual == str(candidate).strip().lower():
+                return {
+                    'field': field,
+                    'value': str(candidate),
+                    'keyword': None,
+                }
+        return None
+
+    return None
+
+
+def _priority_rule_matches(rule, evidence):
+    conditions = rule.get('condition') or []
+    if not conditions:
+        return None
+    payload = None
+    for cond in conditions:
+        payload = _priority_condition_matches(cond, evidence)
+        if payload is None:
+            return None
+    return payload
+
+
+def _priority_result(rule, payload, default_priority, evaluated_at, rules_version):
+    priority = rule.get('resulting_priority') or default_priority
+    if priority not in PRIORITY_ALLOWED:
+        priority = default_priority
+    return {
+        'priority': priority,
+        'rule_id': rule.get('rule_id'),
+        'rule_name': rule.get('name'),
+        'matched_field': payload.get('field') if payload else None,
+        'matched_value': payload.get('value') if payload else None,
+        'matched_keyword': payload.get('keyword') if payload else None,
+        'resulting_priority': priority,
+        'evaluated_at': evaluated_at,
+        'rules_version': rules_version,
+        'stop': bool(rule.get('stop', False)),
+        'fallback': False,
+    }
+
+
+def evaluate_priority(evidence, config, evaluated_at=None):
+    """Pure, deterministic rule evaluation. No network, no ML, no side effects.
+
+    Scans enabled rules in list order. The first matched rule whose ``stop``
+    is true wins immediately (first-match-wins). A matched rule with ``stop``
+    false records itself as the running best and scanning continues, so a
+    later rule may supersede it. If no rule matches, ``default_priority`` (or
+    ``medium`` when absent/invalid) applies with ``fallback: True``.
+
+    ``evaluated_at`` is the derivation timestamp; pass a fixed value to make
+    the result fully reproducible for the same evidence and config.
+    """
+    rules = config.get('rules') or []
+    default_priority = config.get('default_priority') or PRIORITY_DEFAULT_PRIORITY
+    if default_priority not in PRIORITY_ALLOWED:
+        default_priority = PRIORITY_DEFAULT_PRIORITY
+    if evaluated_at is None:
+        evaluated_at = utcnow().isoformat()
+    rules_version = config.get('version')
+
+    running_best = None
+    for rule in rules:
+        if not rule.get('enabled', True):
+            continue
+        payload = _priority_rule_matches(rule, evidence)
+        if payload is None:
+            continue
+        if rule.get('stop', False):
+            return _priority_result(rule, payload, default_priority, evaluated_at, rules_version)
+        running_best = (rule, payload)
+
+    if running_best is not None:
+        return _priority_result(running_best[0], running_best[1], default_priority, evaluated_at, rules_version)
+
+    return {
+        'priority': default_priority,
+        'rule_id': None,
+        'rule_name': None,
+        'matched_field': None,
+        'matched_value': None,
+        'matched_keyword': None,
+        'resulting_priority': default_priority,
+        'evaluated_at': evaluated_at,
+        'rules_version': rules_version,
+        'stop': False,
+        'fallback': True,
+    }
+
+
+# Developer-owned default rule set. Seeded into the DB in Phase 4 and served
+# to the offline mirror. Order is authoritative (first-match-wins).
+PRIORITY_DEFAULT_RULES = [
+    {
+        'rule_id': 'security_incident',
+        'name': 'Security or breach keywords in the ticket text',
+        'enabled': True,
+        'condition': [
+            {'field': 'title_or_description', 'op': 'contains',
+             'values': list(PRIORITY_SECURITY_KEYWORDS)},
+        ],
+        'resulting_priority': 'high',
+        'stop': True,
+        'explanation_template': 'Security keyword "{matched_keyword}" in the {matched_field} raised priority to high.',
+    },
+    {
+        'rule_id': 'network_outage',
+        'name': 'Network or connectivity keywords in the title',
+        'enabled': True,
+        'condition': [
+            {'field': 'title', 'op': 'contains',
+             'values': list(PRIORITY_NETWORK_KEYWORDS)},
+        ],
+        'resulting_priority': 'high',
+        'stop': True,
+        'explanation_template': 'Network keyword "{matched_keyword}" in the {matched_field} raised priority to high.',
+    },
+    {
+        'rule_id': 'critical_outage',
+        'name': 'Ticket category is Network or Security',
+        'enabled': True,
+        'condition': [
+            {'field': 'category', 'op': 'in', 'values': ['Network', 'Security']},
+        ],
+        'resulting_priority': 'high',
+        'stop': True,
+        'explanation_template': 'Category is {matched_value}, which is treated as critical.',
+    },
+    {
+        'rule_id': 'hardware_failure',
+        'name': 'Hardware failure keywords in the ticket text',
+        'enabled': True,
+        'condition': [
+            {'field': 'title_or_description', 'op': 'contains',
+             'values': list(PRIORITY_HARDWARE_KEYWORDS)},
+        ],
+        'resulting_priority': 'medium',
+        'stop': True,
+        'explanation_template': 'Hardware keyword "{matched_keyword}" in the {matched_field} set priority to medium.',
+    },
+    {
+        'rule_id': 'software_issue',
+        'name': 'Ticket category is Software',
+        'enabled': True,
+        'condition': [
+            {'field': 'category', 'op': 'equals', 'value': 'Software'},
+        ],
+        'resulting_priority': 'medium',
+        'stop': True,
+        'explanation_template': 'Category is Software, set priority to medium.',
+    },
+    {
+        'rule_id': 'low_priority',
+        'name': 'Ticket category is General or Other',
+        'enabled': True,
+        'condition': [
+            {'field': 'category', 'op': 'in', 'values': ['General', 'Other']},
+        ],
+        'resulting_priority': 'low',
+        'stop': False,
+        'explanation_template': 'Category is {matched_value}, set priority to low.',
+    },
+]
+
+
+def validate_priority_rules(rules):
+    """Config-time validation. Returns ``(True, [])`` or ``(False, [errors])``.
+
+    The developer boundaries live here and nowhere else: the allowed field
+    set, allowed operators, allowed resulting priorities, the rule/condition
+    limits and the per-condition shape. An invalid rule is rejected at save
+    time — it must never reach evaluation.
+    """
+    errors = []
+    if not isinstance(rules, list):
+        return False, ['Rules must be a list']
+    if len(rules) > PRIORITY_RULE_LIMITS['max_rules']:
+        errors.append(
+            f"Too many rules: {len(rules)} exceeds the limit of "
+            f"{PRIORITY_RULE_LIMITS['max_rules']}")
+
+    seen_ids = set()
+    for index, rule in enumerate(rules):
+        where = f'rule {index + 1}'
+        if not isinstance(rule, dict):
+            errors.append(f'{where}: rule must be an object')
+            continue
+
+        rule_id = rule.get('rule_id')
+        if not isinstance(rule_id, str) or not rule_id.strip():
+            errors.append(f'{where}: rule_id is required')
+        elif rule_id in seen_ids:
+            errors.append(f'{where}: duplicate rule_id "{rule_id}"')
+        else:
+            seen_ids.add(rule_id)
+
+        if not isinstance(rule.get('name'), str) or not rule['name'].strip():
+            errors.append(f'{where}: name is required')
+        if not isinstance(rule.get('enabled'), bool):
+            errors.append(f'{where}: enabled must be true or false')
+        if rule.get('resulting_priority') not in PRIORITY_ALLOWED:
+            errors.append(f'{where}: resulting_priority must be one of '
+                          f'{", ".join(PRIORITY_ALLOWED)}')
+        if not isinstance(rule.get('stop'), bool):
+            errors.append(f'{where}: stop must be true or false')
+        if not isinstance(rule.get('explanation_template'), str) or not rule['explanation_template'].strip():
+            errors.append(f'{where}: explanation_template is required')
+
+        conditions = rule.get('condition')
+        if not isinstance(conditions, list) or not conditions:
+            errors.append(f'{where}: at least one condition is required')
+            continue
+        if len(conditions) > PRIORITY_RULE_LIMITS['max_conditions']:
+            errors.append(f'{where}: too many conditions ({len(conditions)}, '
+                          f'max {PRIORITY_RULE_LIMITS["max_conditions"]})')
+
+        for ci, cond in enumerate(conditions):
+            cwhere = f'{where}, condition {ci + 1}'
+            if not isinstance(cond, dict):
+                errors.append(f'{cwhere}: condition must be an object')
+                continue
+
+            field = cond.get('field')
+            op = cond.get('op')
+            if field not in PRIORITY_ALLOWED_FIELDS:
+                errors.append(f'{cwhere}: field "{field}" is not allowed '
+                              f'(use one of {", ".join(PRIORITY_ALLOWED_FIELDS)})')
+            if op not in PRIORITY_ALLOWED_OPS:
+                errors.append(f'{cwhere}: op "{op}" is not allowed '
+                              f'(use one of {", ".join(PRIORITY_ALLOWED_OPS)})')
+            if op == 'contains' and field not in ('title', 'description', 'title_or_description'):
+                errors.append(f'{cwhere}: contains is only valid on title, description or title_or_description')
+            if op == 'between' and field != 'time_of_day':
+                errors.append(f'{cwhere}: between is only valid on time_of_day')
+
+            if op == 'between':
+                times = cond.get('values') or []
+                if len(times) != 2 or any(_priority_parse_hhmm(t) is None for t in times):
+                    errors.append(f'{cwhere}: between requires exactly two HH:MM values')
+            elif op == 'contains':
+                keywords = cond.get('values')
+                if not isinstance(keywords, list) or not keywords or not all(
+                        isinstance(k, str) and k.strip() for k in keywords):
+                    errors.append(f'{cwhere}: contains requires a non-empty list of keyword strings')
+            elif op in ('equals', 'in'):
+                values = cond.get('values')
+                if not values:
+                    single = cond.get('value')
+                    if single is None or not str(single).strip():
+                        errors.append(f'{cwhere}: {op} requires a value or a non-empty values list')
+
+    return (len(errors) == 0), errors
+
+
+def render_explanation(template, payload):
+    """Render an explanation_template with the values of the matched payload."""
+    if not isinstance(template, str):
+        return ''
+    values = {
+        'matched_field': str(payload.get('matched_field') or ''),
+        'matched_value': str(payload.get('matched_value') or ''),
+        'matched_keyword': str(payload.get('matched_keyword') or ''),
+    }
+    try:
+        return template.format_map(values)
+    except (KeyError, ValueError, IndexError):
+        return template
+
+
+def build_priority_config():
+    """Assemble the current rule configuration: rules, default priority, version.
+
+    Prefers live ``PriorityRule`` rows in ``sort_order``; falls back to the
+    developer-defined ``PRIORITY_DEFAULT_RULES`` while the table (or model) is
+    unavailable, so the engine and import graph stay healthy before and after
+    the storage phase lands. ``version`` is max(updated_at) so offline caches
+    can compare freshness; 'builtin' marks the unseeded fallback.
+    """
+    try:
+        from models import PriorityRule
+    except ImportError:
+        return _builtin_priority_config()
+
+    try:
+        rows = PriorityRule.query.order_by(PriorityRule.sort_order.asc()).all()
+    except Exception:
+        rows = []
+
+    if not rows:
+        return _builtin_priority_config()
+
+    rules = []
+    for row in rows:
+        try:
+            condition = json.loads(row.condition_json) if row.condition_json else []
+        except (TypeError, ValueError):
+            condition = []
+        rules.append({
+            'rule_id': row.rule_id,
+            'name': row.name,
+            'enabled': bool(row.enabled),
+            'condition': condition,
+            'resulting_priority': row.resulting_priority,
+            'stop': bool(row.stop),
+            'explanation_template': row.explanation_template,
+        })
+
+    version = 'builtin'
+    timestamps = [r.updated_at for r in rows if r.updated_at]
+    if timestamps:
+        version = max(timestamps).isoformat()
+
+    return {
+        'rules': rules,
+        'default_priority': PRIORITY_DEFAULT_PRIORITY,
+        'version': version,
+    }
+
+
+def _builtin_priority_config():
+    return {
+        'rules': [dict(r) for r in PRIORITY_DEFAULT_RULES],
+        'default_priority': PRIORITY_DEFAULT_PRIORITY,
+        'version': 'builtin',
+    }
 
 # ============ EVENTS / WEBHOOKS ============
 

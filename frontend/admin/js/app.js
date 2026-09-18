@@ -34,6 +34,9 @@ class TicketingApp {
         this.filteredUsers = [];
         this.usersLoadError = false;
         this.activeQueue = 'all';
+        this.sortField = 'created_at';
+        this.sortDirection = 'desc';
+        this.sortExplicit = false;
         this.selectedTicketIds = new Set();
         this.auditShowDetails = false;
         this.activeTicketAttachments = [];
@@ -299,6 +302,9 @@ class TicketingApp {
         document.getElementById('statusFilter').addEventListener('change', () => this.filterTickets());
         document.getElementById('priorityFilter').addEventListener('change', () => this.filterTickets());
         document.getElementById('searchTicket').addEventListener('input', () => this.filterTickets());
+        document.querySelectorAll('#tickets th[data-sort]').forEach(th => {
+            th.addEventListener('click', () => this.handleSort(th.dataset.sort));
+        });
         document.getElementById('searchUser').addEventListener('input', () => this.renderUsers());
         document.getElementById('userRoleFilter').addEventListener('change', () => this.renderUsers());
         document.getElementById('userStatusFilter').addEventListener('change', () => this.renderUsers());
@@ -1358,9 +1364,58 @@ class TicketingApp {
             );
         }
 
-        this.filteredTickets = filtered;
+        // Order is only re-sorted once the user actively picks a column. Before
+        // that, the queue's own intended order (e.g. recently_resolved sorts by
+        // updated_at) stays untouched — same default behaviour as before.
+        this.filteredTickets = this.sortExplicit ? this.sortTickets(filtered) : filtered;
         this.renderQueueCounts();
-        this.renderTickets(filtered);
+        this.renderTickets(this.filteredTickets);
+        this.updateSortIndicators();
+    }
+
+    // Same sort contract as the user portal: string/date fields on the ticket,
+    // toggled on repeat clicks, never mutating the source array in place.
+    sortTickets(tickets) {
+        const field = this.sortField;
+        const dir = this.sortDirection === 'asc' ? 1 : -1;
+        return [...tickets].sort((a, b) => {
+            let valA = a[field];
+            let valB = b[field];
+            if (field === 'created_at' || field === 'updated_at') {
+                valA = new Date(valA);
+                valB = new Date(valB);
+            } else if (typeof valA === 'string') {
+                valA = valA.toLowerCase();
+                valB = (valB || '').toLowerCase();
+            }
+            valA = valA ?? '';
+            valB = valB ?? '';
+            if (valA < valB) return -1 * dir;
+            if (valA > valB) return 1 * dir;
+            return 0;
+        });
+    }
+
+    handleSort(field) {
+        if (this.sortField === field) {
+            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortField = field;
+            this.sortDirection = 'asc';
+        }
+        this.sortExplicit = true;
+        this.filterTickets();
+    }
+
+    updateSortIndicators() {
+        document.querySelectorAll('#tickets th[data-sort]').forEach(th => {
+            th.classList.remove('sorted-asc', 'sorted-desc');
+            // Only the user-chosen column is marked; before an explicit sort
+            // the table shows the queue's natural order (no active indicator).
+            if (this.sortExplicit && th.dataset.sort === this.sortField) {
+                th.classList.add(this.sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+            }
+        });
     }
 
     renderQueueCounts() {
@@ -2652,6 +2707,7 @@ class TicketingApp {
         await this.loadDepartments();
         await this.loadRoles();
         await this.loadSystemSettings();
+        await this.loadPriorityRules();
     }
 
     async loadSystemSettings() {
@@ -2711,6 +2767,190 @@ class TicketingApp {
             await this.loadSystemSettings();
         } catch (error) {
             this.showToast(error.message || 'Failed to save settings.', true);
+        }
+    }
+
+    // ============ Settings: Ticket Priority Rules ============
+    // The rules themselves are developer-shaped: admins tune a rule's enabled
+    // state, stop flag, resulting priority, order and condition *values* only.
+    // The panel derives its allowed priorities from the server's meta so the
+    // boundaries are never duplicated on the client.
+    async loadPriorityRules() {
+        const panel = document.getElementById('priorityRulesPanel');
+        if (!panel) return;
+        try {
+            this.priorityRules = await TicketAPI.getPriorityRules();
+            this.renderPriorityRules();
+        } catch (error) {
+            this.priorityRules = null;
+            panel.innerHTML = `
+                <div style="padding:16px;border:1px dashed var(--surface-muted, #e0e0e0);border-radius:10px;">
+                    <p style="color:var(--text-muted, #8191a1);margin-bottom:10px;">Requires connection — priority rule configuration cannot be shown offline.</p>
+                    <button type="button" class="btn-secondary btn-sm" onclick="app.loadPriorityRules()">${Icons.render('sync-alt')} Retry</button>
+                </div>`;
+        }
+    }
+
+    renderPriorityRules() {
+        const panel = document.getElementById('priorityRulesPanel');
+        if (!panel || !this.priorityRules) return;
+        const cfg = this.priorityRules;
+        const rules = Array.isArray(cfg.rules) ? cfg.rules : [];
+        panel.innerHTML = `
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:15px;">
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <span class="priority-badge ${cfg.default_priority || 'medium'}">Fallback: ${this.capitalize(cfg.default_priority || 'medium')}</span>
+                    <span style="font-size:0.8rem;color:var(--text-muted, #8191a1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;" title="Rule configuration version ${this._esc(cfg.version)}">v${this._esc(String(cfg.version).slice(0, 12))}${String(cfg.version).length > 12 ? '…' : ''}</span>
+                    <span style="font-size:0.8rem;color:var(--text-muted, #8191a1);white-space:nowrap;">${rules.length} rule${rules.length === 1 ? '' : 's'}</span>
+                </div>
+                <button type="button" class="btn-secondary btn-sm" onclick="app.resetPriorityRules()">${Icons.render('undo')} Reset to defaults</button>
+            </div>
+            ${rules.length === 0
+                ? '<p style="color:var(--text-muted, #8191a1);">No rules configured.</p>'
+                : rules.map((rule, idx) => this.renderPriorityRuleCard(rule, idx, rules.length)).join('')}`;
+    }
+
+    renderPriorityRuleCard(rule, idx, total) {
+        const allowed = (this.priorityRules.meta && this.priorityRules.meta.allowed_priorities) || ['low', 'medium', 'high'];
+        const priorityOptions = allowed.map(p =>
+            `<option value="${p}"${p === rule.resulting_priority ? ' selected' : ''}>${this.capitalize(p)}</option>`).join('');
+        const conditionEditors = rule.condition.map((cond, ci) => this.renderConditionEditor(cond, idx, ci)).join('');
+        const dim = rule.enabled ? '' : 'opacity:0.72;box-shadow:none;';
+        return `
+            <div style="border:1px solid var(--surface-muted, #e0e0e0);border-radius:10px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,0.06);${dim}" data-rule-idx="${idx}">
+                <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;min-width:0;">
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0;">
+                        <strong>${this._esc(rule.name)}</strong>
+                        <code style="font-size:0.72rem;color:var(--text-muted, #8191a1);background:var(--surface-muted, #e0e0e0);padding:2px 6px;border-radius:4px;white-space:nowrap;">${this._esc(rule.rule_id)}</code>
+                        <span style="font-size:0.8rem;color:var(--text-muted, #8191a1);white-space:nowrap;">${rule.enabled ? 'Active' : 'Disabled'}</span>
+                    </div>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <button type="button" class="btn-secondary btn-sm" aria-label="Move rule up" title="Move rule up" onclick="app.movePriorityRule(${idx}, -1)" ${idx === 0 ? 'disabled' : ''}>${Icons.render('chevron-up')}</button>
+                        <button type="button" class="btn-secondary btn-sm" aria-label="Move rule down" title="Move rule down" onclick="app.movePriorityRule(${idx}, 1)" ${idx === total - 1 ? 'disabled' : ''}>${Icons.render('chevron-down')}</button>
+                    </div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;">
+                    <div class="form-group" style="flex:1 1 180px;min-width:0;">
+                        <label for="prio-p-${rule.rule_id}">Resulting priority</label>
+                        <select id="prio-p-${rule.rule_id}" data-k="priority">${priorityOptions}</select>
+                    </div>
+                    <div class="form-group" style="flex:1 1 180px;min-width:0;">
+                        <label for="prio-e-${rule.rule_id}">Enabled</label>
+                        <select id="prio-e-${rule.rule_id}" data-k="enabled">
+                            <option value="true"${rule.enabled ? ' selected' : ''}>Enabled</option>
+                            <option value="false"${rule.enabled ? '' : ' selected'}>Disabled</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1 1 180px;min-width:0;">
+                        <label for="prio-s-${rule.rule_id}">Stop after match</label>
+                        <select id="prio-s-${rule.rule_id}" data-k="stop">
+                            <option value="true"${rule.stop ? ' selected' : ''}>Stop (first match wins)</option>
+                            <option value="false"${rule.stop ? '' : ' selected'}>Keep evaluating</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-top:12px;">
+                    <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:6px;">Conditions (all must match)</label>
+                    ${conditionEditors}
+                </div>
+                <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+                    <button type="button" class="btn-primary btn-sm" onclick="app.savePriorityRule(${idx})">${Icons.render('save')} Save changes</button>
+                </div>
+            </div>`;
+    }
+
+    renderConditionEditor(cond, idx, ci) {
+        const chip = content => `<code style="font-size:0.72rem;color:var(--text-muted, #8191a1);background:var(--surface-muted, #e0e0e0);padding:2px 8px;border-radius:4px;overflow-wrap:anywhere;word-break:break-word;">${content}</code>`;
+        let editor;
+        if (cond.op === 'between') {
+            const t0 = (cond.values && cond.values[0]) || '';
+            const t1 = (cond.values && cond.values[1]) || '';
+            editor = `
+                <input type="time" aria-label="From time" value="${t0}" data-k="cond-${ci}-0" style="width:auto;">
+                <span aria-hidden="true" style="color:var(--text-muted, #8191a1);">to</span>
+                <input type="time" aria-label="To time" value="${t1}" data-k="cond-${ci}-1" style="width:auto;">`;
+        } else {
+            editor = `<input type="text" value="${this._esc(this._conditionValueText(cond))}" data-k="cond-${ci}" title="Separate values with commas: ${this._esc(this._conditionValueText(cond))}" style="min-width:0;flex:1 1 11rem;width:auto;max-width:100%;">`;
+        }
+        return `
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;min-width:0;">
+                ${chip(this._esc(cond.field))}${chip(this._esc(cond.op))}${editor}
+            </div>`;
+    }
+
+    _conditionValueText(cond) {
+        const list = Array.isArray(cond.values) && cond.values.length
+            ? cond.values
+            : (cond.value != null ? [cond.value] : []);
+        return list.map(String).join(', ');
+    }
+
+    async savePriorityRule(idx) {
+        const cfg = this.priorityRules;
+        if (!cfg) return;
+        const rule = cfg.rules[idx];
+        if (!rule) return;
+        const card = document.querySelector(`#priorityRulesPanel [data-rule-idx="${idx}"]`);
+        if (!card) return;
+        const changes = {
+            enabled: card.querySelector('[data-k="enabled"]').value === 'true',
+            stop: card.querySelector('[data-k="stop"]').value === 'true',
+            resulting_priority: card.querySelector('[data-k="priority"]').value,
+            condition: rule.condition.map((cond, ci) => {
+                const next = { field: cond.field, op: cond.op };
+                if (cond.op === 'between') {
+                    next.values = [
+                        card.querySelector(`[data-k="cond-${ci}-0"]`).value,
+                        card.querySelector(`[data-k="cond-${ci}-1"]`).value
+                    ];
+                } else {
+                    next.values = card.querySelector(`[data-k="cond-${ci}"]`).value
+                        .split(',').map(s => s.trim()).filter(Boolean);
+                }
+                return next;
+            })
+        };
+        const empty = changes.condition.some(c =>
+            c.op === 'between'
+                ? c.values.length !== 2 || !c.values[0] || !c.values[1]
+                : c.values.length === 0);
+        if (empty) {
+            this.showToast('Each condition needs at least one value.', true);
+            return;
+        }
+        try {
+            await TicketAPI.updatePriorityRule(rule.rule_id, changes);
+            this.showToast('Priority rule saved.');
+            await this.loadPriorityRules();
+        } catch (error) {
+            this.showToast(error.message || 'Failed to save rule.', true);
+        }
+    }
+
+    async movePriorityRule(idx, dir) {
+        const cfg = this.priorityRules;
+        if (!cfg) return;
+        const ids = cfg.rules.map(r => r.rule_id);
+        const j = idx + dir;
+        if (j < 0 || j >= ids.length) return;
+        [ids[idx], ids[j]] = [ids[j], ids[idx]];
+        try {
+            await TicketAPI.reorderPriorityRules(ids);
+            this.showToast('Rule order saved.');
+            await this.loadPriorityRules();
+        } catch (error) {
+            this.showToast(error.message || 'Failed to reorder rules.', true);
+        }
+    }
+
+    async resetPriorityRules() {
+        if (!confirm('Reset all priority rules to the developer defaults? Your current configuration will be lost.')) return;
+        try {
+            await TicketAPI.resetPriorityRules();
+            this.showToast('Priority rules reset to defaults.');
+            await this.loadPriorityRules();
+        } catch (error) {
+            this.showToast(error.message || 'Failed to reset rules.', true);
         }
     }
 

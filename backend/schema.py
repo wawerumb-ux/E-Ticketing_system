@@ -13,6 +13,7 @@ already present so Flask-SQLAlchemy works immediately.
 """
 
 from functools import wraps
+import json
 
 from flask import has_app_context
 from sqlalchemy import text as sqla_text
@@ -21,6 +22,7 @@ from models import (
     Category,
     Department,
     KnowledgeArticle,
+    PriorityRule,
     Role,
     User,
 )
@@ -156,6 +158,44 @@ def ensure_offline_comments_schema():
 
 
 @_with_app_context
+def ensure_priority_rules_schema():
+    """Create the priority_rules table on engines that predate it.
+
+    New installs get it from ``db.create_all()``; this guard covers a live
+    database whose schema was built before the PriorityRule model existed.
+    """
+    try:
+        inspector = db.inspect(db.engine)
+        if 'priority_rules' in inspector.get_table_names():
+            return
+        PriorityRule.__table__.create(db.engine)
+        logger.info('Created priority_rules table to match the current schema')
+    except Exception as exc:
+        logger.warning(f'Could not ensure priority rules schema compatibility: {exc}')
+
+
+@_with_app_context
+def seed_priority_rules():
+    """Seed the developer-defined default rule set when none exist."""
+    from helpers import PRIORITY_DEFAULT_RULES
+    if PriorityRule.query.count() > 0:
+        return
+    for order, rule in enumerate(PRIORITY_DEFAULT_RULES):
+        db.session.add(PriorityRule(
+            rule_id=rule['rule_id'],
+            name=rule['name'],
+            enabled=rule['enabled'],
+            condition_json=json.dumps(rule['condition']),
+            resulting_priority=rule['resulting_priority'],
+            stop=rule['stop'],
+            explanation_template=rule['explanation_template'],
+            sort_order=order + 1,
+        ))
+    db.session.commit()
+    logger.info('Seeded %d default priority rules', len(PRIORITY_DEFAULT_RULES))
+
+
+@_with_app_context
 def seed_default_users():
     from werkzeug.security import generate_password_hash
 
@@ -250,12 +290,14 @@ def bootstrap_database():
     ensure_offline_comments_schema()
     ensure_notification_prefs_schema()
     ensure_ussd_schema_compat()
+    ensure_priority_rules_schema()
     seed_default_roles()
     seed_default_users()
     seed_settings()
     seed_starter_articles()
     seed_starter_categories()
     seed_starter_departments()
+    seed_priority_rules()
     logger.info('Database initialization complete')
 
 

@@ -14,17 +14,22 @@ from extensions import db, utcnow
 from models import Notification, Ticket, TicketAttachment, TicketComment, User
 from helpers import (
     ALLOWED_EXTENSIONS,
+    PRIORITY_ALLOWED,
+    PRIORITY_DEFAULT_PRIORITY,
     _as_str,
     _attachment_access,
     _next_ticket_number,
     _remove_attachment_files,
     _run_periodic_tasks,
     apply_sla,
+    build_priority_config,
     email_global_enabled,
     emit_event,
+    evaluate_priority,
     get_setting,
     get_notification_prefs,
     log_audit,
+    log_priority_derived,
     notify_users,
     render_email_html,
     role_required,
@@ -49,6 +54,41 @@ def get_tickets():
     return jsonify([serialize_ticket(t) for t in tickets]), 200
 
 
+def _derive_ticket_priority(payload, claims):
+    """Decide the initial priority for a new ticket.
+
+    - ``priority_source='manual'``: an authenticated staff member supplied an
+      explicit value — honor it (clamped to the allowed set).
+    - ``priority_source='rule_engine'``: the portal already derived it against
+      the active config and the user saw it — accept unchanged, do not
+      re-derive.
+    - otherwise: derive server-side from creation-time evidence against the
+      current rule config.
+
+    Returns ``(priority, source, explanation_or_none)``.
+    """
+    source = payload.get('priority_source')
+    supplied = payload.get('priority')
+
+    if source in ('manual', 'rule_engine'):
+        priority = supplied if supplied in PRIORITY_ALLOWED else PRIORITY_DEFAULT_PRIORITY
+        return priority, source, None
+
+    evidence = {
+        'title': payload.get('title'),
+        'description': payload.get('description'),
+        'category': payload.get('category'),
+        'department': None,
+        'role': claims.get('role'),
+        'created_at': utcnow(),
+    }
+    user = User.query.filter_by(username=claims.get('username')).first()
+    if user is not None:
+        evidence['department'] = user.department
+    result = evaluate_priority(evidence, build_priority_config())
+    return result['priority'], 'rule_engine', result
+
+
 @tickets_bp.route('/api/tickets', methods=['POST'])
 @jwt_required()
 def create_ticket():
@@ -58,6 +98,8 @@ def create_ticket():
 
     if not data.get('title') or not data.get('description') or not data.get('category'):
         return jsonify({'error': 'Title, description and category are required'}), 400
+
+    priority, priority_source, priority_explanation = _derive_ticket_priority(data, claims)
 
     client_uuid = data.get('client_uuid')
     if client_uuid:
@@ -78,7 +120,7 @@ def create_ticket():
             title=data['title'],
             description=data['description'],
             category=data['category'],
-            priority=data.get('priority', 'medium'),
+            priority=priority,
             created_by=actor,
             assigned_to=data.get('assigned_to'),
             client_uuid=client_uuid,
@@ -90,7 +132,14 @@ def create_ticket():
             db.session.commit()
 
             log_audit(actor, 'create', 'ticket', new_ticket.id,
-                      f"Created ticket {ticket_number} ({data.get('category')}, {data.get('priority', 'medium')})")
+                      f"Created ticket {ticket_number} ({data.get('category')}, {priority} via {priority_source})")
+
+            if priority_source == 'rule_engine' and priority_explanation is not None:
+                log_priority_derived(actor, new_ticket.id, priority, priority_source,
+                                     priority_explanation)
+            elif priority_source == 'rule_engine' and isinstance(data.get('priority_explanation'), dict):
+                log_priority_derived(actor, new_ticket.id, priority, priority_source,
+                                     data['priority_explanation'])
 
             recipients = set()
             if new_ticket.assigned_to:
@@ -119,7 +168,10 @@ def create_ticket():
             db.session.commit()
             return jsonify({
                 'message': 'Ticket created successfully',
-                'ticket_number': ticket_number
+                'ticket_number': ticket_number,
+                'priority': priority,
+                'priority_source': priority_source,
+                'priority_explanation': priority_explanation,
             }), 201
         except IntegrityError:
             db.session.rollback()
