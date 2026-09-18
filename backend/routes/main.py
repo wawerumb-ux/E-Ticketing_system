@@ -26,8 +26,16 @@ main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/api/health', methods=['GET'])
 def health_check():
-    # Deliberately does not echo the database URI/host: health is public.
-    return jsonify({'status': 'healthy', 'database': True}), 200
+    # Real probe, truthful output: try an actual round-trip to the database.
+    # Never echo the database URI/host/credentials — health is public.
+    try:
+        db.session.execute(db.text('SELECT 1'))
+        return jsonify({'status': 'healthy', 'database': True}), 200
+    except Exception:
+        # Do NOT leak why (no driver error text, no URI) — but say which
+        # dependency is down so consumers never see a lying 'healthy'.
+        return jsonify({'status': 'degraded', 'database': False,
+                        'service': 'database-unreachable'}), 503
 
 
 # ============ FRONTEND SERVING ============

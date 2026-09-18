@@ -109,6 +109,39 @@ class CommentsTestCase(BaseTestCase):
                              headers=self.staff_headers())
         self.assertEqual(r.status_code, 403)
 
+    def test_comment_replay_with_same_client_uuid_is_idempotent(self):
+        """Replaying a queued comment (same client_uuid) returns 200 with the
+        existing comment instead of creating a duplicate (offline sync)."""
+        self.create_ticket()
+        tid = _latest_ticket().id
+        cu = 'aaaa1111-bbbb-2222-cccc-3333dddd4444'
+
+        first = self.client.post(f'/api/tickets/{tid}/comments',
+                                 json={'message': 'Offline reply', 'client_uuid': cu},
+                                 headers=self.admin_headers())
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(first.get_json()['client_uuid'], cu)
+
+        replay = self.client.post(f'/api/tickets/{tid}/comments',
+                                  json={'message': 'Offline reply', 'client_uuid': cu},
+                                  headers=self.admin_headers())
+        self.assertEqual(replay.status_code, 200)
+        self.assertEqual(replay.get_json()['comment_id'], first.get_json()['comment_id'])
+
+        comments = self.client.get(f'/api/tickets/{tid}/comments', headers=self.admin_headers())
+        self.assertEqual(len(comments.get_json()), 1)
+
+    def test_distinct_client_uuids_create_separate_comments(self):
+        self.create_ticket()
+        tid = _latest_ticket().id
+        for cu in ('u1', 'u2'):
+            r = self.client.post(f'/api/tickets/{tid}/comments',
+                                 json={'message': f'reply {cu}', 'client_uuid': cu},
+                                 headers=self.admin_headers())
+            self.assertEqual(r.status_code, 201)
+        comments = self.client.get(f'/api/tickets/{tid}/comments', headers=self.admin_headers())
+        self.assertEqual(len(comments.get_json()), 2)
+
 
 class DeleteTicketTestCase(BaseTestCase):
     def test_admin_deletes_ticket(self):

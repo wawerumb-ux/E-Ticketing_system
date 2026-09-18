@@ -629,7 +629,7 @@ a {
     position: fixed;
     z-index: var(--z-identity);
     width: 250px;
-    max-width: calc(100vw - 16px);
+    max-width: calc(100% - 16px);
     max-height: 60vh;
     overflow-y: auto;
     background: var(--surface);
@@ -1059,7 +1059,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     top: calc(var(--header-height) + 12px);
     right: 32px;
     width: 400px;
-    max-width: calc(100vw - 32px);
+    max-width: calc(100% - 32px);
     max-height: min(70vh, 680px);
     display: flex;
     flex-direction: column;
@@ -1386,6 +1386,27 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
 .quick-action-btn i {
     font-size: 1.6rem;
     color: var(--link, var(--primary));
+}
+
+/* KaiOS / touchscreen parity (§RSP9, §OY9): the quick-action cluster reveal
+   up to here is hover-only (:hover at 1380). On a KaiOS QVGA or touchscreen
+   the primary input is D-pad / touch and hover never fires — the cluster
+   would sit undisclosed until a tap lands. The affordance is NOT lost (click
+   handlers are bound in both portals — admin app.js:284/309/314,
+   user app.js:110/126 reach the same actions); this row merely keeps the
+   cluster visible when hover cannot fire, so D-pad/touch users see what
+   exists before pressing. Same selectors, same file, no token invented, no
+   new pattern, offline-neutral. */
+@media (hover: none) {
+    .quick-action-btn {
+        transform: none;
+        opacity: 1;
+    }
+
+    .quick-action-btn:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+    }
 }
 
 .quick-action-btn strong {
@@ -2837,7 +2858,7 @@ body.focus-mode .service-status-badge {
     /* Modals fit the viewport even where inline max-width="6xxpx" styles
        (ticket detail / workspace) would otherwise overflow a phone. */
     .modal-content {
-        max-width: calc(100vw - 24px) !important;
+        max-width: calc(100% - 24px) !important;
         margin: 32px auto;
         max-height: 90vh;
     }
@@ -2868,6 +2889,22 @@ body.focus-mode .service-status-badge {
 
     .stat-number {
         font-size: 1.5rem;
+    }
+}
+
+/* KaiOS QVGA (240×320 portrait, 320×240 landscape) — a phone that KaiOS
+   reports as 240 CSS px wide. The 280px drawer from the 768 row above is
+   WIDER than QVGA's 240px viewport, which would force horizontal scrolling
+   (§7 "must not be unusable on a 240px-wide phone"). This row re-flows the
+   drawer to the viewport — same full-bleed slide-in, same backdrop, same
+   transform — and collapses the stat grid (already single-column ≤480) into
+   the QVGA column. It extends the 480 scaffold; it does not replace it. */
+@media (max-width: 360px) {
+    /* The 768px drawer is width:280px; at ≤360px the viewport (240 px wide)
+       is narrower than the drawer → re-flow width to the viewport. */
+    .sidebar {
+        width: 100%;
+        max-width: 100%;
     }
 }
 
@@ -3252,6 +3289,23 @@ html.density-compact .chart-card h3 {
     .setting-control .segmented button {
         flex: 1;
         justify-content: center;
+    }
+}
+
+/* KaiOS QVGA (240 CSS px portrait, 320 landscape) continuation of the
+   settings-row scaffold above. At 240 px a 3-segment priority control
+   (Low/Medium/High) leaves ~73px per button; the 480 row keeps the
+   full-width segments, this row only tightens the gutter and the button
+   padding so labels ("Medium") never truncate. Same selectors, same
+   pattern — no new tokens, no new media row convention. */
+@media (max-width: 360px) {
+    .setting-control .segmented {
+        gap: 6px;
+    }
+
+    .setting-control .segmented button {
+        padding: 10px 6px;
+        min-height: 40px;
     }
 }
 

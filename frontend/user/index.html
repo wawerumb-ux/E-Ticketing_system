@@ -34,7 +34,7 @@
     <script src="/vendor/qrcode.min.js"></script>
 </head>
 <body>
-    <div id="offlineBanner" style="display:none;align-items:center;justify-content:center;gap:8px;padding:10px 16px;background:var(--danger,#dc2626);color:#ffffff;font-size:0.9rem;font-weight:500;">
+    <div id="offlineBanner" style="display:none;align-items:center;justify-content:center;gap:8px;padding:10px 16px;background:var(--danger,#dc2626);color:#ffffff;font-size:0.9rem;font-weight:500;" role="status">
         <i data-icon="wifi" aria-hidden="true" style="transform:rotate(180deg);"></i> You are offline — your ticket submission will be saved and sent when you reconnect.
     </div>
     <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
@@ -195,7 +195,7 @@
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-                    <span id="pendingBadge" style="display:none;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-sm,6px);background:var(--warning,#f59e0b);color:#ffffff;font-size:0.8rem;font-weight:600;"></span>
+                    <span id="pendingBadge" style="display:none;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-sm,6px);background:var(--warning-light,#fef3c7);color:var(--warning-dark,#b45309);font-size:0.8rem;font-weight:600;"></span>
                     <span id="lastSynced" style="font-size:0.8rem;color:var(--text-muted,#888888);">last synced: —</span>
                 </div>
                 <div class="table-container">
@@ -589,6 +589,7 @@
     <script src="/shared/js/icons.js"></script>
     <script src="/shared/js/password-field.js"></script>
     <script src="/shared/js/notification-prefs.js"></script>
+    <script src="/shared/js/offline-db.js"></script>
     <script src="/user/js/app.js"></script>
     <script>
         // Register the offline-capability service worker. Scope '/' is honoured

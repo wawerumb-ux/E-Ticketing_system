@@ -757,6 +757,10 @@ openTicketDetail(id) {
 
     async loadTicketComments(ticketId) {
     const container = document.getElementById('ticketCommentList');
+    if (navigator.onLine === false) {
+        container.innerHTML = '<p style="color:#999;font-size:0.9rem;">Requires connection — replies will load when you are back online.</p>';
+        return;
+    }
     const comments = await TicketAPI.getTicketComments(ticketId);
 
     if (comments.length === 0) {
@@ -780,13 +784,37 @@ openTicketDetail(id) {
         const message = input.value.trim();
         if (!message || !this.activeTicketId) return;
 
-        try {
-            await TicketAPI.createTicketComment(this.activeTicketId, message);
+        // Stamp one uuid now so the queued copy and any replay reuse the SAME
+        // uuid — the server dedups on it, so an offline comment can never land
+        // twice even if a commit landed but its response was lost.
+        const itemUuid = TicketAPI.generateClientUuid();
+
+        // createTicketCommentOffline attaches the client_uuid and classifies the
+        // outcome: ok / network failure (retryable, queued) / HTTP error.
+        const result = await TicketAPI.createTicketCommentOffline(this.activeTicketId, message, false, itemUuid);
+
+        if (result.ok) {
             input.value = '';
+            this.showToast('Reply posted.');
             await this.loadTicketComments(this.activeTicketId);
-        } catch (error) {
-            this.showToast('Failed to post reply.', true);
-            console.error(error);
+            this.refreshTicketCache();
+        } else if (result.network) {
+            // Offline or server unreachable — the exact payload (with its
+            // client_uuid) is kept locally and submitted by the sync loop.
+            await this.enqueueComment({
+                client_uuid: itemUuid,
+                ticket_id: this.activeTicketId,
+                message: message,
+                is_internal: false
+            });
+            input.value = '';
+            this.showToast('Saved offline — will send when online.');
+        } else {
+            if (result.status === 401 || result.status === 422) {
+                AuthAPI.onSessionExpired();
+            } else {
+                this.showToast(result.error.message || 'Failed to post reply. Please try again.', true);
+            }
         }
     }
     async handleTicketSubmit(e) {
@@ -909,8 +937,21 @@ openTicketDetail(id) {
         const container = document.getElementById('kbArticleList');
         container.innerHTML = `<p style="color:#999;">${Icons.render('spinner', { state: 'loading' })} Searching...</p>`;
 
-        const articles = await TicketAPI.getKnowledgeArticles(query, category);
-        this.renderKnowledgeArticles(articles);
+        const meta = await TicketAPI.getKnowledgeArticlesWithMeta(query, category);
+
+        if (!meta.ok && !meta.fromCache) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    ${Icons.render('wifi')}
+                    <p>Requires connection to load the knowledge base.</p>
+                    <p style="font-size:0.85rem;color:var(--text-muted,#999);">Articles you have opened before load automatically when you are back online.</p>
+                    <button type="button" class="btn-secondary btn-sm" onclick="app.loadKnowledgeArticles()" style="margin-top:12px;">Retry</button>
+                </div>
+            `;
+            return;
+        }
+
+        this.renderKnowledgeArticles(meta.articles);
     }
 
     renderKnowledgeArticles(articles) {
@@ -961,11 +1002,11 @@ openTicketDetail(id) {
 
     async loadNotifications() {
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-            const cached = this.loadNotificationsCache();
+            const cached = await this.loadNotificationsCache();
             if (cached) {
+                this.notificationsOffline = true;
                 this.notifications = cached.notifications || [];
                 this.notificationUnread = cached.unread_count || 0;
-                this.notificationsOffline = true;
             } else {
                 this.notifications = [];
                 this.notificationUnread = 0;
@@ -985,19 +1026,27 @@ openTicketDetail(id) {
 
     saveNotificationsCache() {
         try {
-            sessionStorage.setItem('ntf_cache', JSON.stringify({
+            if (typeof OfflineDB === 'undefined' || !OfflineDB.cachePut) return;
+            const username = this.currentUser ? this.currentUser.username : '';
+            OfflineDB.cachePut('ntf_cache', {
                 notifications: this.notifications,
-                unread_count: this.notificationUnread,
-                at: Date.now()
-            }));
+                unread_count: this.notificationUnread
+            }, username);
         } catch (e) { /* storage unavailable: offline rendering degrades gracefully */ }
     }
 
-    loadNotificationsCache() {
+    async loadNotificationsCache() {
         try {
-            const raw = sessionStorage.getItem('ntf_cache');
-            if (!raw) return null;
-            return JSON.parse(raw);
+            if (typeof OfflineDB === 'undefined' || !OfflineDB.cacheGet) return null;
+            const record = await OfflineDB.cacheGet('ntf_cache');
+            if (!record || !record.data) return null;
+            const expectedUser = this.currentUser ? this.currentUser.username : '';
+            if (record.user !== expectedUser) return null;
+            return {
+                notifications: record.data.notifications || [],
+                unread_count: record.data.unread_count || 0,
+                at: record.at || 0
+            };
         } catch (e) {
             return null;
         }
@@ -1159,10 +1208,10 @@ openTicketDetail(id) {
         return new Date(iso).toLocaleDateString();
     }
 
-    renderLastSynced() {
+    async renderLastSynced() {
         const el = document.getElementById('notificationLastSynced');
         if (!el) return;
-        const cache = this.loadNotificationsCache();
+        const cache = await this.loadNotificationsCache();
         if (this.notificationsOffline && cache && cache.at) {
             el.textContent = `Last synced ${new Date(cache.at).toLocaleString()}`;
             el.hidden = false;
@@ -1476,10 +1525,9 @@ openTicketDetail(id) {
             sessionStorage.removeItem('sidebarCollapsed');
         } catch (e) { /* non-fatal */ }
 
-        // Drop the offline queue (IndexedDB). In-flight writes are discarded
-        // by the browser when the database is deleted.
-        OfflineDB._db = null;
-        try { indexedDB.deleteDatabase('ict_offline'); } catch (e) { /* non-fatal */ }
+        // Drop the offline queue + caches (IndexedDB). In-flight writes are
+        // discarded when the database is deleted.
+        if (window.OfflineDB) OfflineDB.deleteDb();
 
         // Reset this session to the defaults the user just saw.
         const el = document.documentElement;
@@ -1937,10 +1985,20 @@ openTicketDetail(id) {
 
     async enqueueTicket(payload) {
         try {
-            await OfflineDB.enqueueTicket(payload);
+            await OfflineDB.enqueue('pending_tickets', payload, this.currentUser ? this.currentUser.username : '');
             await this.updatePendingBadge();
         } catch (error) {
             console.error('Failed to queue ticket offline:', error);
+            this.showToast('Could not save offline. Please try again.', true);
+        }
+    }
+
+    async enqueueComment(item) {
+        try {
+            await OfflineDB.enqueue('pending_comments', item, this.currentUser ? this.currentUser.username : '');
+            await this.updatePendingBadge();
+        } catch (error) {
+            console.error('Failed to queue comment offline:', error);
             this.showToast('Could not save offline. Please try again.', true);
         }
     }
@@ -1949,9 +2007,23 @@ openTicketDetail(id) {
         const badge = document.getElementById('pendingBadge');
         if (!badge) return;
         try {
-            const n = await OfflineDB.countPending();
-            badge.style.display = n > 0 ? 'inline-flex' : 'none';
-            badge.textContent = `${n} pending submission${n === 1 ? '' : 's'}`;
+            const user = this.currentUser ? this.currentUser.username : '';
+            const [t, c] = await Promise.all([
+                OfflineDB.getPending('pending_tickets', user),
+                OfflineDB.getPending('pending_comments', user)
+            ]);
+            const all = t.concat(c);
+            const failed = all.filter((i) => i.status === 'failed').length;
+            const pending = all.length;
+            if (pending === 0) {
+                badge.style.display = 'none';
+            } else {
+                badge.style.display = 'inline-flex';
+                badge.textContent = `${pending} pending submission${pending === 1 ? '' : 's'}${failed ? ` · ${failed} failed` : ''}`;
+                badge.title = failed
+                    ? `${failed} submission${failed === 1 ? '' : 's'} could not be sent and stay saved on this device.`
+                    : '';
+            }
         } catch (error) {
             badge.style.display = 'none';
         }
@@ -1987,14 +2059,25 @@ openTicketDetail(id) {
         if (this.syncing) return;
         this.syncing = true;
         try {
-            let pending = [];
+            const user = this.currentUser ? this.currentUser.username : '';
+            let tickets = [];
+            let comments = [];
             try {
-                pending = await OfflineDB.getPending();
+                [tickets, comments] = await Promise.all([
+                    OfflineDB.getPending('pending_tickets', user),
+                    OfflineDB.getPending('pending_comments', user)
+                ]);
             } catch (error) {
                 console.error('Could not read offline queue:', error);
                 return;
             }
-            if (pending.length === 0) return;
+            // Merge both stores into one ordered list; skip items that hit the
+            // hard retry cap (they stay inspectable in the badge).
+            const queue = [
+                ...tickets.map((item) => ({ kind: 'ticket', store: 'pending_tickets', item })),
+                ...comments.map((item) => ({ kind: 'comment', store: 'pending_comments', item }))
+            ].filter(({ item }) => (item.attempts || 0) < 5);
+            if (queue.length === 0) return;
 
             // Fresh access token before replay. On failure (offline or a revoked
             // refresh token) every item stays queued and the user is told.
@@ -2006,35 +2089,46 @@ openTicketDetail(id) {
             }
 
             let submitted = 0;
-            for (const item of pending) {
-                const result = await TicketAPI.createTicketOffline(item);
+            let failed = 0;
+            for (const { kind, store, item } of queue) {
+                const result = kind === 'ticket'
+                    ? await TicketAPI.createTicketOffline(item)
+                    : await TicketAPI.createTicketCommentOffline(item.ticket_id, item.message, item.is_internal, item.client_uuid);
                 if (result.ok) {
                     // 201 (new) or 200 (idempotent replay) both mean it's on the server.
-                    await OfflineDB.removePending(item.client_uuid);
+                    await OfflineDB.remove(store, item.client_uuid);
                     submitted++;
                 } else if (result.network) {
                     // Network dropped again mid-flush — leave this one queued.
                     continue;
                 } else {
                     // 4xx/5xx: the server rejected this payload on its merits.
-                    // Drop it permanently instead of retrying a rejected ticket.
-                    await OfflineDB.removePending(item.client_uuid);
-                    console.error(
-                        `Offline ticket rejected (HTTP ${result.status}) and removed from the queue:`,
-                        item, result.data
-                    );
+                    // Mark it failed in place — never silently delete (S7) — so the
+                    // badge can surface the count and the item stays inspectable.
+                    const attempts = (item.attempts || 0) + 1;
+                    await OfflineDB.patch(store, item.client_uuid, {
+                        attempts: attempts,
+                        status: 'failed',
+                        last_error: (result.error && result.error.message) || `HTTP ${result.status}`
+                    });
+                    failed++;
                 }
             }
 
             await this.updatePendingBadge();
-            if (submitted > 0) {
+            if (submitted > 0 || failed > 0) {
                 this.refreshTicketCache();
-                this.markSynced();
-                await this.loadTickets();
-                this.renderPersonalDashboard();
-                this.showToast(`${submitted} offline submission${submitted === 1 ? '' : 's'} submitted.`);
-                // IDLE — costs money when enabled (paid push provider).
-                this.maybePushNotify({ type: 'offline_tickets_submitted', count: submitted });
+                if (submitted > 0) {
+                    this.markSynced();
+                    await this.loadTickets();
+                    this.renderPersonalDashboard();
+                    this.showToast(`${submitted} offline submission${submitted === 1 ? '' : 's'} submitted.`);
+                    // IDLE — costs money when enabled (paid push provider).
+                    this.maybePushNotify({ type: 'offline_tickets_submitted', count: submitted });
+                }
+                if (failed > 0) {
+                    this.showToast(`${failed} offline submission${failed === 1 ? '' : 's'} could not be sent. They stay saved on this device.`, true);
+                }
             }
         } finally {
             this.syncing = false;
@@ -2067,75 +2161,6 @@ openTicketDetail(id) {
         }).catch(() => {});
     }
 }
-
-// ============ Offline queue: IndexedDB wrapper ============
-// DB: ict_offline, store: pending_tickets (keyPath: client_uuid).
-// Nothing here touches the network or auth tokens — pure local persistence.
-const OfflineDB = {
-    _db: null,
-
-    _open() {
-        if (this._db) return Promise.resolve(this._db);
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open('ict_offline', 1);
-            request.onupgradeneeded = () => {
-                const db = request.result;
-                if (!db.objectStoreNames.contains('pending_tickets')) {
-                    db.createObjectStore('pending_tickets', { keyPath: 'client_uuid' });
-                }
-            };
-            request.onsuccess = () => {
-                this._db = request.result;
-                this._db.onversionchange = null;
-                resolve(this._db);
-            };
-            request.onerror = () => {
-                this._db = null;
-                reject(request.error);
-            };
-        });
-    },
-
-    async enqueueTicket(payload) {
-        const db = await this._open();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction('pending_tickets', 'readwrite');
-            tx.objectStore('pending_tickets').put(payload);
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-    },
-
-    async getPending() {
-        const db = await this._open();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction('pending_tickets', 'readonly');
-            const request = tx.objectStore('pending_tickets').getAll();
-            request.onsuccess = () => resolve(request.result || []);
-            request.onerror = () => reject(request.error);
-        });
-    },
-
-    async removePending(clientUuid) {
-        const db = await this._open();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction('pending_tickets', 'readwrite');
-            tx.objectStore('pending_tickets').delete(clientUuid);
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-    },
-
-    async countPending() {
-        const db = await this._open();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction('pending_tickets', 'readonly');
-            const request = tx.objectStore('pending_tickets').count();
-            request.onsuccess = () => resolve(request.result || 0);
-            request.onerror = () => reject(request.error);
-        });
-    }
-};
 
 // ============ Sidebar (YouTube-style three states, persistent) ============
 // Sidebar states (YouTube-style three-state behaviour):

@@ -32,6 +32,9 @@
     <script src="/vendor/qrcode.min.js"></script>
 </head>
 <body>
+    <div id="offlineBanner" style="display:none;align-items:center;justify-content:center;gap:8px;padding:10px 16px;background:var(--danger,#dc2626);color:#ffffff;font-size:0.9rem;font-weight:500;" role="status">
+        <i data-icon="wifi" aria-hidden="true" style="transform:rotate(180deg);"></i> You are offline — new tickets and replies will be saved and sent when you reconnect.
+    </div>
     <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
     <div class="app-container">
         <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar" tabindex="-1">
@@ -251,6 +254,10 @@
                         </select>
                         <input type="text" id="searchTicket" placeholder="Search tickets...">
                     </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+                    <span id="pendingBadge" style="display:none;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--radius-sm,6px);background:var(--warning-light,#fef3c7);color:var(--warning-dark,#b45309);font-size:0.8rem;font-weight:600;"></span>
+                    <span id="lastSynced" style="font-size:0.8rem;color:var(--text-muted,#888888);">last synced: —</span>
                 </div>
                 <div class="bulk-actions-bar" id="bulkActionsBar" style="display:none;">
                     <span id="bulkSelectedCount">0 selected</span>
@@ -1183,6 +1190,18 @@
     <script src="/shared/js/icons.js"></script>
     <script src="/shared/js/password-field.js"></script>
     <script src="/shared/js/notification-prefs.js"></script>
+    <script src="/shared/js/offline-db.js"></script>
     <script src="/admin/js/app.js"></script>
+    <script>
+        // Register the shared origin-wide offline engine. Scope '/' is honoured
+        // because the backend sends Service-Worker-Allowed: / for this URL.
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/user/sw.js', { scope: '/' }).catch(function (error) {
+                // Non-fatal: the portal works online regardless; offline queueing
+                // still functions because the page catches network errors itself.
+                console.warn('Service worker registration failed:', error);
+            });
+        }
+    </script>
 </body>
 </html>

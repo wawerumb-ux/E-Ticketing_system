@@ -1,39 +1,73 @@
 /*
- * User Portal service worker — offline-capable ticket submission.
+ * Origin-wide service worker — offline engine for BOTH portals.
  *
- * Caches the app shell on install, serves ticket lists network-first with
- * cache fallback, and NEVER caches POST responses. The offline queue lives in
- * IndexedDB (page-side); the SW only stores GET responses, never auth tokens.
+ * Serves the User portal (/user) and the Admin portal (/admin) app shells,
+ * caches a curated set of non-sensitive GET /api endpoints network-first with
+ * cache fallback, and NEVER caches POST bodies or their responses. The offline
+ * mutation queue lives in IndexedDB (page-side, frontend/shared/js/offline-db.js);
+ * the SW only stores GET responses, never auth tokens.
  *
  * Scope: '/' (widened via the Service-Worker-Allowed header Flask sends for
- * this file) so the portal page at '/user' is controlled. All user-specific
- * behavior below is gated on URL paths; other pages are untouched.
+ * this file). The User portal registers it; the Admin portal registers the
+ * same URL, so only ONE worker ever controls the origin.
+ *
+ * Per-user cache keys: ticket lists (and anything else server-scoped) would
+ * leak one user's cached data to the next user on a shared origin, so keys are
+ * a URL hash of the Authorization header — same URL, isolated per user.
+ *
+ * Cacheable data endpoints are deliberately limited to non-sensitive reads
+ * (tickets, comments, KB, categories, departments, notifications, dashboard
+ * stats, own profile, roles). User lists, tokens, webhooks, audit logs,
+ * settings and reports are NOT cached — big or credential-adjacent lists stay
+ * connection-required and never persist to Cache Storage.
  */
 'use strict';
 
-const CACHE_NAME = 'user-portal-v5';
+const CACHE_NAME = 'e-ticketing-shell-v7';
 
 const SHELL_URLS = [
     '/user/index.html',
+    '/admin/index.html',
     '/shared/css/style.css',
     '/shared/js/api.js',
     '/shared/js/events.js',
     '/shared/js/icons.js',
+    '/shared/js/offline-db.js',
+    '/shared/js/password-field.js',
     '/shared/js/notification-prefs.js',
+    '/shared/js/auth.js',
     '/user/js/app.js',
-    '/vendor/qrcode.min.js'
+    '/admin/js/app.js',
+    '/vendor/qrcode.min.js',
+    '/vendor/chart.umd.min.js'
 ];
 
-// GET /api/tickets and GET /api/tickets/<id> are the only data URLs we cache.
-function isTicketApiPath(pathname) {
-    return /^\/api\/tickets(\/\d+)?$/.test(pathname);
+// The only GET data endpoints we cache (non-sensitive reads). Everything else
+// (POST/PUT/DELETE, and GETs with tokens/users/audit/settings/reports) is left
+// to the network untouched.
+function isCacheableApiPath(pathname) {
+    return (
+        /^\/api\/tickets(\/\d+(?:\/comments)?)?$/.test(pathname) ||
+        /^\/api\/kb\/articles(\/\d+)?$/.test(pathname) ||
+        /^\/api\/(categories|departments|notifications|roles|dashboard\/stats|users\/me)$/.test(pathname)
+    );
 }
 
-// Only the user portal navigations get an offline shell. Admin/login paths are
-// never cached here, so an offline /admin navigation just fails a fresh fetch
-// the way it would without this worker.
 function isUserPortalPath(pathname) {
     return pathname.startsWith('/user');
+}
+
+function isAdminPortalPath(pathname) {
+    return pathname.startsWith('/admin');
+}
+
+function isPortalNavigation(pathname) {
+    return isUserPortalPath(pathname) || isAdminPortalPath(pathname);
+}
+
+// Part of the offline application shell that navigation hands back offline.
+function portalShellPath(pathname) {
+    return isAdminPortalPath(pathname) ? '/admin/index.html' : '/user/index.html';
 }
 
 // Ticket lists are server-scoped per user (created_by), so a plain URL cache
@@ -107,34 +141,34 @@ self.addEventListener('fetch', (event) => {
     if (request.method !== 'GET') return;
 
     const url = new URL(request.url);
-    // All app assets are same-origin (Chart.js/qrcodejs were vendored, TASK 5).
+    // All app assets are same-origin (Chart.js/qrcodejs were vendored).
     // Anything cross-origin is left to the network untouched — a worker cannot
     // fully control third-party fetches anyway, and none are required anymore.
     if (url.origin !== self.location.origin) return;
 
     const pathname = url.pathname;
 
-    // Ticket data: network-first, cached response only as an offline fallback.
-    // Cache key is per-user so shared-login machines never cross-leak lists.
-    if (isTicketApiPath(pathname)) {
+    // Curated data GETs: network-first, cached response only as an offline
+    // fallback. Cache key is per-user so shared-login machines never cross-leak.
+    if (isCacheableApiPath(pathname)) {
         event.respondWith(networkFirst(request, requestCacheKey(request)));
         return;
     }
 
-    // Page navigation: fresh when online, cached user shell when offline.
+    // Page navigation: fresh when online, cached portal shell when offline.
     if (request.mode === 'navigate') {
         event.respondWith(
             fetch(request)
                 .then((response) => {
-                    if (isUserPortalPath(pathname)) {
+                    if (isPortalNavigation(pathname)) {
                         const copy = response.clone();
-                        caches.open(CACHE_NAME).then((cache) => cache.put('/user/index.html', copy));
+                        caches.open(CACHE_NAME).then((cache) => cache.put(portalShellPath(pathname), copy));
                     }
                     return response;
                 })
-                .catch(() => isUserPortalPath(pathname)
-                    ? caches.match('/user/index.html')
-                    : Promise.reject(new Error('offline: outside user portal scope')))
+                .catch(() => isPortalNavigation(pathname)
+                    ? caches.match(portalShellPath(pathname))
+                    : Promise.reject(new Error('offline: outside portal scope')))
         );
         return;
     }
@@ -161,7 +195,7 @@ self.addEventListener('message', (event) => {
     const data = event.data || {};
 
     // After the page flushes its pending queue, it asks us to evict the cached
-    // ticket lists so the next page-fetch re-caches fresh data instead of
+    // data lists so the next page-fetch re-caches fresh data instead of
     // silently serving a stale cached copy. We never refetch ourselves — the
     // page holds the JWT, the worker must not.
     if (data.type === 'REFRESH_TICKETS_CACHE') {
@@ -170,7 +204,7 @@ self.addEventListener('message', (event) => {
                 const keys = await cache.keys();
                 await Promise.all(
                     keys
-                        .filter((req) => isTicketApiPath(new URL(req.url).pathname))
+                        .filter((req) => isCacheableApiPath(new URL(req.url).pathname))
                         .map((req) => cache.delete(req))
                 );
                 return null;

@@ -136,6 +136,26 @@ def ensure_notification_prefs_schema():
 
 
 @_with_app_context
+def ensure_offline_comments_schema():
+    """Add client_uuid to ticket_comments for idempotent offline comment replay.
+
+    NULL is allowed and duplicate NULLs remain permissible (like tickets), so
+    legacy rows (which never had a UUID) are untouched.
+    """
+    try:
+        inspector = db.inspect(db.engine)
+        if 'ticket_comments' not in inspector.get_table_names():
+            return
+        columns = {col['name'] for col in inspector.get_columns('ticket_comments')}
+        if 'client_uuid' not in columns:
+            with db.engine.begin() as connection:
+                connection.execute(sqla_text('ALTER TABLE ticket_comments ADD COLUMN client_uuid VARCHAR(36) UNIQUE'))
+            logger.info('Added missing ticket_comments.client_uuid column to existing schema')
+    except Exception as exc:
+        logger.warning(f'Could not ensure ticket comments schema compatibility: {exc}')
+
+
+@_with_app_context
 def seed_default_users():
     from werkzeug.security import generate_password_hash
 
@@ -227,6 +247,7 @@ def bootstrap_database():
     ensure_user_schema()
     ensure_phase3_schema()
     ensure_phase4_schema()
+    ensure_offline_comments_schema()
     ensure_notification_prefs_schema()
     ensure_ussd_schema_compat()
     seed_default_roles()

@@ -126,6 +126,7 @@ class TicketComment(db.Model):
     author_role = db.Column(db.String(20), nullable=False, default='staff')
     message = db.Column(db.Text, nullable=False)
     is_internal = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    client_uuid = db.Column(db.String(36), nullable=True, unique=True)
     created_at = db.Column(db.DateTime, default=utcnow)
 
 

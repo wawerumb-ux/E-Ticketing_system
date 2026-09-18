@@ -39,6 +39,7 @@ class TicketingApp {
         this.activeTicketAttachments = [];
         this.identityMenuOpen = false;
         this.identityMenuFindActive = false;
+        this.syncing = false;
         this.init();
     }
 
@@ -46,6 +47,7 @@ class TicketingApp {
         this.applyTheme();
         this.loadNotificationPrefs();
         this.renderIdentity();
+        this.setupOfflineSync();
         window.showToast = (message, type) => this.showToast(message, type === 'error');
         this.setupIdentityMenu();
         this.setupProfileModal();
@@ -59,6 +61,204 @@ class TicketingApp {
         this.setupLiveEvents();
         this.initSessionExpiredDialog();
         this.initSectionRouting();
+    }
+
+    // ============ Offline (shared engine: OfflineDB + origin-wide SW) ============
+    _offlineUser() {
+        const u = AuthAPI.getCurrentUser();
+        return u ? u.username : '';
+    }
+
+    setupOfflineSync() {
+        // Reconnect → flush the queue; disconnect → show the banner.
+        window.addEventListener('online', () => {
+            this.updateOfflineBanner();
+            this.syncPending();
+        });
+        window.addEventListener('offline', () => this.updateOfflineBanner());
+
+        // A service-worker message (SW_READY on activate, CACHE_REFRESHED after a
+        // successful flush) also triggers a sync attempt.
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && typeof event.data.type === 'string') this.syncPending();
+            });
+        }
+
+        // Safety-net poll while online.
+        setInterval(() => {
+            if (navigator.onLine) this.syncPending();
+        }, 60000);
+
+        this.updateOfflineBanner();
+        this.updatePendingBadge();
+    }
+
+    async enqueueTicket(payload) {
+        try {
+            await OfflineDB.enqueue('pending_tickets', payload, this._offlineUser());
+            await this.updatePendingBadge();
+        } catch (error) {
+            console.error('Failed to queue ticket offline:', error);
+            this.showToast('Could not save offline. Please try again.', true);
+        }
+    }
+
+    async enqueueComment(item) {
+        try {
+            await OfflineDB.enqueue('pending_comments', item, this._offlineUser());
+            await this.updatePendingBadge();
+        } catch (error) {
+            console.error('Failed to queue comment offline:', error);
+            this.showToast('Could not save offline. Please try again.', true);
+        }
+    }
+
+    async updatePendingBadge() {
+        const badge = document.getElementById('pendingBadge');
+        if (!badge) return;
+        try {
+            const [t, c] = await Promise.all([
+                OfflineDB.getPending('pending_tickets', this._offlineUser()),
+                OfflineDB.getPending('pending_comments', this._offlineUser())
+            ]);
+            const all = t.concat(c);
+            const failed = all.filter((i) => i.status === 'failed').length;
+            const pending = all.length;
+            if (pending === 0) {
+                badge.style.display = 'none';
+            } else {
+                badge.style.display = 'inline-flex';
+                badge.textContent = `${pending} pending submission${pending === 1 ? '' : 's'}${failed ? ` · ${failed} failed` : ''}`;
+                badge.title = failed
+                    ? `${failed} submission${failed === 1 ? '' : 's'} could not be sent and stay saved on this device.`
+                    : '';
+            }
+        } catch (error) {
+            badge.style.display = 'none';
+        }
+    }
+
+    updateOfflineBanner() {
+        const banner = document.getElementById('offlineBanner');
+        if (!banner) return;
+        banner.style.display = navigator.onLine ? 'none' : 'flex';
+    }
+
+    _formatClock(date) {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
+    // Only called on a genuine server round-trip (never on cache-served data).
+    markSynced() {
+        const el = document.getElementById('lastSynced');
+        if (el) el.textContent = `last synced: ${this._formatClock(new Date())}`;
+    }
+
+    // Ask the SW to evict cached data lists after a successful flush so the
+    // next page request re-caches fresh data instead of serving stale cache.
+    refreshTicketCache() {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'REFRESH_TICKETS_CACHE' });
+        }
+    }
+
+    async syncPending() {
+        if (!navigator.onLine) return;
+        if (this.syncing) return;
+        this.syncing = true;
+        try {
+            const user = this._offlineUser();
+            let tickets = [];
+            let comments = [];
+            try {
+                [tickets, comments] = await Promise.all([
+                    OfflineDB.getPending('pending_tickets', user),
+                    OfflineDB.getPending('pending_comments', user)
+                ]);
+            } catch (error) {
+                console.error('Could not read offline queue:', error);
+                return;
+            }
+            // Merge both stores into one ordered list; skip items that hit the
+            // hard retry cap (they stay inspectable in the badge).
+            const queue = [
+                ...tickets.map((item) => ({ kind: 'ticket', store: 'pending_tickets', item })),
+                ...comments.map((item) => ({ kind: 'comment', store: 'pending_comments', item }))
+            ].filter(({ item }) => (item.attempts || 0) < 5);
+            if (queue.length === 0) return;
+
+            // Fresh access token before replay. On failure (offline or a revoked
+            // refresh token) every item stays queued and the user is told.
+            try {
+                await AuthAPI.refreshToken();
+            } catch (refreshError) {
+                AuthAPI.onSessionExpired();
+                return;
+            }
+
+            let submitted = 0;
+            let failed = 0;
+            for (const { kind, store, item } of queue) {
+                const result = kind === 'ticket'
+                    ? await TicketAPI.createTicketOffline(item)
+                    : await TicketAPI.createTicketCommentOffline(item.ticket_id, item.message, item.is_internal, item.client_uuid);
+                if (result.ok) {
+                    // 201 (new) or 200 (idempotent replay) both mean it's on the server.
+                    await OfflineDB.remove(store, item.client_uuid);
+                    submitted++;
+                } else if (result.network) {
+                    // Network dropped again mid-flush — leave this one queued.
+                    continue;
+                } else {
+                    // 4xx/5xx: the server rejected this payload on its merits.
+                    // Mark it failed in place — never silently delete (S7) — so the
+                    // badge can surface the count and the item stays inspectable.
+                    const attempts = (item.attempts || 0) + 1;
+                    await OfflineDB.patch(store, item.client_uuid, {
+                        attempts: attempts,
+                        status: 'failed',
+                        last_error: (result.error && result.error.message) || `HTTP ${result.status}`
+                    });
+                    failed++;
+                }
+            }
+
+            await this.updatePendingBadge();
+            if (submitted > 0 || failed > 0) {
+                this.refreshTicketCache();
+                if (submitted > 0) {
+                    this.markSynced();
+                    await this.loadTickets();
+                    if (this.currentSection === 'dashboard') this.loadDashboard();
+                    this.showToast(`${submitted} offline submission${submitted === 1 ? '' : 's'} submitted.`);
+                }
+                if (failed > 0) {
+                    this.showToast(`${failed} offline submission${failed === 1 ? '' : 's'} could not be sent. They stay saved on this device.`, true);
+                }
+            }
+        } finally {
+            this.syncing = false;
+        }
+    }
+
+    // Honest "requires connection" state: never a silent empty table.
+    renderOfflineTicketsEmptyState() {
+        this.renderQueueCounts();
+        const tbody = document.getElementById('ticketTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10">
+                    <div class="empty-state">
+                        ${Icons.render('wifi')}
+                        <p>Requires connection to load tickets.</p>
+                        <p style="color:var(--text-muted,#888888);font-size:0.85rem;">Reconnect to see the queue.</p>
+                    </div>
+                </td>
+            </tr>
+        `;
     }
 
     setupLiveEvents() {
@@ -1089,10 +1289,23 @@ class TicketingApp {
 
     async loadTickets() {
         try {
-            this.tickets = await TicketAPI.getTickets();
+            const meta = await TicketAPI.getTicketsWithMeta();
+            if (!meta.ok) {
+                // Network failure with nothing cached (or a server error) — show
+                // an honest "requires connection" state, never a silent empty table.
+                this.tickets = [];
+                this.filteredTickets = [];
+                this.renderOfflineTicketsEmptyState();
+                return;
+            }
+            this.tickets = meta.tickets;
+            // "last synced" is stamped only on a genuine server round-trip,
+            // never on a cache hit (X-ICT-Cache: hit).
+            if (!meta.fromCache) this.markSynced();
             this.filterTickets();
         } catch (error) {
             console.error('Error loading tickets:', error);
+            this.renderOfflineTicketsEmptyState();
         }
     }
 
@@ -1234,15 +1447,28 @@ class TicketingApp {
             created_by: AuthAPI.getCurrentUser() ? AuthAPI.getCurrentUser().username : 'admin'
         };
 
-        try {
-            await TicketAPI.createTicket(formData);
+        // createTicketOffline attaches a client_uuid and classifies the outcome:
+        // ok / network failure (retryable) / HTTP error (server rejection).
+        const result = await TicketAPI.createTicketOffline(formData);
+
+        if (result.ok) {
             this.showToast('Ticket created successfully!');
             form.reset();
             await this.loadTickets();
             this.switchSection('tickets');
-        } catch (error) {
-            this.showToast('Failed to create ticket. Please try again.', true);
-            console.error(error);
+        } else if (result.network) {
+            // Offline or server unreachable — the exact payload (with its
+            // client_uuid) is kept locally and submitted by the sync loop.
+            await this.enqueueTicket(formData);
+            form.reset();
+            this.showToast('Saved offline — will submit when online.');
+            await this.updatePendingBadge();
+        } else {
+            if (result.status === 401 || result.status === 422) {
+                AuthAPI.onSessionExpired();
+            } else {
+                this.showToast(result.error.message || 'Failed to create ticket. Please try again.', true);
+            }
         }
     }
 
@@ -1606,7 +1832,13 @@ class TicketingApp {
         const container = document.getElementById('workspaceCommentList');
         container.innerHTML = '<p style="color:#999;">Loading...</p>';
 
-        const comments = await TicketAPI.getTicketComments(ticketId);
+        let comments;
+        try {
+            comments = await TicketAPI.getTicketComments(ticketId);
+        } catch (error) {
+            container.innerHTML = '<p style="color:#999;font-size:0.9rem;">Requires connection to load replies.</p>';
+            return;
+        }
         if (comments.length === 0) {
             container.innerHTML = '<p style="color:#999;font-size:0.9rem;">No replies yet.</p>';
             return;
@@ -1635,14 +1867,37 @@ class TicketingApp {
         const internalBox = document.getElementById('workspaceCommentInternal');
         const isInternal = internalBox ? internalBox.checked : false;
 
-        try {
-            await TicketAPI.createTicketComment(this.activeTicketId, message, isInternal);
+        // Stamp one uuid now so the queued copy and any replay reuse the SAME
+        // uuid — the server dedups on it, so an offline reply can never land
+        // twice even if a commit landed but its response was lost.
+        const itemUuid = TicketAPI.generateClientUuid();
+
+        // createTicketCommentOffline attaches the client_uuid and classifies the
+        // outcome: ok / network failure (retryable, queued) / HTTP error.
+        const result = await TicketAPI.createTicketCommentOffline(this.activeTicketId, message, isInternal, itemUuid);
+
+        if (result.ok) {
             input.value = '';
             if (internalBox) internalBox.checked = false;
             await this.loadWorkspaceComments(this.activeTicketId);
-        } catch (error) {
-            this.showToast('Failed to post reply.', true);
-            console.error(error);
+        } else if (result.network) {
+            // Offline or server unreachable — the exact payload (with its
+            // client_uuid) is kept locally and submitted by the sync loop.
+            await this.enqueueComment({
+                client_uuid: itemUuid,
+                ticket_id: this.activeTicketId,
+                message: message,
+                is_internal: isInternal
+            });
+            input.value = '';
+            if (internalBox) internalBox.checked = false;
+            this.showToast('Saved offline — will send when online.');
+        } else {
+            if (result.status === 401 || result.status === 422) {
+                AuthAPI.onSessionExpired();
+            } else {
+                this.showToast(result.error.message || 'Failed to post reply. Please try again.', true);
+            }
         }
     }
 
@@ -2276,7 +2531,24 @@ class TicketingApp {
 
         const query = document.getElementById('kbSearch').value.trim();
         const category = document.getElementById('kbCategoryFilter').value;
-        const articles = await TicketAPI.getKnowledgeArticles(query, category);
+        const meta = await TicketAPI.getKnowledgeArticlesWithMeta(query, category);
+
+        if (!meta.ok && !meta.fromCache) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state" style="padding:30px;">
+                            ${Icons.render('wifi')}
+                            <p>Requires connection to load the knowledge base.</p>
+                            <button type="button" class="btn-secondary btn-sm" style="margin-top:10px;" onclick="app.loadKnowledgeArticles()">Retry</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const articles = meta.articles;
         this.kbArticles = articles;
 
         if (articles.length === 0) {
@@ -2906,4 +3178,20 @@ document.addEventListener('DOMContentLoaded', () => {
     Icons.hydrate();
     SidebarManager.init();
     app = new TicketingApp();
+
+    // KaiOS D-pad focus pass (§13.10). No CSS can bring the cell under
+    // focus into view inside an overflow-x:auto container — this is the
+    // one affordance that must be JS. Delegated on document so it survives
+    // every table re-render and the modal portals, and it does not compete
+    // with the Escape-keydown handler above (different event, different key).
+    // 'nearest' only: never jumps the table horizontally away from the row
+    // the D-pad already reached.
+    document.addEventListener('focusin', function (e) {
+        var cell = e.target;
+        if (!cell || cell.nodeType !== 1) return;
+        var container = cell.closest('.table-container');
+        if (container && cell.scrollIntoView) {
+            cell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+    });
 });

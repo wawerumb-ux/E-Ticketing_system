@@ -435,16 +435,26 @@ class TicketAPI {
     }
 
     static async getKnowledgeArticles(query = '', category = 'all') {
+        const result = await TicketAPI.getKnowledgeArticlesWithMeta(query, category);
+        return result.articles;
+    }
+
+    // The KB loader's twin that keeps the outage honest. Where the cache is a
+    // service-worker network-first read, an offline + never-cached visit must
+    // surface "requires connection" instead of a false "No articles match your
+    // search." — a search-empty lie is not a result.
+    static async getKnowledgeArticlesWithMeta(query = '', category = 'all') {
         try {
             const params = new URLSearchParams();
             if (query) params.set('q', query);
             if (category && category !== 'all') params.set('category', category);
             const response = await apiFetch(`${API_BASE_URL}/kb/articles?${params.toString()}`);
-            if (!response.ok) throw new Error('Failed to fetch articles');
-            return await response.json();
+            const fromCache = response.headers.get('X-ICT-Cache') === 'hit';
+            if (!response.ok) return { articles: [], ok: false, fromCache };
+            return { articles: await response.json(), ok: true, fromCache };
         } catch (error) {
             console.error('API Error:', error);
-            return [];
+            return { articles: [], ok: false, fromCache: false };
         }
     }
     static async getNotifications() {
@@ -490,6 +500,37 @@ static async createTicketComment(ticketId, message, isInternal = false) {
     });
     if (!response.ok) throw new Error('Failed to post comment');
     return await response.json();
+}
+
+// Offline-aware comment create: attaches a client_uuid and classifies the
+// outcome exactly like createTicketOffline — network failure (retryable:
+// queue locally) vs HTTP rejection (the server refused — do not auto-retry).
+// The server dedups the same client_uuid and returns 200 with the existing
+// comment, so a queued comment can only ever land once.
+static async createTicketCommentOffline(ticketId, message, isInternal = false, clientUuid = null) {
+    const payload = { message, is_internal: isInternal };
+    // Keep the uuid the page already stamped on the queued item (if any) so a
+    // replay uses the SAME uuid as the original attempt — the server dedups on
+    // it, so a comment that committed but whose reply was lost cannot duplicate.
+    if (clientUuid) payload.client_uuid = clientUuid;
+    TicketAPI.attachClientUuid(payload);
+    let response;
+    try {
+        response = await apiFetch(`${API_BASE_URL}/tickets/${ticketId}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            noAuthRedirect: true
+        });
+    } catch (error) {
+        return { ok: false, network: true, status: 0, error };
+    }
+    let data = {};
+    try { data = await response.json(); } catch (error) { data = {}; }
+    if (!response.ok) {
+        return { ok: false, network: false, status: response.status, data, error: new Error(data.error || 'Failed to post comment') };
+    }
+    return { ok: true, status: response.status, data };
 }
 
     static async reactivateUser(id) {

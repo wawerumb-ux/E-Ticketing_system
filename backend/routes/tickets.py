@@ -282,15 +282,39 @@ def create_ticket_comment(ticket_id):
     if is_internal and claims.get('role') != 'admin':
         return jsonify({'error': 'Only admins can post internal notes'}), 403
     claim_username = claims.get('username', 'unknown')
+    client_uuid = data.get('client_uuid')
+    if client_uuid:
+        existing = TicketComment.query.filter_by(client_uuid=client_uuid).first()
+        if existing:
+            return jsonify({
+                'message': 'Comment already exists',
+                'comment_id': existing.id,
+                'is_internal': existing.is_internal,
+                'client_uuid': existing.client_uuid,
+            }), 200
     comment = TicketComment(
         ticket_id=ticket_id,
         author_username=claim_username,
         author_role=claims.get('role', 'staff'),
         message=message,
         is_internal=is_internal,
+        client_uuid=client_uuid,
     )
     db.session.add(comment)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        if client_uuid:
+            dup = TicketComment.query.filter_by(client_uuid=client_uuid).first()
+            if dup:
+                return jsonify({
+                    'message': 'Comment already exists',
+                    'comment_id': dup.id,
+                    'is_internal': dup.is_internal,
+                    'client_uuid': dup.client_uuid,
+                }), 200
+        return jsonify({'error': 'Could not save comment, please try again'}), 500
 
     log_audit(claim_username, 'comment', 'ticket', ticket_id, message[:200])
 
@@ -322,6 +346,7 @@ def create_ticket_comment(ticket_id):
         'message': 'Comment added successfully',
         'comment_id': comment.id,
         'is_internal': comment.is_internal,
+        'client_uuid': comment.client_uuid,
     }), 201
 
 
