@@ -29,7 +29,22 @@ class ApiTokenTestCase(BaseTestCase):
                              json={'title': 'API-created', 'description': 'via token',
                                    'category': 'software', 'priority': 'low'})
         self.assertEqual(r.status_code, 201)
-        self.assertEqual(r.get_json()['ticket_number'], 'ICT-00001')
+        data = r.get_json()
+        self.assertEqual(data['ticket_number'], 'ICT-00001')
+        self.assertEqual(data['priority'], 'low')
+        self.assertEqual(data['priority_source'], 'manual')
+
+    def test_v1_derives_priority_when_none_supplied(self):
+        token = self._create_token().get_json()['token']
+        r = self.client.post('/api/v1/tickets', headers={'Authorization': f'Bearer {token}'},
+                             json={'title': 'No internet on the 2nd floor',
+                                   'description': 'Cannot reach the office wifi',
+                                   'category': 'other'})
+        self.assertEqual(r.status_code, 201, r.get_json())
+        data = r.get_json()
+        self.assertEqual(data['priority'], 'high')
+        self.assertEqual(data['priority_source'], 'rule_engine')
+        self.assertIsNotNone(data['priority_explanation'])
 
     def test_v1_rejects_garbage_token(self):
         r = self.client.get('/api/v1/tickets', headers={'Authorization': 'Bearer not-a-real-token'})

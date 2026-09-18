@@ -8,11 +8,14 @@ from helpers import (
     api_token_required,
     apply_sla,
     emit_event,
+    format_priority_reason,
     get_setting,
     log_audit,
+    log_priority_derived,
     serialize_ticket,
 )
 from models import KnowledgeArticle, Ticket
+from routes.tickets import _derive_ticket_priority
 from sqlalchemy.exc import IntegrityError
 
 v1_bp = Blueprint('v1', __name__)
@@ -79,13 +82,28 @@ def v1_create_ticket():
     title = (data.get('title') or '').strip()
     desc = (data.get('description') or '').strip()
     category = (data.get('category') or get_setting('inbound_default_category', 'other') or 'other').strip()
-    priority = data.get('priority', 'low')
     if not title:
         return jsonify({'error': 'Title is required'}), 400
-    if priority not in ('low', 'medium', 'high'):
+    supplied = data.get('priority')
+    if supplied is not None and supplied not in ('low', 'medium', 'high'):
         return jsonify({'error': 'Priority must be low, medium or high'}), 400
+    derive_payload = dict(data)
+    if supplied is not None and not data.get('priority_source'):
+        derive_payload['priority_source'] = 'manual'
+    priority, priority_source, explanation = _derive_ticket_priority(derive_payload, {
+        'username': data.get('created_by', 'api'),
+        'role': 'api',
+        'department': None,
+    })
+    readable_explanation = None
+    if priority_source == 'rule_engine' and isinstance(explanation, dict):
+        readable_explanation = format_priority_reason(explanation)
+    elif explanation:
+        readable_explanation = str(explanation)
     ticket = Ticket(ticket_number=_next_ticket_number(),
-                    title=title, description=desc or title, category=category, priority=priority,
+                    title=title, description=desc or title, category=category,
+                    priority=priority, priority_source=priority_source,
+                    priority_explanation=readable_explanation,
                     created_by=data.get('created_by', 'api'))
     apply_sla(ticket)
     db.session.add(ticket)
@@ -95,6 +113,8 @@ def v1_create_ticket():
         db.session.rollback()
         return jsonify({'error': 'Ticket number collision, retry'}), 409
     log_audit('api', 'create', 'ticket', ticket.id, f"Created via API token ({request.api_token.name})")
+    if priority_source == 'rule_engine' and explanation is not None:
+        log_priority_derived('api', ticket.id, priority, priority_source, explanation)
     emit_event('ticket.created', {'id': ticket.id, 'ticket_number': ticket.ticket_number,
                                   'title': title, 'priority': priority, 'status': 'open'})
     db.session.commit()
