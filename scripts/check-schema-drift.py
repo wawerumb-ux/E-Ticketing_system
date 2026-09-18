@@ -24,6 +24,7 @@ Exit codes:
 """
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -73,6 +74,41 @@ def types_equivalent(model_col, live_type):
     if live in ("boolean", "bool") and "tinyint" in want:
         return True
     return want in live or live in want
+
+
+def mariadb_json_columns(tname, inspector):
+    """Column names on tname backed by MariaDB's native JSON emulation.
+
+    MariaDB has no JSON column type; it stores JSON columns as LONGTEXT
+    plus a `json_valid(...)` CHECK. Reflecting such a column yields
+    LONGTEXT, so a model JSON vs live LONGTEXT diff would be a false
+    positive. Returns the set of column names whose CHECK_CLAUSE references
+    them via json_valid(). If the metadata query is unavailable (older
+    servers), it returns an empty set and the diff is reported as drift —
+    the honest, no-evidence default.
+    """
+    found = set()
+    try:
+        conn = inspector.bind.raw_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS "
+            "WHERE CONSTRAINT_SCHEMA = DATABASE() AND TABLE_NAME = %s",
+            (tname,),
+        )
+        for (clause,) in cur.fetchall():
+            if not clause:
+                continue
+            m = re.search(
+                r"json_valid\s*\(\s*`?(\w+)`?\s*\)", str(clause), re.IGNORECASE
+            )
+            if m:
+                found.add(m.group(1))
+        cur.close()
+        conn.close()
+    except Exception:
+        pass
+    return found
 
 
 def is_unique(col, table_name, inspector):
@@ -157,10 +193,18 @@ def main():
                 f"{compile_type(col)}{' NOT NULL' if not col.nullable else ''}{extra};"
             )
 
+        json_cols = mariadb_json_columns(tname, inspector)
+
         for name in sorted(live_cols.keys() & model_cols.keys()):
             col = model_cols[name]
             live = live_cols[name]
-            if not types_equivalent(col, live["type"]):
+            live_type = str(live["type"]).lower()
+            is_maria_json = (
+                name in json_cols
+                and "longtext" in live_type
+                and compile_type(col).lower().startswith("json")
+            )
+            if not is_maria_json and not types_equivalent(col, live["type"]):
                 statements.append(
                     f"-- TYPE DIFF on `{tname}.{name}`: model says {compile_type(col)}, "
                     f"live DB says {str(live['type'])}"

@@ -1,6 +1,7 @@
 """User management routes (admin) and self-service profile routes."""
 
 import json
+import re
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import (
@@ -46,6 +47,8 @@ def _validate_new_username(new_username):
         return '', 'Username is required'
     if len(clean) < 2:
         return '', 'Username must be at least 2 characters'
+    if not re.match(r'^[A-Za-z0-9_.][A-Za-z0-9_.-]*$', clean):
+        return '', 'Username can only contain letters, numbers, dots, underscores and hyphens'
     return clean, None
 
 
@@ -154,6 +157,9 @@ def create_user():
         existing_user = User.query.filter_by(username=data['username']).first()
         if existing_user:
             return jsonify({'error': 'Username already exists'}), 400
+
+        if not re.match(r'^[A-Za-z0-9_.][A-Za-z0-9_.-]*$', (data['username'] or '').strip()):
+            return jsonify({'error': 'Username can only contain letters, numbers, dots, underscores and hyphens'}), 400
 
         existing_email = User.query.filter_by(email=data['email']).first()
         if existing_email:

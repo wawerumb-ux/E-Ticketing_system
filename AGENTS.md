@@ -27,6 +27,16 @@ assume they are current — verify with a read or grep before acting.
 
 - Backend: Flask + SQLAlchemy (PyMySQL driver), Python 3.13.x (verified working across the refactor's 61-test suite)
 - Frontend: Vanilla JS, HTML, CSS. No frameworks. No build step.
+- Theming: 10+ theme blocks live in `frontend/shared/css/style.css` (base
+  `:root` plus `html.dark-theme` / `html[data-theme=...]` overrides — abyss,
+  night-owl, quiet-light, solarized-light, high-contrast, flexoki-light,
+  catppuccin-latte, catppuccin-mocha, nord, gruvbox). **Every UI change must
+  pass WCAG AA in every theme block (THM1–THM4).** Phase 1 grep before any
+  UI task, to enumerate every block that must be reverified:
+  `grep -nE '^html|^:root' frontend/shared/css/style.css`
+- Containment pattern (viewport-containment meta-ruleset): `.table-scroll`
+  is NOT an expected primitive. Wide tables use per-container
+  `overflow-x: auto` (current pattern, `frontend/shared/css/style.css:1584`).
 - Database: MySQL
 - Auth: JWT (flask-jwt-extended), access + refresh tokens
 - Token storage: `sessionStorage` (deliberate — not `localStorage`)
@@ -821,7 +831,7 @@ users, different permissions, different UI surfaces.
 | Webhooks | `helpers.py`, `Webhook` model | Outbound |
 | SSE live events | `events.js` frontend, `/events/stream` backend | Token in query param |
 | CSV export | `routes/admin.py` | `/api/reports/export/{tickets,users,audit}.csv` |
-| Theming | `style.css` (light `:root`, dark override) | Multiple themes pending |
+| Theming | `style.css` (base `:root` + 10+ `html[data-theme=...]`/`html.dark-theme` overrides) | See §1.1 — must pass WCAG AA in every theme block |
 | USSD | `ussd.py` | Feature-phone submission |
 
 If a proposed feature would need a new cross-cutting concern, flag

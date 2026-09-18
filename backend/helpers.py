@@ -152,13 +152,69 @@ def category_role(category):
     return (meta or {}).get('role', 'shared')
 
 
+class _RequestFormatter(logging.Formatter):
+    """Log formatter that injects the current request id into every record.
+
+    Outside a request context (startup, background sweeps, tests) the id
+    falls back to '-'. The id itself comes from app.py's before_request
+    handler (g.request_id) and lets logs from one HTTP request be grouped.
+    """
+
+    def format(self, record):
+        try:
+            from flask import g
+            record.request_id = g.request_id
+        except Exception:
+            record.request_id = getattr(record, 'request_id', '-')
+        return super().format(record)
+
+
 def configure_logging(level=logging.INFO):
-    """One-time logging setup."""
+    """One-time logging setup: timestamped, request-id-correlated lines."""
     if not logger.handlers:
         handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter('%(levelname)s %(name)s: %(message)s'))
+        handler.setFormatter(_RequestFormatter(
+            '%(asctime)s %(levelname)-7s [%(request_id)s] %(name)s: %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+        ))
         logger.addHandler(handler)
         logger.setLevel(level)
+
+
+def get_request_id():
+    """The current request's correlation id, or '-' outside a request."""
+    try:
+        from flask import g
+        return g.request_id
+    except Exception:
+        return '-'
+
+
+# ============ METRICS (stdlib, in-process) ============
+# A tiny counter/latency registry with no external dependencies. Counters are
+# monotonic since process start and reset on restart. Values are read via
+# metric_snapshot() by routes/main.py's GET /api/metrics.
+_metrics = {}
+_metrics_lock = threading.Lock()
+
+
+def metric_incr(name, by=1):
+    with _metrics_lock:
+        _metrics[name] = _metrics.get(name, 0) + by
+
+
+def metric_observe_latency(prefix, ms):
+    """Track a latency series: {prefix}_total_ms / {prefix}_count / {prefix}_max_ms."""
+    with _metrics_lock:
+        _metrics[f'{prefix}_total_ms'] = _metrics.get(f'{prefix}_total_ms', 0) + ms
+        _metrics[f'{prefix}_count'] = _metrics.get(f'{prefix}_count', 0) + 1
+        if ms > _metrics.get(f'{prefix}_max_ms', 0):
+            _metrics[f'{prefix}_max_ms'] = ms
+
+
+def metric_snapshot():
+    with _metrics_lock:
+        return dict(_metrics)
 
 
 def resolve_secret(name):
@@ -305,6 +361,7 @@ def send_email(to_email, subject, body, html_body=None):
 
     if not smtp_host or not smtp_user:
         logger.info(f"[SMTP not configured — email NOT sent] to={to_email} subject={subject}")
+        metric_incr('email_skipped_total')
         return False
 
     if html_body:
@@ -325,9 +382,11 @@ def send_email(to_email, subject, body, html_body=None):
         server.sendmail(from_email, [to_email], msg.as_string())
         server.quit()
         logger.info(f"Email sent to {to_email} — {subject}")
+        metric_incr('email_sent_total')
         return True
     except Exception as exc:
         logger.warning(f"Failed to send email to {to_email}: {exc}")
+        metric_incr('email_failed_total')
         return False
 
 
@@ -970,7 +1029,9 @@ def fire_webhooks(etype, payload):
                 headers={'Content-Type': 'application/json',
                          'X-Ict-Signature': f'sha256={signature}'},
             )
+            metric_incr('webhook_delivered_total')
         except Exception as exc:
+            metric_incr('webhook_failed_total')
             logger.warning(f"Webhook {wh.name} delivery failed: {exc}")
 
     try:
@@ -1057,6 +1118,7 @@ def run_sla_sweep():
 
     if breached:
         db.session.commit()
+        metric_incr('sla_breaches_total', by=len(breached))
         logger.warning(f"SLA sweep: {len(breached)} breached ticket(s) notified")
 
 

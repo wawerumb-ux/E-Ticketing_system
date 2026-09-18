@@ -253,8 +253,11 @@ class TicketingApp {
             section.classList.toggle('active', section.id === sectionId);
         });
 
-        document.getElementById('pageTitle').textContent = SECTION_TITLES[sectionId] || 'Dashboard';
-        document.title = (SECTION_TITLES[sectionId] || 'Dashboard') + ' — E-Ticketing';
+        const pageTitle = document.getElementById('pageTitle');
+        const pageTitleText = SECTION_TITLES[sectionId] || 'Dashboard';
+        pageTitle.textContent = pageTitleText;
+        pageTitle.title = pageTitleText;
+        document.title = pageTitleText + ' — E-Ticketing';
         this.currentSection = sectionId;
 
         if (sectionId === 'dashboard') this.renderPersonalDashboard();
@@ -399,7 +402,7 @@ class TicketingApp {
         container.innerHTML = tickets.map(t => `
             <div class="ticket-row">
                 <div class="ticket-row-info">
-                    <strong>${t.title}</strong>
+                    <strong>${escapeHtml(t.title)}</strong>
                     <span>${t.ticket_number} &middot; updated ${new Date(t.updated_at).toLocaleDateString()}</span>
                 </div>
                 <span class="status-badge ${t.status}">${this.capitalize(t.status.replace('_', ' '))}</span>
@@ -556,12 +559,12 @@ class TicketingApp {
         tbody.innerHTML = tickets.map(ticket => `
             <tr>
                 <td><strong>${ticket.ticket_number}</strong></td>
-                <td>${ticket.title}</td>
-                <td>${this.capitalize(ticket.category)}</td>
+                <td>${escapeHtml(ticket.title)}</td>
+                <td>${escapeHtml(this.capitalize(ticket.category))}</td>
                 <td><span class="priority-badge ${ticket.priority}">${this.capitalize(ticket.priority)}</span></td>
                 <td><span class="status-badge ${ticket.status}">${this.capitalize(ticket.status.replace('_', ' '))}</span></td>
                 <td>${this.slaBadge(ticket)}</td>
-                <td>${ticket.assigned_to || 'Unassigned'}</td>
+                <td>${escapeHtml(ticket.assigned_to || 'Unassigned')}</td>
                 <td>${new Date(ticket.created_at).toLocaleDateString()}</td>
                 <td>
                     <div class="action-buttons">
@@ -581,7 +584,7 @@ openTicketDetail(id) {
 
     const body = document.getElementById('ticketDetailBody');
     body.innerHTML = `
-        <h2 style="margin-bottom:5px;">${ticket.title}</h2>
+        <h2 style="margin-bottom:5px;">${escapeHtml(ticket.title)}</h2>
         <p style="color:#999;margin-bottom:20px;">${ticket.ticket_number}</p>
 
         <div style="display:flex;gap:10px;margin-bottom:20px;">
@@ -596,11 +599,11 @@ openTicketDetail(id) {
             </div>
         </div>
 
-        <p style="margin-bottom:15px;"><strong>Category:</strong> ${this.capitalize(ticket.category)}</p>
-        <p style="margin-bottom:15px;"><strong>Assigned To:</strong> ${ticket.assigned_to || 'Unassigned'}</p>
-        <p style="margin-bottom:20px;"><strong>Description:</strong><br>${ticket.description}</p>
+        <p style="margin-bottom:15px;"><strong>Category:</strong> ${escapeHtml(this.capitalize(ticket.category))}</p>
+        <p style="margin-bottom:15px;"><strong>Assigned To:</strong> ${escapeHtml(ticket.assigned_to || 'Unassigned')}</p>
+        <p style="margin-bottom:20px;"><strong>Description:</strong><br>${escapeHtml(ticket.description)}</p>
 
-        ${ticket.resolution ? `<p style="margin-bottom:20px;"><strong>Resolution:</strong><br>${ticket.resolution}</p>` : ''}
+        ${ticket.resolution ? `<p style="margin-bottom:20px;"><strong>Resolution:</strong><br>${escapeHtml(ticket.resolution)}</p>` : ''}
 
         <div style="border-top:1px solid #f0f0f0;padding-top:15px;font-size:0.85rem;color:#999;margin-bottom:20px;">
             <p>Created: ${new Date(ticket.created_at).toLocaleString()}</p>
@@ -688,7 +691,7 @@ openTicketDetail(id) {
         container.innerHTML = atts.map(a => `
             <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f5;">
                 ${Icons.render('paperclip', { style: 'color:#999;' })}
-                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.original_filename}</span>
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(a.original_filename)}</span>
                 <span style="font-size:0.75rem;color:#999;white-space:nowrap;">${this.formatFileSize(a.file_size)}</span>
                 <button class="btn-secondary btn-sm" aria-label="Download attachment" onclick="app.downloadTicketAttachment(${a.id})">
                     ${Icons.render('download')}
@@ -771,10 +774,10 @@ openTicketDetail(id) {
     container.innerHTML = comments.map(c => `
         <div style="padding:10px 0;border-bottom:1px solid #f5f5f5;">
             <div style="display:flex;justify-content:space-between;">
-                <strong style="font-size:0.9rem;">${c.author_username}</strong>
+                <strong style="font-size:0.9rem;">${escapeHtml(c.author_username)}</strong>
                 <span style="font-size:0.75rem;color:#999;">${new Date(c.created_at).toLocaleString()}</span>
             </div>
-            <p style="margin-top:4px;font-size:0.9rem;">${c.message}</p>
+            <p style="margin-top:4px;font-size:0.9rem;">${escapeHtml(c.message)}</p>
         </div>
     `).join('');
 }
@@ -971,14 +974,14 @@ openTicketDetail(id) {
         container.innerHTML = articles.map(a => `
             <div class="chart-card" style="cursor:pointer;" onclick="app.toggleArticle(${a.id})">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <h3 style="margin:0;">${a.title}</h3>
-                    <span class="status-badge open">${this.capitalize(a.category)}</span>
+                    <h3 style="margin:0;">${escapeHtml(a.title)}</h3>
+                    <span class="status-badge open">${escapeHtml(this.capitalize(a.category))}</span>
                 </div>
                 <div id="kb-article-${a.id}" style="display:none;margin-top:15px;color:#555;line-height:1.6;">
-                    ${a.content}
+                    ${escapeHtml(a.content)}
                 </div>
                 <div style="margin-top:10px;font-size:0.75rem;color:#999;">
-                    ${a.author_username ? `By ${a.author_username}` : ''}${a.updated_at ? ` &middot; Updated ${new Date(a.updated_at).toLocaleDateString()}` : ''}
+                    ${a.author_username ? `By ${escapeHtml(a.author_username)}` : ''}${a.updated_at ? ` &middot; Updated ${new Date(a.updated_at).toLocaleDateString()}` : ''}
                 </div>
             </div>
         `).join('');
@@ -1952,7 +1955,7 @@ openTicketDetail(id) {
         const currentValue = select.value;
 
         select.innerHTML = '<option value="">Select category</option>' +
-            categories.map(c => `<option value="${c.name}">${this.capitalize(c.name)}</option>`).join('');
+            categories.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(this.capitalize(c.name))}</option>`).join('');
 
         if (currentValue) select.value = currentValue;
     }

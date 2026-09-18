@@ -14,7 +14,7 @@ from flask import (
 from flask_jwt_extended import decode_token, jwt_required
 
 from extensions import db, utcnow
-from helpers import _run_periodic_tasks, cache_get, cache_key, cache_set
+from helpers import _run_periodic_tasks, cache_get, cache_key, cache_set, metric_snapshot
 from models import SystemEvent, Ticket
 from qr import qr_svg
 from datetime import timedelta
@@ -36,6 +36,21 @@ def health_check():
         # dependency is down so consumers never see a lying 'healthy'.
         return jsonify({'status': 'degraded', 'database': False,
                         'service': 'database-unreachable'}), 503
+
+
+@main_bp.route('/api/metrics', methods=['GET'])
+def metrics_endpoint():
+    """Plain-text snapshot of the in-process metrics registry.
+
+    Counters only — monotonic since process start, reset on restart. No table
+    contents, no config, no credentials, no route map: nothing sensitive is
+    exposed (same posture as /api/health).
+    """
+    snap = metric_snapshot()
+    lines = ['# e-ticketing in-process metrics (monotonic since process start)']
+    for name in sorted(snap):
+        lines.append(f'{name} = {snap[name]}')
+    return Response('\n'.join(lines) + '\n', mimetype='text/plain')
 
 
 # ============ FRONTEND SERVING ============

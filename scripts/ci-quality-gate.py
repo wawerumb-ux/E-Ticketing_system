@@ -4,8 +4,11 @@
 Runs the *actual* validation commands already proven green in this repo:
   - backend unittest suite (isolated, in-memory SQLite)
   - frontend validator (scripts/validate-frontend.js)
-  - syntax/style gate is intentionally ABSENT here — the point of this
-    gate is to BLOCK a change that breaks any of the real checks.
+  - python compile (syntax) of the backend source paths
+  - schema drift check (scripts/check-schema-drift.py) against live MySQL
+
+This gate is deliberately NOT a style gate — it BLOCKS a change that breaks
+any of the real checks above.
 
 Exit codes:
   0  gate passed (all real checks green) — change may proceed to release
@@ -19,6 +22,7 @@ Usage:
   python3 scripts/ci-quality-gate.py --fast     # skip the slow DB-backed suite
 """
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -35,7 +39,7 @@ def check(name, cmd, cwd=REPO_ROOT, env=None):
 
 # --- the real, already-proven commands (do not invent) ---
 check(
-    "backend unit tests (145)",
+    "backend unit tests",
     [str(VENV_PY), "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
     cwd=BACKEND,
 )
@@ -49,12 +53,21 @@ check(
     [str(VENV_PY), "-m", "compileall", "-q", "app.py", "extensions.py", "models.py", "helpers.py", "schema.py", "routes"],
     cwd=BACKEND,
 )
+# Schema drift vs the live MySQL (E3 manual-migration rule). Requires the
+# XAMPP MySQL to be up (E2). Exit 1 = drift found (block: needs manual
+# ALTER recorded in Alembic); exit 2 = cannot connect (block: no evidence).
+check(
+    "schema drift (models vs live DB)",
+    [str(VENV_PY), "scripts/check-schema-drift.py"],
+    cwd=REPO_ROOT,
+)
 
 def run_gate(fast=False):
     """Run each real command; as soon as one fails, the gate fails."""
+    fast_skip = {"backend unit tests", "schema drift (models vs live DB)"} if fast else set()
     failed = []
     for name, cmd, cwd, env in CHECKS:
-        if fast and name == "backend unit tests (145)":
+        if name in fast_skip:
             print(f"[gate] SKIP (--fast): {name}")
             continue
         try:
@@ -64,6 +77,10 @@ def run_gate(fast=False):
             continue
         if r.returncode == 0:
             print(f"[gate] PASS: {name}")
+            if name == "backend unit tests":
+                m = re.search(r"Ran (\d+) tests", r.stdout + r.stderr)
+                if m:
+                    print(f"         suite: {m.group(1)} tests, OK")
         else:
             print(f"[gate] FAIL: {name} (exit {r.returncode})")
             tail = (r.stdout + r.stderr).strip().splitlines()[-6:]

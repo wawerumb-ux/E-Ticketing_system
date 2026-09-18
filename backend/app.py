@@ -49,12 +49,12 @@ except ImportError:
     print("✓ Using PyMySQL (fallback driver)")
 # ===============================================================
 
-from flask import Flask, request
+from flask import Flask, g, request
 from flask_cors import CORS
 from flask_jwt_extended import create_access_token, create_refresh_token  # noqa: F401 (re-export for callers)
 
 from extensions import db, jwt, limiter, oauth
-from helpers import configure_logging, resolve_secret
+from helpers import configure_logging, metric_incr, metric_observe_latency, resolve_secret
 
 configure_logging()
 
@@ -154,6 +154,39 @@ def add_service_worker_scope(response):
         response.headers['Service-Worker-Allowed'] = '/'
     return response
 # ============================================
+
+# ============ REQUEST CORRELATION LOGGING ============
+@app.before_request
+def _attach_request_id():
+    g.request_id = secrets.token_hex(6)
+    g.request_start = time.monotonic()
+    if request.path.startswith('/events/'):
+        logger.info('SSE stream open: %s', g.request_id)
+
+
+@app.after_request
+def _log_request_completion(response):
+    if request.path.startswith('/events/'):
+        return response
+    start = getattr(g, 'request_start', None)
+    if start is not None:
+        ms = (time.monotonic() - start) * 1000
+        logger.info('%s %s -> %s %.1fms', request.method, request.path, response.status_code, ms)
+        metric_incr('requests_total')
+        status_code = response.status_code
+        cls = f'{status_code // 100}xx'
+        cls = cls if cls in ('2xx', '4xx', '5xx') else 'other'
+        metric_incr(f'requests_{cls}_total')
+        metric_observe_latency('http_request', ms)
+        if request.path == '/api/auth/login':
+            if status_code == 200:
+                metric_incr('auth_login_success_total')
+            else:
+                metric_incr('auth_login_failure_total')
+    else:
+        logger.info('%s %s -> %s', request.method, request.path, response.status_code)
+    return response
+# =====================================================
 
 # ============ ROUTE BLUEPRINTS ============
 # Imported/registered here (not at the top of the file) so db, the models and

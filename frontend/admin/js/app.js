@@ -879,8 +879,8 @@ class TicketingApp {
         const list = matches.slice(0, 8);
         container.innerHTML = list.map((u) => `
             <button type="button" class="identity-menu-item identity-menu-user" role="option" onclick="app.jumpToUser(${u.id})">
-                <span class="mu-name">${u.username || '—'}</span>
-                <span class="mu-detail">${u.email || ''}${u.department ? ' · ' + u.department : ''}</span>
+                <span class="mu-name" title="${this._esc(u.username || '')}">${this._esc(u.username) || '—'}</span>
+                <span class="mu-detail">${this._esc(u.email || '')}${u.department ? ' · ' + this._esc(u.department) : ''}</span>
             </button>
         `).join('') || '<p class="identity-menu-hint">No matching users.</p>';
     }
@@ -1112,8 +1112,11 @@ class TicketingApp {
             section.classList.toggle('active', section.id === sectionId);
         });
 
-        document.getElementById('pageTitle').textContent = SECTION_TITLES[sectionId] || 'Dashboard';
-        document.title = (SECTION_TITLES[sectionId] || 'Dashboard') + ' — E-Ticketing';
+        const pageTitle = document.getElementById('pageTitle');
+        const pageTitleText = SECTION_TITLES[sectionId] || 'Dashboard';
+        pageTitle.textContent = pageTitleText;
+        pageTitle.title = pageTitleText;
+        document.title = pageTitleText + ' — E-Ticketing';
         this.currentSection = sectionId;
 
         if (sectionId === 'dashboard') this.loadDashboard();
@@ -1283,7 +1286,7 @@ class TicketingApp {
             const level = w.count >= 8 ? 'high' : w.count >= 4 ? 'medium' : 'low';
             return `
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-                    <span style="min-width:100px;font-size:0.9rem;">${w.username}</span>
+                    <span style="min-width:100px;font-size:0.9rem;">${this._esc(w.username)}</span>
                     <div class="bar-container" style="flex:1;">
                         <div class="bar workload-bar-${level}" style="width:${pct}%;"></div>
                     </div>
@@ -1455,12 +1458,12 @@ class TicketingApp {
             <tr>
                 <td><label class="ticket-check-wrap"><input type="checkbox" class="ticket-select-checkbox" data-id="${ticket.id}" ${this.selectedTicketIds.has(ticket.id) ? 'checked' : ''}></label></td>
                 <td><strong>${ticket.ticket_number}</strong></td>
-                <td>${ticket.title}</td>
-                <td>${this.capitalize(ticket.category)}</td>
+                <td>${this._esc(ticket.title)}</td>
+                <td>${this._esc(this.capitalize(ticket.category))}</td>
                 <td><span class="priority-badge ${ticket.priority}">${this.capitalize(ticket.priority)}</span></td>
                 <td><span class="status-badge ${ticket.status}">${this.capitalize(ticket.status.replace('_', ' '))}</span></td>
                 <td>${this.slaBadge(ticket)}</td>
-                <td>${ticket.assigned_to || 'Unassigned'}</td>
+                <td>${this._esc(ticket.assigned_to || 'Unassigned')}</td>
                 <td>${new Date(ticket.created_at).toLocaleDateString()}</td>
                 <td>
                     <div class="action-buttons">
@@ -1560,7 +1563,7 @@ class TicketingApp {
         const assignSelect = document.getElementById('bulkAssignSelect');
         const assigneeOptions = this.users
             .filter(u => u.is_active !== false)
-            .map(u => `<option value="${u.username}">${u.username}</option>`)
+            .map(u => `<option value="${this._esc(u.username)}">${this._esc(u.username)}</option>`)
             .join('');
         assignSelect.innerHTML = `<option value="">Assign To...</option><option value="__unassign__">Unassign</option>${assigneeOptions}`;
     }
@@ -1623,7 +1626,7 @@ class TicketingApp {
 
             <p style="margin-bottom:15px;"><strong>Requester:</strong> ${this._esc(ticket.created_by)}</p>
             <p style="margin-bottom:15px;"><strong>Assigned To:</strong> ${this._esc(ticket.assigned_to || 'Unassigned')}</p>
-            <p style="margin-bottom:15px;"><strong>Category:</strong> ${this.capitalize(ticket.category)}</p>
+            <p style="margin-bottom:15px;"><strong>Category:</strong> ${this._esc(this.capitalize(ticket.category))}</p>
             <p style="margin-bottom:20px;"><strong>Description:</strong><br>${this._esc(ticket.description)}</p>
 
             ${ticket.resolution ? `<p style="margin-bottom:20px;"><strong>Resolution:</strong><br>${this._esc(ticket.resolution)}</p>` : ''}
@@ -1739,7 +1742,7 @@ class TicketingApp {
         const technicianSelect = document.getElementById('workspaceAssignedTo');
         const assigneeOptions = this.users
             .filter(u => u.is_active !== false)
-            .map(u => `<option value="${u.username}" ${u.username === ticket.assigned_to ? 'selected' : ''}>${u.username} (${this.capitalize(u.role)})</option>`)
+            .map(u => `<option value="${this._esc(u.username)}" ${u.username === ticket.assigned_to ? 'selected' : ''}>${this._esc(u.username)} (${this.capitalize(u.role)})</option>`)
             .join('');
         technicianSelect.innerHTML = `<option value="">Unassigned</option>${assigneeOptions}`;
 
@@ -1782,7 +1785,7 @@ class TicketingApp {
         container.innerHTML = atts.map(a => `
             <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f5;">
                 ${Icons.render('paperclip', { style: 'color:#999;' })}
-                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.original_filename}</span>
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${this._esc(a.original_filename)}</span>
                 <span style="font-size:0.75rem;color:#999;white-space:nowrap;">${this.formatFileSize(a.file_size)}</span>
                 <button class="btn-secondary btn-sm" aria-label="Download attachment" onclick="app.downloadTicketAttachment(${a.id})">
                     ${Icons.render('download')}
@@ -1961,7 +1964,7 @@ class TicketingApp {
         const select = document.getElementById('assignedTo');
         const assigneeOptions = this.users
             .filter(u => u.is_active !== false)
-            .map(u => `<option value="${u.username}">${u.username} (${this.capitalize(u.role)})</option>`)
+            .map(u => `<option value="${this._esc(u.username)}">${this._esc(u.username)} (${this.capitalize(u.role)})</option>`)
             .join('');
         select.innerHTML = `<option value="">Unassigned</option>${assigneeOptions}`;
     }
@@ -1969,7 +1972,7 @@ class TicketingApp {
     async populateDepartmentSelects() {
         const departments = await TicketAPI.getDepartments();
         this.departments = departments;
-        const options = departments.map(d => `<option value="${d.name}">${this.capitalize(d.name)}</option>`).join('');
+        const options = departments.map(d => `<option value="${this._esc(d.name)}">${this._esc(d.name)}</option>`).join('');
         const deptHtml = `<option value="">Select department</option>${options}`;
         document.getElementById('department').innerHTML = deptHtml;
         document.getElementById('editDepartment').innerHTML = deptHtml;
@@ -2290,7 +2293,7 @@ class TicketingApp {
 
         container.innerHTML = categories.map(c => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;">
-                <span>${this.capitalize(c.name)}</span>
+                <span>${this._esc(this.capitalize(c.name))}</span>
                 <button class="btn-danger btn-sm" aria-label="Remove category" onclick="app.removeCategory(${c.id})">
                     ${Icons.render('trash')}
                 </button>
@@ -2343,7 +2346,7 @@ class TicketingApp {
 
         container.innerHTML = departments.map(d => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;">
-                <span>${d.name}</span>
+                <span>${this._esc(d.name)}</span>
                 <button class="btn-danger btn-sm" aria-label="Remove department" onclick="app.removeDepartment(${d.id})">
                     ${Icons.render('trash')}
                 </button>
@@ -2406,7 +2409,7 @@ class TicketingApp {
             return `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5;${r.is_active === false ? 'opacity:0.5;' : ''}">
                 <div style="display:flex;align-items:center;gap:10px;">
-                    <span>${this.capitalize(r.name)}</span>
+                    <span>${this._esc(this.capitalize(r.name))}</span>
                     <span class="role-badge ${badge}">${r.is_active === false ? 'Disabled' : 'Active'}</span>
                 </div>
                 ${r.name === 'admin'
@@ -2461,7 +2464,7 @@ class TicketingApp {
         const all = (this.roles || []);
         if (all.length === 0) return; // fetch failed or nothing loaded — keep static markup
         const active = all.filter(r => r.is_active !== false);
-        const option = (r, selected) => `<option value="${r.name}"${selected ? ' selected' : ''}>${this.capitalize(r.name)}</option>`;
+        const option = (r, selected) => `<option value="${this._esc(r.name)}"${selected ? ' selected' : ''}>${this._esc(this.capitalize(r.name))}</option>`;
 
         const filter = document.getElementById('userRoleFilter');
         if (filter) filter.innerHTML = `<option value="all">All Roles</option>${active.map(r => option(r, false)).join('')}`;
@@ -2475,7 +2478,7 @@ class TicketingApp {
         if (editSelect) editSelect.innerHTML = all
             .map(r => r.is_active !== false
                 ? option(r, r.name === 'staff')
-                : `<option value="${r.name}" disabled>${this.capitalize(r.name)} (inactive)</option>`)
+                : `<option value="${this._esc(r.name)}" disabled>${this._esc(this.capitalize(r.name))} (inactive)</option>`)
             .join('');
     }
 
@@ -2516,7 +2519,7 @@ class TicketingApp {
 
         const tech = report.technicians || [];
         document.getElementById('reportTechnicians').innerHTML = tech.length
-            ? tech.map(x => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5;"><span>${x.username}</span><span style="color:#666;font-size:0.85rem;">${x.assigned} assigned · ${x.resolved} resolved</span></div>`).join('')
+            ? tech.map(x => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f5;"><span>${this._esc(x.username)}</span><span style="color:#666;font-size:0.85rem;">${x.assigned} assigned · ${x.resolved} resolved</span></div>`).join('')
             : '<p style="color:#999;">No data.</p>';
     }
 
@@ -2573,10 +2576,10 @@ class TicketingApp {
         const categories = await TicketAPI.getCategories();
         const select = document.getElementById('kbCategoryFilter');
         select.innerHTML = `<option value="all">All Categories</option>` +
-            categories.map(c => `<option value="${c.name}">${this.capitalize(c.name)}</option>`).join('');
+            categories.map(c => `<option value="${this._esc(c.name)}">${this._esc(this.capitalize(c.name))}</option>`).join('');
 
         const datalist = document.getElementById('kbCategoryOptions');
-        datalist.innerHTML = categories.map(c => `<option value="${c.name}">`).join('');
+        datalist.innerHTML = categories.map(c => `<option value="${this._esc(c.name)}">`).join('');
     }
 
     async loadKnowledgeArticles() {
@@ -2613,9 +2616,9 @@ class TicketingApp {
 
         tbody.innerHTML = articles.map(a => `
             <tr>
-                <td><strong>${a.title}</strong></td>
-                <td>${this.capitalize(a.category)}</td>
-                <td>${a.author_username || '—'}</td>
+                <td><strong>${this._esc(a.title)}</strong></td>
+                <td>${this._esc(this.capitalize(a.category))}</td>
+                <td>${this._esc(a.author_username || '—')}</td>
                 <td>${a.is_published
                     ? '<span class="status-badge open">Published</span>'
                     : '<span class="status-badge resolved" style="background:#f5f5f5;color:#999;">Draft</span>'}</td>
@@ -2973,7 +2976,7 @@ class TicketingApp {
         container.innerHTML = tokens.map(t => `
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f5;">
                 <div>
-                    <strong>${t.name}</strong>
+                    <strong>${this._esc(t.name)}</strong>
                     <div style="font-size:0.8rem;color:#999;">
                         <code>${t.token_prefix}…</code> ·
                         ${t.is_active ? '<span class="status-badge open">Active</span>' : '<span class="status-badge resolved" style="background:#f5f5f5;color:#999;">Revoked</span>'}
@@ -3042,9 +3045,9 @@ class TicketingApp {
         container.innerHTML = hooks.map(w => `
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f5;">
                 <div style="min-width:0;">
-                    <strong>${w.name}</strong>
-                    <div style="font-size:0.8rem;color:#999;word-break:break-all;"><code>${w.url}</code></div>
-                    <div style="font-size:0.8rem;color:#999;">Events: <code>${w.events || '—'}</code>${w.secret_masked ? ' · signed' : ''}</div>
+                    <strong>${this._esc(w.name)}</strong>
+                    <div style="font-size:0.8rem;color:#999;word-break:break-all;"><code>${this._esc(w.url)}</code></div>
+                    <div style="font-size:0.8rem;color:#999;">Events: <code>${this._esc(w.events || '—')}</code>${w.secret_masked ? ' · signed' : ''}</div>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
                     <label style="font-size:0.8rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
@@ -3108,7 +3111,7 @@ class TicketingApp {
             }
         }
         select.innerHTML = '<option value="">Choose a user...</option>' +
-            (this.users || []).map(u => `<option value="${u.id}">${u.username}</option>`).join('');
+            (this.users || []).map(u => `<option value="${u.id}">${this._esc(u.username)}</option>`).join('');
     }
 
     async loadAdmin2FA() {

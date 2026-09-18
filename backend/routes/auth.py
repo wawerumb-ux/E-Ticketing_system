@@ -149,6 +149,9 @@ def register():
     if len(username) < 2:
         return jsonify({'error': 'Username must be at least 2 characters'}), 400
 
+    if not re.match(r'^[A-Za-z0-9_.][A-Za-z0-9_.-]*$', username):
+        return jsonify({'error': 'Username can only contain letters, numbers, dots, underscores and hyphens'}), 400
+
     if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
         return jsonify({'error': 'Invalid email address'}), 400
 
@@ -371,7 +374,8 @@ def _resolve_social_user(provider, provider_user_id, email, name):
             db.session.commit()
             return existing
 
-    base_username = (name or email or provider).lower().replace(' ', '_')
+    base_username = re.sub(r'[^a-z0-9_.-]', '_', (name or email or provider).lower().replace(' ', '_'))
+    base_username = re.sub(r'_+', '_', base_username).strip('._-')
     if not base_username:
         base_username = f'{provider}_user'
     username = base_username
