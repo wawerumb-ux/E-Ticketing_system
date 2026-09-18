@@ -60,9 +60,12 @@ def _derive_ticket_priority(payload, claims):
 
     - ``priority_source='manual'``: an authenticated staff member supplied an
       explicit value — honor it (clamped to the allowed set).
-    - ``priority_source='rule_engine'``: the portal already derived it against
-      the active config and the user saw it — accept unchanged, do not
-      re-derive.
+    - ``priority_source='rule_engine'``: the portal derived it against a
+      cached config while offline. It is accepted verbatim only when it
+      re-verifies against the server's current config — claimed priority
+      matches the current derivation AND claimed ``rules_version`` matches the
+      current config version. Otherwise the server's derivation wins and the
+      explanation records the divergence plus the client's original claim.
     - otherwise: derive server-side from creation-time evidence against the
       current rule config.
 
@@ -71,7 +74,7 @@ def _derive_ticket_priority(payload, claims):
     source = payload.get('priority_source')
     supplied = payload.get('priority')
 
-    if source in ('manual', 'rule_engine'):
+    if source == 'manual':
         priority = supplied if supplied in PRIORITY_ALLOWED else PRIORITY_DEFAULT_PRIORITY
         return priority, source, None
 
@@ -86,7 +89,24 @@ def _derive_ticket_priority(payload, claims):
     user = User.query.filter_by(username=claims.get('username')).first()
     if user is not None:
         evidence['department'] = user.department
-    result = evaluate_priority(evidence, build_priority_config())
+
+    config = build_priority_config()
+    result = evaluate_priority(evidence, config)
+
+    if source == 'rule_engine':
+        claimed = supplied if supplied in PRIORITY_ALLOWED else PRIORITY_DEFAULT_PRIORITY
+        claimed_explanation = payload.get('priority_explanation')
+        claimed_version = (claimed_explanation.get('rules_version')
+                           if isinstance(claimed_explanation, dict) else None)
+        if claimed == result['priority'] and claimed_version == config.get('version'):
+            return claimed, 'rule_engine', (
+                claimed_explanation if isinstance(claimed_explanation, dict) else result)
+        note = dict(result)
+        note['client_claimed_priority'] = claimed
+        note['client_rules_version'] = claimed_version
+        note['reverified'] = True
+        return result['priority'], 'rule_engine', note
+
     return result['priority'], 'rule_engine', result
 
 

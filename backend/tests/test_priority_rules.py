@@ -452,11 +452,41 @@ class CreateTicketPriorityTestCase(BaseTestCase):
         self.assertEqual(diff_details['priority'],
                          {'from': 'high', 'to': 'low'})
 
-    def test_client_rule_engine_explanation_persisted(self):
-        client_explanation = {
+    def test_stale_rule_engine_claim_reverified_server_wins(self):
+        stale_explanation = {
             'rule_id': 'client_mirror',
             'priority': 'high',
             'rules_version': 'client-cache-v1',
+            'evaluated_at': '2026-09-18T07:59:00+00:00',
+            'fallback': False,
+        }
+        r = self.client.post('/api/tickets',
+                             json={'title': 'No internet on the 2nd floor',
+                                   'description': 'Cannot reach the office wifi',
+                                   'category': 'other',
+                                   'priority': 'high',
+                                   'priority_source': 'rule_engine',
+                                   'priority_explanation': stale_explanation},
+                             headers=self.admin_headers())
+        self.assertEqual(r.status_code, 201, r.get_json())
+        data = r.get_json()
+        self.assertEqual(data['priority'], 'high')
+        self.assertEqual(data['priority_source'], 'rule_engine')
+
+        audit = AuditLog.query.filter_by(action='priority_derived').all()
+        self.assertEqual(len(audit), 1)
+        details = json.loads(audit[0].details)
+        explanation = details['explanation']
+        self.assertTrue(explanation['reverified'])
+        self.assertEqual(explanation['rules_version'], 'builtin')
+        self.assertEqual(explanation['client_claimed_priority'], 'high')
+        self.assertEqual(explanation['client_rules_version'], 'client-cache-v1')
+
+    def test_matching_rule_engine_claim_accepted_verbatim(self):
+        client_explanation = {
+            'rule_id': 'network_outage',
+            'priority': 'high',
+            'rules_version': 'builtin',
             'evaluated_at': '2026-09-18T07:59:00+00:00',
             'fallback': False,
         }
