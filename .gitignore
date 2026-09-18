@@ -29,6 +29,9 @@ Thumbs.db
 backend/uploads/
 backend/instance/
 
+# Database backups (never tracked)
+backend/backups/
+
 # Secrets
 backend/.env
 *.pem
