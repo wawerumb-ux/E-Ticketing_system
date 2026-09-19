@@ -73,8 +73,29 @@ def get_database_uri():
     return 'mysql+pymysql://root:@127.0.0.1:3306/ict_ticketing'
 # ==========================================================
 
+
+def get_allowed_origins():
+    """Return explicit CORS origins from env, defaulting to local dev origins."""
+    raw = os.getenv('ALLOWED_ORIGINS', '').strip()
+    if raw:
+        return [origin.strip() for origin in raw.split(',') if origin.strip()]
+    return [
+        'http://localhost:5000',
+        'http://127.0.0.1:5000',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+    ]
+
+
 app = Flask(__name__)
-CORS(app)
+app.config['ALLOWED_ORIGINS'] = get_allowed_origins()
+CORS(
+    app,
+    resources={r'/api/*': {'origins': app.config['ALLOWED_ORIGINS']}},
+    supports_credentials=False,
+    allow_headers=['Content-Type', 'Authorization'],
+    methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+)
 
 app.config['SECRET_KEY'] = resolve_secret('SECRET_KEY')
 app.config['JWT_SECRET_KEY'] = resolve_secret('JWT_SECRET_KEY')
