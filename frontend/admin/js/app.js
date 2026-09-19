@@ -3338,6 +3338,7 @@ var SidebarManager = (function () {
     var remembered = 'expanded';
     var drawerOpen = false;      // <=768px overlay drawer
     var expandedOverlay = false; // 769-1024px overlay
+    var sidebarHover = false;    // transient rail expand while pointer/focus is on it
 
     function matches(query) {
         try { return window.matchMedia(query).matches; } catch (e) { return false; }
@@ -3366,7 +3367,7 @@ var SidebarManager = (function () {
         var wide = isWide();
         el.classList.toggle('sidebar-mobile-open', small && drawerOpen);
         el.classList.toggle('sidebar-expanded-overlay', !small && !wide && expandedOverlay);
-        el.classList.toggle('sidebar-mini', small ? false : (wide ? remembered === 'mini' : !expandedOverlay));
+        el.classList.toggle('sidebar-mini', small ? false : (sidebarHover ? false : (wide ? remembered === 'mini' : !expandedOverlay)));
         var expanded = small ? drawerOpen : (!wide ? expandedOverlay : remembered === 'expanded');
         var btn = document.getElementById('toggleSidebar');
         var btnMobile = document.getElementById('toggleSidebarMobile');
@@ -3436,6 +3437,28 @@ var SidebarManager = (function () {
         if (backdrop) backdrop.addEventListener('click', function () {
             closeOverlay(true);
         });
+
+        // Transient expand-on-hover (Mini rail): while the pointer is over the
+        // rail — or keyboard focus is inside it — the sidebar renders at full
+        // Expanded width with the labels in-line, so a flyout never floats over
+        // the content pane: the layout reflows out of the way instead. This is
+        // never persisted and never overwrites the remembered state.
+        var sidebarEl = document.getElementById('sidebar');
+        function setSidebarHover(on) {
+            if (isMobile()) return;
+            if (sidebarHover === on) return;
+            sidebarHover = on;
+            apply();
+        }
+        if (sidebarEl) {
+            sidebarEl.addEventListener('pointerenter', function () { setSidebarHover(true); });
+            sidebarEl.addEventListener('pointerleave', function () { setSidebarHover(false); });
+            sidebarEl.addEventListener('focusin', function () { setSidebarHover(true); });
+            sidebarEl.addEventListener('focusout', function (e) {
+                if (sidebarEl.contains(e.relatedTarget)) return;
+                setSidebarHover(false);
+            });
+        }
 
         document.addEventListener('keydown', function (e) {
             if ((e.key || '').toLowerCase() !== 'escape') return;
