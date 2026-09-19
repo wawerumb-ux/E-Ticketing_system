@@ -23,6 +23,12 @@ import time
 
 main_bp = Blueprint('main', __name__)
 
+# Frontend root resolved from this file's location, not the working directory.
+# backend/routes/main.py -> backend -> repo root; serving must be identical no
+# matter which directory the app is launched from.
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FRONTEND_DIR = os.path.join(os.path.dirname(_BACKEND_DIR), 'frontend')
+
 
 @main_bp.route('/api/health', methods=['GET'])
 def health_check():
@@ -258,9 +264,9 @@ def serve_admin_frontend():
 
 @main_bp.route('/<path:path>')
 def serve_static(path):
-    frontend_path = os.path.join('../frontend', path)
-    if os.path.exists(frontend_path):
-        return send_from_directory('../frontend', path)
+    frontend_path = os.path.join(FRONTEND_DIR, path)
+    if os.path.isfile(frontend_path):
+        return send_from_directory(FRONTEND_DIR, path)
     return jsonify({'error': 'File not found'}), 404
 
 
