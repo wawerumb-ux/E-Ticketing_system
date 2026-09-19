@@ -91,7 +91,7 @@ app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25 MB upper bound for any
 
 # Bind the shared extensions to this app.
 db.init_app(app)
-jwt.init_app(app)
+jwt.init_app(app)    
 limiter.init_app(app)
 oauth.init_app(app)
 from extensions import logger  # noqa: E402
@@ -456,4 +456,4 @@ if __name__ == '__main__':
                 host='0.0.0.0', port=port)
     except KeyboardInterrupt:
         stop_tunnel()
-        sys.exit(0) 
+        sys.exit(0)
