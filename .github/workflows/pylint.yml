@@ -35,7 +35,7 @@ jobs:
         # excluded on purpose — this repo's CI contract is behavior-first
         # (scripts/ci-quality-gate.py), not a style gate.
         run: |
-          pylint --errors-only app.py extensions.py models.py helpers.py schema.py routes ussd.py totp.py
+          pylint --rcfile=../.pylintrc --errors-only app.py extensions.py models.py helpers.py schema.py routes ussd.py totp.py
 
   quality-gate:
     name: Quality gate (tests + syntax + frontend)

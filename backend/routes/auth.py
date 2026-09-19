@@ -18,7 +18,7 @@ from flask_jwt_extended import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from extensions import db, limiter, utcnow
+from extensions import db, limiter, oauth, utcnow
 from models import PasswordResetToken, SocialAccount, User
 from helpers import log_audit, render_email_html, send_email, get_setting, verify_turnstile
 from totp import generate_secret as totp_generate_secret, verify as totp_verify, otpauth_uri as totp_uri
