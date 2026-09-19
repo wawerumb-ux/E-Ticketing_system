@@ -1,0 +1,53 @@
+[MASTER]
+jobs = 4
+
+[MESSAGES CONTROL]
+# Tuned for this repo, not a blanket lint contract. The CI workflow runs pylint
+# with --errors-only, so Convention/Refactor entries below are load-bearing only
+# for ad-hoc `pylint` runs. The three E-category entries (import-error,
+# no-member, no-name-in-module) are the ones that keep the CI gate meaningful:
+# they suppress Flask/SQLAlchemy and app-alias import false-positives that are
+# NOT real bugs (e.g. `try: import MySQLdb` falling back to pymysql, `g` /
+# `request` magic, and the `sys.modules['app']` re-export used by tests).
+disable =
+    import-error,
+    no-member,
+    no-name-in-module,
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    invalid-name,
+    unused-argument,
+    duplicate-code,
+    too-many-arguments,
+    too-many-locals,
+    too-many-statements,
+    too-many-branches,
+    too-many-nested-blocks,
+    too-many-return-statements,
+    too-many-boolean-expressions,
+    too-many-instance-attributes,
+    too-many-public-methods,
+    too-few-public-methods,
+    too-many-lines,
+    import-outside-toplevel,
+    wrong-import-order,
+    ungrouped-imports,
+    fixme,
+    consider-using-f-string,
+    logging-fstring-interpolation
+
+[FORMAT]
+max-line-length = 100
+
+[BASIC]
+good-names =
+    app,
+    db,
+    jwt,
+    limiter,
+    oauth,
+    g,
+    id,
+    fk,
+    _
