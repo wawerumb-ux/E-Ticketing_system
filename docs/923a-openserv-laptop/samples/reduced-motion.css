@@ -1,0 +1,54 @@
+/**
+ * reduced-motion.css — OpenServ laptop stage under prefers-reduced-motion.
+ *
+ * No sticky prison, no 400vh drive, no per-part transforms. The laptop
+ * renders as one static assembled layer (data-part="assembled" or a raster
+ * fallback), labels as a static definition grid. Pure crossfade of the
+ * three moments: hero -> stage -> card grid.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  #stage {
+    min-height: 100vh;
+    position: relative;              /* no sticky lock, no 400vh scroll trap */
+  }
+
+  .laptop-part {
+    animation: none !important;
+    transform: none !important;
+    will-change: auto !important;
+    opacity: 1 !important;
+  }
+
+  /* merge every part into the assembled snapshot */
+  #stage .laptop [data-part] {
+    display: none;
+  }
+  #stage .laptop [data-part="assembled"] {
+    display: block;
+  }
+
+  #stage .laptop {
+    background: url('./openserv-assets/raster/assembled@2x.webp')
+      center / contain no-repeat;
+    min-height: min(70vh, 480px);
+  }
+
+  /* labels as a static grid, not scroll-driven cards */
+  #stage .capability-label {
+    position: static;
+    transform: none;
+  }
+  #stage .capability-labels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+  }
+
+  /* scroll-linked animations off at the source */
+  .laptop-part,
+  .capability-label {
+    animation-timeline: auto !important;
+  }
+}

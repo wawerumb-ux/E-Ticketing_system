@@ -1,0 +1,59 @@
+/* OpenServ design tokens — verbatim Quick Start `:root` variables.
+   Source: styles.refero.design/style/063be10d-593d-4c81-a99e-a7543737b9db
+   This file is the single source of truth for the openserv-laptop template.
+   Values are reproduced unchanged; only the file is a repo artifact. */
+
+:root {
+  /* Color system */
+  --color-signal-violet: #5f79ff;
+  --color-mint-pulse:    #01fe93;
+  --color-pure-white:    #ffffff;
+  --color-ink-black:     #000000;
+  --color-fog-gray:      #f5f5f5;
+  --color-mist-gray:     #a6a6a6;
+  --color-ash-gray:      #4d4d4d;
+  --color-smoke-gray:    #9c9c9c;
+  --color-slate-gray:    #707070;
+
+  /* Surfaces */
+  --surface-default:     var(--color-pure-white);
+  --surface-tint:        var(--color-fog-gray);
+  --surface-tint-wash:   #d9defc; /* violet 25% wash: rgb(95 121 255 / 0.25) */
+
+  /* Typography */
+  --font-os-studio-grotesk: "OS Studio Grotesk", "Inter", system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-os-chronik:         "OS Chronik", Fraunces, Georgia, serif;
+
+  --text-display:      72px;  /* 300 = OS Chronik Light */
+  --text-body:         15px;
+  --text-caption:      12px;
+  --text-title-small:  20px;
+  --text-cta:          15px;
+  --line-height-display: 0.9;
+  --letter-sp:         -1.44px;   /* 72px  */
+  --letter-sp-small:   -0.34px;   /* 20-24px */
+  --weight-ui:         400;
+
+  /* Radii */
+  --radius-cards:  16px;
+  --radius-nav:    16px;
+  --radius-inputs: 12px;
+  --radius-buttons: 100px;
+  --radius-badges: 100px;
+
+  /* Layout */
+  --page-max-width: 1200px;
+  --section-gap: 80px;
+  --card-padding: 24px;
+
+  /* Shadows — nav only, cards get none */
+  --shadow-xl: rgba(0, 0, 0, 0.1) 0px 0px 48px;
+
+  /* Borders */
+  --hairline: 1px solid var(--color-mist-gray);
+  --card-border: 1px solid var(--color-fog-gray);
+
+  /* Motion */
+  --ease-out-expo: cubic-bezier(0.22, 0.9, 0.3, 1);
+}

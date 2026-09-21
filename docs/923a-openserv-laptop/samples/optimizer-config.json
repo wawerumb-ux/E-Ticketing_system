@@ -1,0 +1,25 @@
+{
+  "name": "openserv-laptop-parts",
+  "note": "SVGO export config for the OpenServ laptop landing SVG layers. Run per-file; preserves stable top-level ids so CSS/WAAPI selectors (#screen, #keyboard, #hinge, #logic, #battery, #chassis, #assembled) stay deterministic.",
+  "plugins": {
+    "cleanupIds": false,
+    "removeViewBox": false,
+    "minifyStyles": true,
+    "collapseGroups": false,
+    "convertPathData": { "precision": 1 },
+    "removeHiddenElems": true,
+    "removeUnknownsAndDefaults": true,
+    "removeDimensions": true
+  },
+  "exportRules": {
+    "naming": "one file per part; top-level id = part id",
+    "viewport": "viewBox 0 0 600 400 for every part (stage 1:1, aligns layers)",
+    "style": "ink (#000) strokes on white (#fff); logic/battery carry violet (#5f79ff) + mint (#01fe93) circuit strokes only; 16px corner radius on part clips",
+    "transform": "path-level transforms only; no nested rotated groups",
+    "raster": "no embedded raster; raster fallback assembled@2x.(webp|png) exported separately (400px tall, @2x = 800px)",
+    "noUnused": "do not remove defs referenced by other part svgs via <use>"
+  },
+  "fallbackMarkup": {
+    "html": "[data-part] elements in the template; data-part matches svg top-level id"
+  }
+}
