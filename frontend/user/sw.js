@@ -23,23 +23,57 @@
  */
 'use strict';
 
-const CACHE_NAME = 'e-ticketing-shell-v7';
+const CACHE_NAME = 'e-ticketing-shell-v16';
 
 const SHELL_URLS = [
     '/user/index.html',
     '/admin/index.html',
     '/shared/css/style.css',
+    '/shared/css/vars.css',
     '/shared/js/api.js',
     '/shared/js/events.js',
     '/shared/js/icons.js',
     '/shared/js/offline-db.js',
+    '/shared/js/sidebar.js',
+    '/shared/js/session-dialog.js',
     '/shared/js/password-field.js',
     '/shared/js/notification-prefs.js',
     '/shared/js/auth.js',
+    '/shared/js/tubes-bg.js',
+    '/shared/js/sketchbook-doc.js',
     '/user/js/app.js',
     '/admin/js/app.js',
     '/vendor/qrcode.min.js',
-    '/vendor/chart.umd.min.js'
+    '/vendor/chart.umd.min.js',
+    '/vendor/tubes1.min.js',
+    '/shared/assets/wallpapers/wallpaper-light.webp',
+    // Offline landing — login.html is the front door at /login.
+    '/login.html',
+    // ICT Support Portal landing page (public front door at /).
+    '/landing.html',
+    // Laptop spreads — composite pairs used as sketchbook pages 10–12.
+    '/shared/assets/laptop/spread-1.jpg',
+    '/shared/assets/laptop/spread-2.jpg',
+    '/shared/assets/laptop/spread-3.jpg',
+    // Sketchbook assets — used by the interactive iframe in landing.html.
+    '/shared/assets/sketchbook/bg-wash.jpg',
+    '/shared/assets/sketchbook/bloom.png',
+    '/shared/assets/sketchbook/botanic-gardens.png',
+    '/shared/assets/sketchbook/botany-left.png',
+    '/shared/assets/sketchbook/botany-right.png',
+    '/shared/assets/sketchbook/buddha-tooth.png',
+    '/shared/assets/sketchbook/divider.png',
+    '/shared/assets/sketchbook/gardens-by-the-bay.png',
+    '/shared/assets/sketchbook/instrument-serif-italic.woff2',
+    '/shared/assets/sketchbook/instrument-serif.woff2',
+    '/shared/assets/sketchbook/joo-chiat.png',
+    '/shared/assets/sketchbook/lau-pa-sat.png',
+    '/shared/assets/sketchbook/marina-bay-sands.png',
+    '/shared/assets/sketchbook/marina-bay-skyline.png',
+    '/shared/assets/sketchbook/merlion.png',
+    '/shared/assets/sketchbook/newsreader.woff2',
+    '/shared/assets/sketchbook/singapore-river.png',
+    '/shared/fonts/fraunces-latin.woff2'
 ];
 
 // The only GET data endpoints we cache (non-sensitive reads). Everything else
@@ -59,6 +93,10 @@ function isUserPortalPath(pathname) {
 
 function isAdminPortalPath(pathname) {
     return pathname.startsWith('/admin');
+}
+
+function isLandingPath(pathname) {
+    return pathname === '/' || pathname === '/login' || pathname === '/login.html';
 }
 
 function isPortalNavigation(pathname) {
@@ -155,20 +193,22 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Page navigation: fresh when online, cached portal shell when offline.
+    // Page navigation: fresh when online, cached portal/landing shell when offline.
     if (request.mode === 'navigate') {
         event.respondWith(
             fetch(request)
                 .then((response) => {
-                    if (isPortalNavigation(pathname)) {
+                    if (isPortalNavigation(pathname) || isLandingPath(pathname)) {
                         const copy = response.clone();
-                        caches.open(CACHE_NAME).then((cache) => cache.put(portalShellPath(pathname), copy));
+                        caches.open(CACHE_NAME).then((cache) => cache.put(pathname, copy));
                     }
                     return response;
                 })
                 .catch(() => isPortalNavigation(pathname)
                     ? caches.match(portalShellPath(pathname))
-                    : Promise.reject(new Error('offline: outside portal scope')))
+                    : isLandingPath(pathname)
+                        ? caches.match('/login.html')
+                        : Promise.reject(new Error('offline: outside portal scope')))
         );
         return;
     }

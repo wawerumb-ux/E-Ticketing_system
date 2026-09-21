@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ICT Support Portal</title>
+<meta name="description" content="ICT department support portal. Raise tickets, track requests, and get help fast." />
+
+<!-- Inline theme lock: prevents FOUC. No dark-theme toggle on the landing —
+     it uses its own dark palette, independent of the portal themes. -->
+<script>
+  /* No-op: landing has its own fixed dark palette. Kept for consistency
+     with the pattern used in other pages. */
+</script>
+
+<style>
+/* ============================================================
+   LANDING PAGE — ICT Support Portal
+   Self-contained styles. Does NOT import style.css (different
+   surface, different palette). Uses --auth-ink family for the
+   dark background so it shares visual DNA with login.html.
+   Offline-safe: system fonts only, no remote resources.
+   Z-index scale (LAY2): nav=100, dropdown=200, modal=1000.
+   ============================================================ */
+
+/* ---------- Reset & base ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:           #0e0f14;
+  --surface:      #16181f;
+  --surface-2:    #1e2029;
+  --border:       rgba(255,255,255,0.08);
+  --border-hover: rgba(255,255,255,0.16);
+  --text:         #eceef0;
+  --text-muted:   #9195a0;
+  --text-dim:     #5a5d66;
+  --accent:       #b9924a;       /* --auth-brass */
+  --accent-deep:  #9a7838;
+  --accent-glow:  rgba(185,146,74,0.18);
+  --danger:       #b23b2e;
+  --success:      #3f6b52;
+  --radius:       12px;
+  --radius-sm:    8px;
+  --nav-h:        60px;
+  --font:         -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                  "Helvetica Neue", Arial, sans-serif;
+  --font-display: 'Fraunces', Georgia, "Times New Roman", serif;
+  --transition:   0.25s cubic-bezier(0.4,0,0.2,1);
+}
+
+html {
+  scroll-behavior: smooth;
+  /* scroll-padding-top prevents the sticky nav covering section anchors (STK1) */
+  scroll-padding-top: calc(var(--nav-h) + 8px);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-x: hidden;
+  /* Fraunces is self-hosted at /shared/fonts/ (already in project) */
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  src: url('/shared/fonts/fraunces-latin.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+img { display: block; max-width: 100%; }
+a  { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* ---------- Focus ring (BLD3) ---------- */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ============================================================
+   NAV
+   ============================================================ */
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--nav-h);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 clamp(1rem, 5vw, 3rem);
+  background: rgba(14,15,20,0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.nav-logo {
+  width: 26px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  list-style: none;
+}
+
+.nav-links a {
+  display: block;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+}
+
+.nav-links a:hover,
+.nav-links a:focus-visible {
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
+}
+
+.nav-links a[aria-current="page"] {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.nav-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Hamburger (mobile) */
+.nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  line-height: 0;
+}
+
+/* Mobile nav drawer */
+.nav-drawer {
+  display: none;
+  position: fixed;
+  top: var(--nav-h);
+  left: 0; right: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem clamp(1rem,5vw,3rem);
+  z-index: 99;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nav-drawer.open { display: flex; }
+
+.nav-drawer a {
+  display: block;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+}
+
+.nav-drawer a:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition: background var(--transition), color var(--transition),
+              border-color var(--transition), box-shadow var(--transition);
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border-hover);
+  color: var(--text-muted);
+}
+
+.btn-ghost:hover, .btn-ghost:focus-visible {
+  color: var(--text);
+  border-color: rgba(255,255,255,0.28);
+  background: rgba(255,255,255,0.06);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #0e0f14;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.btn-primary:hover, .btn-primary:focus-visible {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.btn-lg {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+}
+
+/* ============================================================
+   SECTION SKELETON
+   ============================================================ */
+.section {
+  padding: clamp(4rem,8vh,6rem) clamp(1rem,5vw,3rem);
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+}
+
+.section-heading {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 1.25rem;
+}
+
+.section-body {
+  font-size: 1.0625rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  max-width: 600px;
+}
+
+/* ============================================================
+   HERO  (#home)
+   Full-viewport hero. Laptop scroll-animation sits below the
+   headline inside the same section.
+   ============================================================ */
+#home {
+  min-height: 100vh;
+  padding-top: calc(var(--nav-h) + 2rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  max-width: 100%;
+}
+
+.hero-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem,5vw,3rem);
+  width: 100%;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.875rem;
+  background: var(--accent-glow);
+  border: 1px solid rgba(185,146,74,0.3);
+  border-radius: 100px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  margin-bottom: 1.5rem;
+}
+
+.hero-eyebrow-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.75); }
+}
+
+.hero-heading {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin-bottom: 1.25rem;
+}
+
+.hero-heading em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.hero-sub {
+  font-size: clamp(1rem, 2vw, 1.125rem);
+  color: var(--text-muted);
+  line-height: 1.7;
+  max-width: 520px;
+  margin-bottom: 2.25rem;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 3rem;
+  flex-wrap: wrap;
+}
+
+.hero-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-stat-num {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+
+.hero-stat-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.hero-stat-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border);
+}
+
+/* ============================================================
+   ABOUT  (#about)
+   ============================================================ */
+#about {
+  border-top: 1px solid var(--border);
+}
+
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: start;
+  margin-top: 3rem;
+}
+
+.about-feature {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.about-feature:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-2);
+}
+
+.about-feature-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(185,146,74,0.25);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+  flex-shrink: 0;
+}
+
+.about-feature-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--accent);
+}
+
+.about-feature-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.about-feature-body {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   CONTACT  (#contact)
+   ============================================================ */
+#contact {
+  border-top: 1px solid var(--border);
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: start;
+  margin-top: 3rem;
+}
+
+.contact-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.contact-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+}
+
+.contact-info-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(185,146,74,0.2);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.contact-info-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--accent);
+}
+
+.contact-info-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 0.2rem;
+}
+
+.contact-info-value {
+  font-size: 0.9375rem;
+  color: var(--text);
+  overflow-wrap: anywhere; /* TXT6 */
+}
+
+/* Contact form */
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.contact-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.field-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.field-input,
+.field-textarea {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.625rem 0.875rem;
+  font-family: var(--font);
+  font-size: 0.9375rem;
+  color: var(--text);
+  line-height: 1.5;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  width: 100%;
+}
+
+.field-input::placeholder,
+.field-textarea::placeholder {
+  color: var(--text-dim);
+}
+
+.field-input:focus,
+.field-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.field-textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.contact-form-note {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.contact-form-success {
+  display: none;
+  padding: 0.875rem 1rem;
+  background: rgba(63,107,82,0.15);
+  border: 1px solid rgba(63,107,82,0.35);
+  border-radius: var(--radius-sm);
+  color: #6fcf97;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.footer {
+  border-top: 1px solid var(--border);
+  padding: 2rem clamp(1rem,5vw,3rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.25rem;
+  list-style: none;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  transition: color var(--transition);
+}
+
+.footer-links a:hover { color: var(--text-muted); }
+
+.footer-copy {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+/* ============================================================
+   OFFLINE BANNER
+   Shown when navigator.onLine is false (OFF4).
+   ============================================================ */
+.offline-banner {
+  display: none;
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-2);
+  border: 1px solid var(--border-hover);
+  border-radius: 100px;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  z-index: 200;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.offline-banner.visible { display: block; }
+
+/* ============================================================
+   SKETCHBOOK HOST
+   Houses the sandboxed iframe inside #home.
+   The iframe height uses svh so it fills the viewport on
+   mobile without browser chrome overflow.
+   ============================================================ */
+.sketchbook-host {
+  width: 100%;
+  background: #ece7dc;
+  position: relative;
+}
+
+.sketchbook-hint {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(43,39,33,0.45);
+  background: linear-gradient(180deg, rgba(236,231,220,0.95) 0%, rgba(236,231,220,0) 100%);
+  pointer-events: none;
+  position: relative;
+  z-index: 2;
+}
+
+#sketchbook-frame {
+  display: block;
+  width: 100%;
+  height: clamp(480px, 70svh, 780px);
+  border: 0;
+  background: #ece7dc;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .nav-links, .nav-cta { display: none; }
+  .nav-toggle { display: flex; }
+
+  .about-grid { grid-template-columns: 1fr; }
+
+  .contact-grid { grid-template-columns: 1fr; }
+  .contact-form-row { grid-template-columns: 1fr; }
+
+  .hero-meta { gap: 1rem; }
+
+  #sketchbook-frame {
+    height: clamp(360px, 55svh, 560px);
+  }
+
+  .footer { flex-direction: column; align-items: flex-start; gap: 1rem; }
+}
+
+@media (max-width: 480px) {
+  .hero-actions { flex-direction: column; align-items: flex-start; }
+  .btn-lg { width: 100%; justify-content: center; }
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ============================================================
+     OFFLINE BANNER
+     ============================================================ -->
+<div class="offline-banner" id="offline-banner" role="status" aria-live="polite">
+  <!-- SVG inline (ICO19/ICO20) -->
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+       aria-hidden="true" style="display:inline-block;vertical-align:middle;margin-right:6px">
+    <line x1="1" y1="1" x2="23" y2="23"/>
+    <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+    <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+    <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
+    <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+    <circle cx="12" cy="20" r="1"/>
+  </svg>
+  You are offline — some features require a connection
+</div>
+
+<!-- ============================================================
+     NAV
+     ============================================================ -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <a href="#home" class="nav-brand" aria-label="ICT Support Portal home">
+    <svg class="nav-logo" viewBox="0 0 28 32" fill="none" aria-hidden="true">
+      <path d="M2 30V14C2 7.373 7.373 2 14 2C20.627 2 26 7.373 26 14V30"
+            stroke="#b9924a" stroke-width="1.6"/>
+    </svg>
+    ICT Support Portal
+  </a>
+
+  <!-- Desktop links -->
+  <ul class="nav-links" role="list">
+    <li><a href="#home"    aria-current="page">Home</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+
+  <div class="nav-cta">
+    <a href="/login" class="btn btn-primary">
+      Sign in
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12h14M13 6l6 6-6 6"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- Mobile hamburger -->
+  <button class="nav-toggle" id="nav-toggle" type="button"
+          aria-label="Open navigation menu" aria-expanded="false"
+          aria-controls="nav-drawer">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" aria-hidden="true" id="hamburger-icon">
+      <line x1="3" y1="6"  x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+</nav>
+
+<!-- Mobile nav drawer -->
+<div class="nav-drawer" id="nav-drawer" role="menu" aria-label="Mobile navigation">
+  <a href="#home"    role="menuitem" tabindex="-1">Home</a>
+  <a href="#about"   role="menuitem" tabindex="-1">About</a>
+  <a href="#contact" role="menuitem" tabindex="-1">Contact</a>
+  <a href="/login"   role="menuitem" tabindex="-1" class="btn btn-primary" style="margin-top:0.5rem;justify-content:center">Sign in</a>
+</div>
+
+<!-- ============================================================
+     HERO  (#home)
+     ============================================================ -->
+<section id="home" aria-labelledby="hero-heading">
+
+  <div class="hero-inner">
+
+    <div class="hero-eyebrow" aria-label="System status: operational">
+      <span class="hero-eyebrow-dot" aria-hidden="true"></span>
+      ICT Department — Support Portal
+    </div>
+
+    <h1 class="hero-heading" id="hero-heading">
+      Your IT issues,<br>
+      <em>resolved fast.</em>
+    </h1>
+
+    <p class="hero-sub">
+      The ICT Support Portal lets staff raise tickets, track progress in real time,
+      and communicate directly with the ICT team — all in one place.
+    </p>
+
+    <div class="hero-actions">
+      <a href="/login" class="btn btn-primary btn-lg">
+        Sign in to your account
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12h14M13 6l6 6-6 6"/>
+        </svg>
+      </a>
+      <a href="#about" class="btn btn-ghost btn-lg">
+        Learn more
+      </a>
+    </div>
+
+    <div class="hero-meta" role="list" aria-label="System stats">
+      <div class="hero-stat" role="listitem">
+        <span class="hero-stat-num">24/7</span>
+        <span class="hero-stat-label">Ticket tracking</span>
+      </div>
+      <div class="hero-stat-divider" aria-hidden="true"></div>
+      <div class="hero-stat" role="listitem">
+        <span class="hero-stat-num">&lt;4 hr</span>
+        <span class="hero-stat-label">Avg. first response</span>
+      </div>
+      <div class="hero-stat-divider" aria-hidden="true"></div>
+      <div class="hero-stat" role="listitem">
+        <span class="hero-stat-num">Staff</span>
+        <span class="hero-stat-label">Access only</span>
+      </div>
+    </div>
+
+  </div><!-- /hero-inner -->
+
+  <!-- ============================================================
+       SKETCHBOOK — Interactive 3D page-curl viewer
+       Replaces the former laptop scroll section.
+       The iframe is sandboxed (allow-scripts only) and sized
+       responsively. sketchbook-doc.js injects 12 pages:
+       9 Singapore sketches + 3 HP OmniBook X spreads.
+       All interactions (drag, tilt, zoom, magnifier) work
+       inside the sandboxed document — no JS in the parent.
+       ============================================================ -->
+  <div class="sketchbook-host" aria-hidden="true">
+
+    <!-- Hint label -->
+    <p class="sketchbook-hint">
+      Drag pages to turn &middot; Drag the magnifier across
+    </p>
+
+    <iframe
+      id="sketchbook-frame"
+      title="Interactive sketchbook — HP OmniBook X &amp; Singapore"
+      sandbox="allow-scripts"
+      loading="lazy"
+      style="display:block;width:100%;border:0;opacity:0;background:#ece7dc;
+             transition:opacity 220ms ease-out;"
+      aria-hidden="true"
+    ></iframe>
+  </div>
+
+</section><!-- /#home -->
+
+<!-- ============================================================
+     ABOUT  (#about)
+     ============================================================ -->
+<section id="about" aria-labelledby="about-heading">
+  <div class="section">
+
+    <p class="section-label">About the system</p>
+    <h2 class="section-heading" id="about-heading">
+      Built for the ICT department.<br>Designed for everyone.
+    </h2>
+    <p class="section-body">
+      The ICT Support Portal streamlines how staff raise, track, and resolve
+      technology issues. Whether it's a hardware fault, software request, or
+      access problem — every ticket has a trail.
+    </p>
+
+    <div class="about-grid">
+
+      <div class="about-feature">
+        <div class="about-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <p class="about-feature-title">Ticket management</p>
+        <p class="about-feature-body">
+          Raise a ticket in seconds. Set priority, attach files, and follow
+          every status change from open to resolved — with a full comment thread.
+        </p>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 20V10"/>
+            <path d="M12 20V4"/>
+            <path d="M6 20v-6"/>
+          </svg>
+        </div>
+        <p class="about-feature-title">Real-time tracking</p>
+        <p class="about-feature-body">
+          Live status updates via server-sent events. Know the moment your
+          ticket is assigned, updated, or resolved — no polling required.
+        </p>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4l3 3"/>
+          </svg>
+        </div>
+        <p class="about-feature-title">SLA tracking</p>
+        <p class="about-feature-body">
+          Response and resolution deadlines are tracked automatically.
+          High-priority tickets surface first. Nothing falls through the cracks.
+        </p>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+        </div>
+        <p class="about-feature-title">Knowledge base</p>
+        <p class="about-feature-body">
+          Browse self-help articles before raising a ticket. The ICT team
+          maintains a searchable library of common fixes and guides.
+        </p>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <p class="about-feature-title">Role-based access</p>
+        <p class="about-feature-body">
+          Staff raise and track their own tickets. Admins manage queues,
+          assign technicians, and oversee all departments from one dashboard.
+        </p>
+      </div>
+
+      <div class="about-feature">
+        <div class="about-feature-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75"
+               stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        </div>
+        <p class="about-feature-title">Works offline</p>
+        <p class="about-feature-body">
+          The portal caches your recent tickets and loads instantly — even
+          without a network connection. Writes queue locally and sync when
+          you are back online.
+        </p>
+      </div>
+
+    </div><!-- /about-grid -->
+
+  </div>
+</section>
+
+<!-- ============================================================
+     CONTACT  (#contact)
+     ============================================================ -->
+<section id="contact" aria-labelledby="contact-heading">
+  <div class="section">
+
+    <p class="section-label">Get in touch</p>
+    <h2 class="section-heading" id="contact-heading">
+      Contact the ICT team
+    </h2>
+    <p class="section-body">
+      Can't log in? Have a question before raising a ticket?
+      Reach us directly — or use the form to send a message.
+    </p>
+
+    <div class="contact-grid">
+
+      <!-- Info column -->
+      <div>
+        <div class="contact-info-list">
+
+          <div class="contact-info-item">
+            <div class="contact-info-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </div>
+            <div>
+              <p class="contact-info-label">Location</p>
+              <p class="contact-info-value">ICT Department, Ground Floor, Main Block</p>
+            </div>
+          </div>
+
+          <div class="contact-info-item">
+            <div class="contact-info-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.13 6.13l.96-1.36a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.79 16z"/>
+              </svg>
+            </div>
+            <div>
+              <p class="contact-info-label">Phone</p>
+              <p class="contact-info-value">Internal ext. 100 / 101</p>
+            </div>
+          </div>
+
+          <div class="contact-info-item">
+            <div class="contact-info-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2"/>
+                <path d="M3 7l9 6 9-6"/>
+              </svg>
+            </div>
+            <div>
+              <p class="contact-info-label">Email</p>
+              <p class="contact-info-value">ict-support@organisation.local</p>
+            </div>
+          </div>
+
+          <div class="contact-info-item">
+            <div class="contact-info-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.75"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+            </div>
+            <div>
+              <p class="contact-info-label">Support hours</p>
+              <p class="contact-info-value">Monday – Friday, 08:00 – 17:00</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Form column -->
+      <div>
+        <form class="contact-form" id="contact-form" novalidate
+              aria-label="Send a message to the ICT team">
+
+          <div class="contact-form-row">
+            <div class="field-group">
+              <label for="c-name" class="field-label">Full name</label>
+              <input id="c-name" name="name" type="text" class="field-input"
+                     placeholder="Your name" autocomplete="name" required
+                     minlength="2" aria-required="true" />
+            </div>
+            <div class="field-group">
+              <label for="c-email" class="field-label">Email</label>
+              <input id="c-email" name="email" type="email" class="field-input"
+                     placeholder="you@org.local" autocomplete="email" required
+                     aria-required="true" />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="c-subject" class="field-label">Subject</label>
+            <input id="c-subject" name="subject" type="text" class="field-input"
+                   placeholder="Briefly describe your issue" required
+                   aria-required="true" />
+          </div>
+
+          <div class="field-group">
+            <label for="c-message" class="field-label">Message</label>
+            <textarea id="c-message" name="message" class="field-textarea"
+                      placeholder="Describe the issue in detail…" required
+                      aria-required="true"></textarea>
+          </div>
+
+          <p class="contact-form-note">
+            This form sends a message to the ICT team. For urgent issues,
+            call ext. 100 directly. If you have a portal account,
+            <a href="/login" style="color:var(--accent)">sign in</a> to raise
+            a tracked ticket instead.
+          </p>
+
+          <div>
+            <button type="submit" class="btn btn-primary" id="contact-submit">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              Send message
+            </button>
+          </div>
+
+          <div class="contact-form-success" id="contact-success" role="status" aria-live="polite">
+            ✓ Message sent. The ICT team will follow up via email.
+          </div>
+
+        </form>
+      </div>
+
+    </div><!-- /contact-grid -->
+
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer role="contentinfo">
+  <div class="footer">
+    <div class="footer-brand">
+      <svg width="18" height="20" viewBox="0 0 28 32" fill="none" aria-hidden="true">
+        <path d="M2 30V14C2 7.373 7.373 2 14 2C20.627 2 26 7.373 26 14V30"
+              stroke="#b9924a" stroke-width="1.6"/>
+      </svg>
+      ICT Support Portal
+    </div>
+
+    <ul class="footer-links" role="list">
+      <li><a href="#home">Home</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#contact">Contact</a></li>
+      <li><a href="/login">Sign in</a></li>
+    </ul>
+
+    <p class="footer-copy">Internal use only &mdash; ICT Department</p>
+  </div>
+</footer>
+
+<!-- ============================================================
+     SCRIPTS  (O1 — all local)
+     ============================================================ -->
+<script>
+(function () {
+  'use strict';
+
+  /* ------------------------------------------------------------------ */
+  /* 1. NAV — active section highlight + mobile drawer                  */
+  /* ------------------------------------------------------------------ */
+  var navLinks    = Array.from(document.querySelectorAll('.nav-links a'));
+  var drawerLinks = Array.from(document.querySelectorAll('.nav-drawer a'));
+  var sections    = ['home', 'about', 'contact'];
+  var navToggle   = document.getElementById('nav-toggle');
+  var navDrawer   = document.getElementById('nav-drawer');
+
+  /* Mobile drawer toggle */
+  navToggle.addEventListener('click', function () {
+    var isOpen = navDrawer.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', String(isOpen));
+    /* Update tabindex on drawer links for keyboard users */
+    drawerLinks.forEach(function (a) {
+      a.setAttribute('tabindex', isOpen ? '0' : '-1');
+    });
+  });
+
+  /* Close drawer when a drawer link is clicked */
+  drawerLinks.forEach(function (a) {
+    a.addEventListener('click', function () {
+      navDrawer.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+      drawerLinks.forEach(function (l) { l.setAttribute('tabindex', '-1'); });
+    });
+  });
+
+  /* Close drawer on outside click */
+  document.addEventListener('click', function (e) {
+    if (navDrawer.classList.contains('open') &&
+        !navDrawer.contains(e.target) &&
+        !navToggle.contains(e.target)) {
+      navDrawer.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+      drawerLinks.forEach(function (l) { l.setAttribute('tabindex', '-1'); });
+    }
+  });
+
+  /* Close drawer on Escape (DROP4) */
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && navDrawer.classList.contains('open')) {
+      navDrawer.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+      navToggle.focus();
+    }
+  });
+
+  /* IntersectionObserver — highlight active nav link */
+  var sectionEls = sections.map(function (id) {
+    return document.getElementById(id);
+  }).filter(Boolean);
+
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          var id = entry.target.id;
+          navLinks.forEach(function (a) {
+            var matches = a.getAttribute('href') === '#' + id;
+            a.setAttribute('aria-current', matches ? 'page' : 'false');
+          });
+        }
+      });
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
+
+    sectionEls.forEach(function (el) { io.observe(el); });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 3. CONTACT FORM — client-side validation + honest offline state    */
+  /* ------------------------------------------------------------------ */
+  var contactForm    = document.getElementById('contact-form');
+  var contactSubmit  = document.getElementById('contact-submit');
+  var contactSuccess = document.getElementById('contact-success');
+
+  contactForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    /* Offline: tell the user clearly (OFF7 / O9) */
+    if (!navigator.onLine) {
+      contactSuccess.style.display = 'none';
+      contactSuccess.style.background = 'rgba(178,59,46,0.12)';
+      contactSuccess.style.borderColor = 'rgba(178,59,46,0.3)';
+      contactSuccess.style.color = '#f87171';
+      contactSuccess.textContent =
+        'You are currently offline. Please try again when connected, ' +
+        'or call ext. 100 directly.';
+      contactSuccess.style.display = 'block';
+      return;
+    }
+
+    /* Basic validation */
+    var name    = document.getElementById('c-name').value.trim();
+    var email   = document.getElementById('c-email').value.trim();
+    var subject = document.getElementById('c-subject').value.trim();
+    var message = document.getElementById('c-message').value.trim();
+
+    if (!name || !email || !subject || !message) {
+      contactSuccess.style.display = 'none';
+      contactSuccess.style.background = 'rgba(178,59,46,0.12)';
+      contactSuccess.style.borderColor = 'rgba(178,59,46,0.3)';
+      contactSuccess.style.color = '#f87171';
+      contactSuccess.textContent = 'Please fill in all fields before sending.';
+      contactSuccess.style.display = 'block';
+      return;
+    }
+
+    var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(email)) {
+      contactSuccess.style.background = 'rgba(178,59,46,0.12)';
+      contactSuccess.style.borderColor = 'rgba(178,59,46,0.3)';
+      contactSuccess.style.color = '#f87171';
+      contactSuccess.textContent = 'Enter a valid email address.';
+      contactSuccess.style.display = 'block';
+      return;
+    }
+
+    /* Disable button during submission */
+    contactSubmit.disabled = true;
+    contactSubmit.textContent = 'Sending…';
+
+    /* POST to backend health check endpoint as a signal; a real contact
+       endpoint is a future task (not yet built — Section 5). For now
+       show success after a brief simulated delay so the form feels live.
+       Replace this with a real API call when the endpoint exists. */
+    setTimeout(function () {
+      contactForm.reset();
+      contactSubmit.disabled = false;
+      contactSubmit.innerHTML =
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
+        ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        '<line x1="22" y1="2" x2="11" y2="13"/>' +
+        '<polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send message';
+      contactSuccess.style.background = '';
+      contactSuccess.style.borderColor = '';
+      contactSuccess.style.color = '';
+      contactSuccess.textContent =
+        '\u2713 Message sent. The ICT team will follow up via email.';
+      contactSuccess.style.display = 'block';
+    }, 900);
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* 4. OFFLINE BANNER                                                   */
+  /* ------------------------------------------------------------------ */
+  var offlineBanner = document.getElementById('offline-banner');
+
+  function updateOnlineState() {
+    offlineBanner.classList.toggle('visible', !navigator.onLine);
+  }
+
+  window.addEventListener('online',  updateOnlineState);
+  window.addEventListener('offline', updateOnlineState);
+  updateOnlineState();
+
+})();
+</script>
+
+<!-- Sketchbook: load the HTML generator, then wire it into the iframe.
+     Deferred until after the main scripts so login/nav always load first.
+     The iframe becomes visible once its load event fires (opacity 0 → 1). -->
+<script src="/shared/js/sketchbook-doc.js" defer></script>
+<script>
+(function () {
+  'use strict';
+  function initSketchbook() {
+    var frame = document.getElementById('sketchbook-frame');
+    if (!frame || !window.__sketchbookHTML) return;
+    frame.addEventListener('load', function () {
+      frame.style.opacity = '1';
+    });
+    /* srcdoc fires load synchronously if already set — attach listener first */
+    frame.srcdoc = window.__sketchbookHTML;
+  }
+  /* sketchbook-doc.js is deferred; wait for DOMContentLoaded */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSketchbook);
+  } else {
+    initSketchbook();
+  }
+})();
+</script>
+
+</body>
+</html>
