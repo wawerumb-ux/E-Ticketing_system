@@ -46,7 +46,6 @@ const SHELL_URLS = [
     '/vendor/qrcode.min.js',
     '/vendor/chart.umd.min.js',
     '/vendor/tubes1.min.js',
-    '/shared/assets/wallpapers/wallpaper-light.webp',
     // Offline landing — login.html is the front door at /login.
     '/login.html',
     // ICT Support Portal landing page (public front door at /).
