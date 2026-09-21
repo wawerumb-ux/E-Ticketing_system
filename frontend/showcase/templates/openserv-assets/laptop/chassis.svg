@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" fill="none">
+  <!-- Chassis layer — the base shell that everything clicks back into -->
+  <rect x="110" y="230" width="380" height="130" rx="22" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+  <!-- inner bay cutouts -->
+  <path d="M132 252h336" stroke="#a6a6a6" stroke-width="2"/>
+  <path d="M132 344h336" stroke="#a6a6a6" stroke-width="2"/>
+  <!-- port strip on the rear -->
+  <g fill="#d9defc" stroke="#5f79ff" stroke-width="1.5">
+    <rect x="418" y="254" width="26" height="10" rx="3"/>
+    <rect x="418" y="270" width="20" height="10" rx="3"/>
+    <rect x="418" y="286" width="26" height="10" rx="3"/>
+  </g>
+  <!-- power jack -->
+  <rect x="140" y="352" width="34" height="12" rx="6" fill="#f5f5f5" stroke="#000000" stroke-width="2"/>
+  <!-- alignment rails -->
+  <path d="M150 230v-6M250 230v-6M350 230v-6M450 230v-6"
+        stroke="#01fe93" stroke-width="3" stroke-linecap="round"/>
+  <!-- screws -->
+  <circle cx="146" cy="240" r="4" fill="#000000"/>
+  <circle cx="454" cy="240" r="4" fill="#000000"/>
+  <circle cx="146" cy="352" r="4" fill="#000000"/>
+  <circle cx="454" cy="352" r="4" fill="#000000"/>
+</svg>

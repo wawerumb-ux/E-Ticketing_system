@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICT E-Ticketing — OpenServ Laptop</title>
+<meta name="description" content="Every component of your ICT landscape, assembled. A scroll-driven laptop that builds itself from the inside out.">
+<!--SHOWCASE_CONFIG-->
+<style>
+/* =====================================================================
+   OpenServ Laptop — showcase template (online-only landing, self-contained)
+   OpenServ tokens from styles.refero.design (violet #5f79ff, mint #01fe93).
+   Fraunces (self-hosted /shared/fonts) stands in for OS Chronik; system
+   stack for OS Studio Grotesk — zero network, offline-safe.
+   ===================================================================== */
+@font-face{
+  font-family:'Fraunces';font-style:normal;font-weight:300 700;font-display:swap;
+  src:url('/shared/fonts/fraunces-latin.woff2') format('woff2');
+}
+:root{
+  --signal-violet:#5f79ff;
+  --signal-violet-deep:#4460ee;         /* AA-safe violet for text/inner fills */
+  --mint-pulse:#01fe93;
+  --pure-white:#ffffff;
+  --ink-black:#000000;
+  --fog:#f5f5f5;
+  --mist:#a6a6a6;
+  --ash:#4d4d4d;
+  --smoke:#9c9c9c;
+  --slate:#707070;
+  --tint-wash:#d9defc;
+  --font-display:'Fraunces',Georgia,serif;
+  --font-ui:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --radius:16px;
+  --page-w:1200px;
+  --gap:80px;
+  --ease:cubic-bezier(.22,.9,.3,1);
+  --z-grid:0; --z-stage:1; --z-hero:2; --z-nav:100;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--font-ui);font-size:15px;line-height:1.55;color:var(--ink-black);
+  background:var(--pure-white);overflow-x:hidden;-webkit-font-smoothing:antialiased;
+}
+a{color:inherit}
+::selection{background:var(--tint-wash)}
+
+/* blueprint grid ground */
+.grid-bg{
+  position:fixed;inset:0;z-index:var(--z-grid);pointer-events:none;
+  background-image:linear-gradient(var(--mist) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--mist) 1px,transparent 1px);
+  background-size:40px 40px;
+  opacity:.12;
+  -webkit-mask-image:linear-gradient(180deg,#000,#000 55%,transparent);
+  mask-image:linear-gradient(180deg,#000,#000 55%,transparent);
+}
+
+/* ---------------- floating nav (OpenServ) ---------------- */
+.nav{
+  position:fixed;top:24px;left:50%;transform:translateX(-50%);
+  z-index:var(--z-nav);width:min(calc(100% - 32px),var(--page-w));
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:12px 18px;background:rgba(255,255,255,.85);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border:1px solid var(--fog);border-radius:var(--radius);
+  box-shadow:rgba(0,0,0,.1) 0 0 48px;
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:400;text-decoration:none}
+.brand-mark{width:24px;height:24px;flex:none}
+.brand-name{font-size:16px;letter-spacing:-.017em}
+.nav-links{display:flex;align-items:center;gap:6px;font-size:14px}
+.nav-links a{
+  color:var(--slate);text-decoration:none;padding:7px 12px;border-radius:8px;
+  transition:color .2s,background-color .2s;
+}
+.nav-links a:hover{color:var(--ink-black);background:var(--fog)}
+.nav-links .pill{
+  margin-left:6px;background:var(--signal-violet);color:var(--pure-white);
+  border:none;border-radius:100px;padding:7px 14px;font-size:14px;font-weight:500;
+  text-decoration:none;transition:background-color .2s;
+}
+.nav-links .pill:hover{background:var(--signal-violet-deep)}
+.nav-links .pill b{font-weight:600}
+
+/* ---------------- hero ---------------- */
+.hero{
+  position:relative;z-index:var(--z-hero);min-height:100svh;
+  display:grid;align-content:center;justify-items:center;text-align:center;
+  padding:clamp(120px,18vh,180px) 24px clamp(64px,10vh,110px);
+}
+.eyebrow{
+  font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--slate);margin:0;
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow::before,.eyebrow::after{
+  content:"";width:34px;height:1px;background:var(--mist);
+}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--mint-pulse)}
+.hero h1{
+  font-family:var(--font-display);font-weight:300;
+  font-size:clamp(44px,8.5vw,88px);line-height:.95;letter-spacing:-1.6px;margin:18px 0 0;
+  max-width:16ch;
+}
+.hero h1 em{font-style:italic;color:var(--signal-violet-deep)}
+.hero .sub{
+  margin:20px 0 0;max-width:52ch;color:var(--ash);font-size:16px;line-height:1.6;
+}
+.cta-row{display:flex;align-items:center;gap:14px;margin-top:34px;flex-wrap:wrap;justify-content:center}
+.cta{
+  display:inline-flex;align-items:center;gap:8px;background:var(--signal-violet);
+  color:var(--pure-white);text-decoration:none;border-radius:100px;
+  padding:13px 26px;font-size:16px;font-weight:500;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);
+  transition:background-color .2s,transform .15s;
+}
+.cta:hover{background:var(--signal-violet-deep);transform:translateY(-1px)}
+.cta.ghost{
+  background:var(--pure-white);color:var(--signal-violet-deep);
+  box-shadow:inset 0 0 0 1px var(--signal-violet);
+}
+.cta.ghost:hover{background:var(--tint-wash)}
+.cta svg{width:16px;height:16px}
+.scroll-cue{
+  margin-top:44px;display:flex;flex-direction:column;align-items:center;gap:8px;
+  color:var(--slate);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+}
+.scroll-cue .line{width:1px;height:34px;background:var(--mist);animation:cue 2.2s var(--ease) infinite;transform-origin:top}
+@keyframes cue{0%{transform:scaleY(0)}45%{transform:scaleY(1)}70%,100%{transform:scaleY(0)}}
+
+/* ---------------- laptop stage (sticky, full-viewport) ---------------- */
+.stage-holder{position:relative;height:340vh;z-index:var(--z-stage)}
+.stage{
+  position:sticky;top:0;height:100vh;
+  display:grid;place-items:center;overflow:hidden;
+}
+.sparkles{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.7;object-fit:cover}
+.laptop{
+  position:relative;width:min(580px,88vw);aspect-ratio:600/400;
+  perspective:1100px;perspective-origin:50% 42%;
+}
+.laptop svg,.laptop img.laptop-part{position:absolute;inset:0;width:100%;height:100%}
+.laptop .layer{
+  position:absolute;inset:0;transform-style:preserve-3d;
+  transform:translate3d(0,var(--y,0px),var(--z,0px)) rotateX(var(--rx,0deg));
+  will-change:transform;pointer-events:none;
+}
+.layer .svg{display:block;width:100%;height:100%;pointer-events:none}
+/* buried parts sit lower in z so content layers sit above the shell */
+.chassis{--z:0px}
+.battery{--z:10px}
+.logic{--z:20px}
+.keyboard{--z:30px}
+.hinge{--z:40px}
+.screen{--z:50px}
+
+.cap-lab{
+  position:absolute;pointer-events:none;z-index:var(--z-hero);
+  background:var(--pure-white);border:1px solid var(--fog);border-radius:12px;
+  box-shadow:0 6px 22px rgba(0,0,0,.08);
+  padding:10px 14px;font-size:13px;letter-spacing:.02em;color:var(--ink-black);
+  opacity:0;transition:opacity .3s ease,transform .3s var(--ease);
+  transform:translateY(8px);
+}
+.cap-lab.show{opacity:1;transform:translateY(0)}
+.cap-lab .t{display:block;font-weight:600;font-size:13px}
+.cap-lab .p{display:block;font-size:12px;color:var(--slate);margin-top:2px}
+.cap-lab::before{content:"";position:absolute;left:-9px;top:50%;transform:translateY(-50%);
+  width:8px;height:8px;border-radius:50%;background:var(--mint-pulse)}
+.cap-lab.screen{top:20%;right:4%}
+.cap-lab.keyboard{top:42%;left:4%}
+.cap-lab.logic{top:58%;right:6%}
+.cap-lab.battery{top:70%;left:8%}
+.cap-lab.chassis{top:84%;right:14%}
+
+.stage-title{
+  position:absolute;top:max(88px,9vh);left:50%;transform:translateX(-50%);
+  font-family:var(--font-display);font-weight:300;font-size:clamp(20px,3vw,28px);
+  letter-spacing:-.4px;margin:0;white-space:nowrap;z-index:var(--z-hero);
+}
+.stage-cta{
+  position:absolute;bottom:max(26px,5vh);left:50%;transform:translateX(-50%);
+  z-index:var(--z-hero);opacity:0;transition:opacity .3s ease;
+  display:flex;align-items:center;gap:14px;
+}
+.stage-cta.show{opacity:1}
+.stage-cta .status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate)}
+.stage-cta .status .dot{width:8px;height:8px;border-radius:50%;background:var(--mint-pulse)}
+
+/* ---------------- card grid + highlight ---------------- */
+.grid-sec{
+  position:relative;z-index:var(--z-stage);
+  max-width:var(--page-w);margin:0 auto;
+  padding:clamp(48px,9vh,96px) 24px;display:grid;gap:var(--gap);
+}
+.card-row{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{
+  background:var(--pure-white);border:1px solid var(--fog);border-radius:var(--radius);
+  padding:24px;display:grid;gap:10px;align-content:start;
+}
+.card .k{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--signal-violet-deep)}
+.card .t{font-size:20px;font-weight:500;letter-spacing:-.017em;margin:0}
+.card .d{font-size:14px;color:var(--ash);line-height:1.55;margin:0}
+.highlight{
+  display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);
+  background:var(--pure-white);border:1px solid var(--fog);border-radius:var(--radius);
+  overflow:hidden;
+}
+.highlight .art{background:var(--fog)}
+.highlight .art .panel{
+  height:100%;display:grid;place-items:center;padding:24px;
+}
+.highlight .art .panel svg{width:100%;max-width:420px;height:auto;display:block}
+.highlight .copy{padding:clamp(24px,4vw,48px);display:grid;align-content:center;gap:12px}
+.highlight .copy .k{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--signal-violet-deep)}
+.highlight .copy .t{font-family:var(--font-display);font-weight:300;font-size:clamp(24px,3.4vw,34px);letter-spacing:-.6px;line-height:1.1;margin:0}
+.highlight .copy .d{font-size:15px;color:var(--ash);line-height:1.6;margin:0;max-width:46ch}
+
+/* ---------------- footer + tri stripe ---------------- */
+.stripe{display:grid;grid-template-columns:1fr 1fr 1fr;height:4px}
+.stripe span:nth-child(1){background:var(--mint-pulse)}
+.stripe span:nth-child(2){background:var(--signal-violet)}
+.stripe span:nth-child(3){background:var(--ink-black)}
+.foot{max-width:var(--page-w);margin:0 auto;padding:0 24px 44px;text-align:center;font-size:13px;color:var(--slate)}
+.foot a{color:var(--signal-violet-deep);text-decoration:none;border-bottom:1px solid var(--tint-wash)}
+.foot a:hover{border-color:var(--signal-violet)}
+
+/* ---------------- responsive ---------------- */
+@media (max-width:768px){
+  .nav{top:12px;padding:10px 12px}
+  .nav-links a:not(.pill){display:none}
+  .card-row{grid-template-columns:1fr}
+  .highlight{grid-template-columns:1fr}
+  .highlight .art{order:2;min-height:180px}
+  .laptop{width:min(430px,90vw)}
+  .cap-lab{display:none}
+  .stage-title{white-space:normal;text-align:center;padding:0 24px}
+}
+/* touch: no fine hover on labels */
+@media (pointer:coarse){.cap-lab{display:none}}
+/* reduced motion: static assembled laptop, no sticky stage drive */
+@media (prefers-reduced-motion:reduce){
+  .stage-holder{height:auto}
+  .stage{position:relative;height:auto;min-height:60vh}
+  .laptop .layer{transform:none !important}
+  .sparkles{opacity:.35}
+  .scroll-cue{display:none}
+  .cap-lab{opacity:1;transform:none;position:static;display:block;pointer-events:auto;
+    margin:8px auto;max-width:220px}
+  .cap-lab::before{display:none}
+}
+</style>
+</head>
+<body>
+<div class="grid-bg" aria-hidden="true"></div>
+
+<header class="nav">
+  <a class="brand" href="#hero" aria-label="ICT E-Ticketing">
+    <svg class="brand-mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="var(--ink-black)" stroke-width="2"/>
+      <circle cx="12" cy="12" r="4.5" stroke="var(--signal-violet)" stroke-width="2"/>
+      <circle cx="12" cy="12" r="1.2" fill="var(--mint-pulse)"/>
+    </svg>
+    <span class="brand-name">ICT E-Ticketing</span>
+  </a>
+  <nav class="nav-links" aria-label="primary">
+    <a href="#assets">Assets</a>
+    <a href="#tickets">Tickets</a>
+    <a href="#insight">Insight</a>
+    <a class="pill" href="/login.html"><b>&rarr;</b>&nbsp;Open App</a>
+  </nav>
+</header>
+
+<main class="page home">
+
+  <section id="hero" class="hero">
+    <p class="eyebrow"><span class="dot" aria-hidden="true"></span>One queue &middot; every component</p>
+    <h1>Every component of your ICT landscape, assembled.</h1>
+    <p class="sub">A laptop that builds itself as you scroll — each layer a capability of the e-ticketing engine: the display that shows your queue, the keyboard you type into, the board that routes it, the power that keeps the SLA clock on.</p>
+    <div class="cta-row">
+      <a class="cta" href="/login.html">Open a ticket
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h12M11 5l5 5-5 5"/></svg>
+      </a>
+      <a class="cta ghost" href="/login.html">View the queue</a>
+    </div>
+    <div class="scroll-cue" aria-hidden="true"><span class="line"></span>Scroll</div>
+  </section>
+
+  <section class="stage-holder" id="stageHolder">
+    <div class="stage" id="stage">
+      <img class="sparkles" src="/showcase/templates/openserv-assets/laptop/sparkles.svg" alt="" aria-hidden="true">
+      <h2 class="stage-title">Five layers, one machine</h2>
+      <div class="laptop" id="laptop" role="img" aria-label="An assembled laptop, animated as a blueprint of five stacked components">
+        <span class="layer screen"   data-layer="screen"><img class="svg" src="/showcase/templates/openserv-assets/laptop/screen.svg" alt=""></span>
+        <span class="layer keyboard" data-layer="keyboard"><img class="svg" src="/showcase/templates/openserv-assets/laptop/keyboard.svg" alt=""></span>
+        <span class="layer logic"    data-layer="logic"><img class="svg" src="/showcase/templates/openserv-assets/laptop/logic.svg" alt=""></span>
+        <span class="layer battery"  data-layer="battery"><img class="svg" src="/showcase/templates/openserv-assets/laptop/battery.svg" alt=""></span>
+        <span class="layer chassis"  data-layer="chassis"><img class="svg" src="/showcase/templates/openserv-assets/laptop/chassis.svg" alt=""></span>
+        <span class="layer hinge"    data-layer="hinge"><img class="svg" src="/showcase/templates/openserv-assets/laptop/hinge.svg" alt=""></span>
+      </div>
+
+      <p class="cap-lab screen" id="labScreen"><span class="t">Display Node</span><span class="p">The queue, at a glance</span></p>
+      <p class="cap-lab keyboard" id="labKeyboard"><span class="t">Input Deck</span><span class="p">Raise &amp; comment</span></p>
+      <p class="cap-lab logic" id="labLogic"><span class="t">Routing Board</span><span class="p">Triage to the right team</span></p>
+      <p class="cap-lab battery" id="labBattery"><span class="t">Power Cell</span><span class="p">SLA clock, kept alive</span></p>
+      <p class="cap-lab chassis" id="labChassis"><span class="t">Chassis</span><span class="p">Audit &amp; the ledger</span></p>
+
+      <div class="stage-cta" id="stageCta">
+        <span class="status"><span class="dot" aria-hidden="true"></span>All nodes active</span>
+        <a class="cta" href="/login.html">Open Ticket &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid-sec">
+    <div class="card-row">
+      <article class="card">
+        <span class="k">01 &middot; See</span>
+        <h3 class="t">One queue</h3>
+        <p class="d">Every ticket on the display node — staff raise, admins see the whole board, nothing hides behind a role toggle.</p>
+      </article>
+      <article class="card">
+        <span class="k">02 &middot; Route</span>
+        <h3 class="t">Triage that works</h3>
+        <p class="d">Priority sorts itself on the routing board. Low, medium, high — the right queue, the right technician.</p>
+      </article>
+      <article class="card">
+        <span class="k">03 &middot; Keep the clock</span>
+        <h3 class="t">SLA on the power cell</h3>
+        <p class="d">The response clock never sleeps. Every ticket rides an SLA deadline the battery keeps honest.</p>
+      </article>
+    </div>
+
+    <article class="highlight" id="insight">
+      <div class="art" aria-hidden="true">
+        <div class="panel">
+          <svg viewBox="0 0 420 220" fill="none">
+            <rect x="1" y="1" width="418" height="218" rx="16" fill="#f5f5f5"/>
+            <rect x="18" y="18" width="128" height="26" rx="13" fill="#d9defc"/>
+            <rect x="160" y="18" width="96" height="26" rx="13" fill="#f5f5f5" stroke="#a6a6a6" stroke-width="1.5"/>
+            <rect x="18" y="140" width="384" height="3" rx="1.5" fill="#d9defc"/>
+            <g stroke="#a6a6a6" stroke-width="1.5" opacity=".7">
+              <rect x="18" y="60" width="180" height="9" rx="4.5" fill="#f5f5f5" stroke="none"/>
+              <rect x="18" y="80" width="210" height="9" rx="4.5" fill="#f5f5f5" stroke="none"/>
+              <rect x="18" y="100" width="156" height="9" rx="4.5" fill="#f5f5f5" stroke="none"/>
+            </g>
+            <path d="M72 158 L180 100 L300 158" stroke="#5f79ff" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <circle cx="72" cy="158" r="5" fill="#5f79ff"/>
+            <circle cx="180" cy="100" r="5" fill="#01fe93"/>
+            <circle cx="300" cy="158" r="5" fill="#5f79ff"/>
+          </svg>
+        </div>
+      </div>
+      <div class="copy">
+        <span class="k">The LEDGER</span>
+        <h3 class="t">Every action you take becomes a line in the audit log.</h3>
+        <p class="d">Server-side scoping, soft deletes, and a full audit trail — engineering decisions the chassis carries, not the UI.</p>
+        <a class="cta ghost" href="/login.html">Explore the platform</a>
+      </div>
+    </article>
+  </section>
+
+  <div class="stripe" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <footer class="foot" id="assets">
+    ICT E-Ticketing &middot; OpenServ Laptop &middot; <a href="/login.html">Enter the portal</a>
+  </footer>
+</main>
+
+<script>
+/* =====================================================================
+   ICT E-Ticketing — OpenServ laptop showcase.
+   Scroll-linked dis/assembly over the sticky #stage. Vanilla + WAAPI:
+   one rAF handler reads scroll progress and writes transform per layer.
+   Reduced-motion and coarse pointers fall back to static assembled.
+   ===================================================================== */
+(function(){
+  'use strict';
+
+  /* ---- Showcase config: title/link surface only ---- */
+  try{
+    var cfgEl=document.getElementById('showcase-config');
+    if(cfgEl){
+      var cfg=JSON.parse(cfgEl.textContent);
+      if(cfg&&typeof cfg.title==='string'&&cfg.title){
+        document.title=cfg.title;
+        var brand=document.querySelector('.brand-name');
+        if(brand)brand.textContent=cfg.title;
+      }
+    }
+  }catch(e){/* config is optional */}
+
+  var stage=document.getElementById('stage');
+  if(!stage)return;
+  var holder=document.getElementById('stageHolder');
+  var REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var COARSE=matchMedia('(pointer: coarse)').matches;
+
+  /* pose table — px offsets at full disassembly (forward play) */
+  var POSES={
+    screen:  {y:-210, rx:8},
+    hinge:   {y:0,    rx:0},
+    keyboard:{y:70,   rx:-4},
+    logic:   {y:150,  rx:-6},
+    battery: {y:210,  rx:-4},
+    chassis: {y:280,  rx:-4}
+  };
+
+  /* capability labels keyed to progress windows */
+  var LABS=[
+    ['labScreen', 0.16,0.40],
+    ['labKeyboard',0.22,0.50],
+    ['labLogic',  0.30,0.58],
+    ['labBattery',0.38,0.66],
+    ['labChassis',0.46,0.74]
+  ];
+
+  var parts=[], cursors={};
+  Object.keys(POSES).forEach(function(k){
+    var el=document.querySelector('.layer[data-layer="'+k+'"]');
+    if(el)parts.push({k:k,el:el});
+  });
+  LABS.forEach(function(l){
+    var el=document.getElementById(l[0]);
+    if(el)cursors[l[0]]={el:el,a:l[1],rho:l[2]-l[1]};
+  });
+
+  /* two-phase: disassemble 0->1 (0..45%), assembled idle 45..55%,
+     reassemble back to 0 (55..80%), then fade to CTA. */
+  function phase(p){
+    if(p<0.45)return p/0.45;
+    if(p<0.55)return 1;
+    if(p<0.80)return 1-(p-0.55)/0.25;
+    return 0;
+  }
+  function ease(t){return t*t*(3-2*t)}
+
+  var ticking=false,lastStamp=0;
+  function update(now){
+    ticking=false;
+    var r=holder.getBoundingClientRect();
+    var travel=holder.offsetHeight-window.innerHeight;
+    var p=travel>0?Math.max(0,Math.min(1,-r.top/travel)):0;
+    var k=ease(phase(p));
+
+    for(var i=0;i<parts.length;i++){
+      var pr=POSES[parts[i].k];
+      var y=(pr.y||0)*k;
+      var rx=(pr.rx||0)*k;
+      parts[i].el.style.setProperty('--y',y.toFixed(1)+'px');
+      parts[i].el.style.setProperty('--rx',rx.toFixed(2)+'deg');
+    }
+    /* labels opacity = bell over their window */
+    for(var id in cursors){
+      var c=cursors[id];
+      var on=p>=c.a&&p<=c.rho+c.a;
+      c.el.classList.toggle('show',on);
+    }
+    /* CTA emerges after full reassembly */
+    var done=p>0.80;
+    document.getElementById('stageCta').classList.toggle('show',done);
+  }
+  addEventListener('scroll',function(){
+    if(!ticking){ticking=true;requestAnimationFrame(update);}
+  },{passive:true});
+  update();
+})();
+</script>
+</body>
+</html>

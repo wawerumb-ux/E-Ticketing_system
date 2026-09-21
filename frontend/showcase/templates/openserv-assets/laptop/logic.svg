@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" fill="none">
+  <!-- Logic board — the compute layer. Circuit traces in violet + mint. -->
+  <rect x="116" y="240" width="368" height="150" rx="16" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+  <!-- mounting holes -->
+  <circle cx="138" cy="262" r="6" fill="none" stroke="#5f79ff" stroke-width="3"/>
+  <circle cx="462" cy="262" r="6" fill="none" stroke="#5f79ff" stroke-width="3"/>
+  <circle cx="138" cy="368" r="6" fill="none" stroke="#5f79ff" stroke-width="3"/>
+  <circle cx="462" cy="368" r="6" fill="none" stroke="#5f79ff" stroke-width="3"/>
+  <!-- CPU die -->
+  <rect x="248" y="282" width="104" height="88" rx="12" fill="#f5f5f5" stroke="#000000" stroke-width="2"/>
+  <rect x="262" y="296" width="76" height="60" rx="8" fill="#000000"/>
+  <!-- memory DIMMs -->
+  <rect x="192" y="382" width="96" height="16" rx="8" fill="#5f79ff" opacity="0.9"/>
+  <rect x="312" y="382" width="84" height="16" rx="8" fill="#01fe93" opacity="0.9"/>
+  <!-- traces -->
+  <g stroke="#5f79ff" stroke-width="2.5" stroke-linecap="round">
+    <path d="M176 400v-34h18l34-34V288"/>
+    <path d="M404 400v-26h-14l-26-26v-28"/>
+  </g>
+  <g stroke="#01fe93" stroke-width="2.5" stroke-linecap="round">
+    <path d="M196 400v-20h52v-30"/>
+    <path d="M384 400v-18h-48v-22"/>
+  </g>
+  <g stroke="#a6a6a6" stroke-width="1.5" stroke-linecap="round">
+    <path d="M340 262v20"/>
+    <path d="M260 262v14"/>
+    <path d="M300 250v-10"/>
+    <circle cx="300" cy="238" r="3" fill="#5f79ff" stroke="none"/>
+  </g>
+</svg>

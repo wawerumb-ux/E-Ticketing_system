@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" fill="none">
+  <!-- Sparkle field — decorative #d9defc four-point stars used behind the stage -->
+  <g fill="#d9defc">
+    <path d="M100 60 q8 24 32 32 q-24 8 -32 32 q-8 -24 -32 -32 q24 -8 32 -32 z"/>
+    <path d="M470 120 q5 15 20 20 q-15 5 -20 20 q-5 -15 -20 -20 q15 -5 20 -20 z"/>
+    <path d="M70 300 q5 15 20 20 q-15 5 -20 20 q-5 -15 -20 -20 q15 -5 20 -20 z"/>
+    <path d="M530 300 q5 15 20 20 q-15 5 -20 20 q-5 -15 -20 -20 q15 -5 20 -20 z"/>
+  </g>
+  <g fill="#d9defc" opacity="0.7">
+    <path d="M300 30 q3 9 12 12 q-9 3 -12 12 q-3 -9 -12 -12 q9 -3 12 -12 z"/>
+    <path d="M545 180 q3 9 12 12 q-9 3 -12 12 q-3 -9 -12 -12 q9 -3 12 -12 z"/>
+  </g>
+</svg>

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" fill="none">
+  <!-- Assembled laptop — every layer at its final pose. Used by reduced-motion
+       and as the "rest" frame so the system never depends on the parts layer. -->
+  <!-- chassis base -->
+  <rect x="110" y="230" width="380" height="130" rx="22" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+  <path d="M132 252h336" stroke="#a6a6a6" stroke-width="2"/>
+  <path d="M132 344h336" stroke="#a6a6a6" stroke-width="2"/>
+  <g fill="#d9defc" stroke="#5f79ff" stroke-width="1.5">
+    <rect x="418" y="254" width="26" height="10" rx="3"/>
+    <rect x="418" y="270" width="20" height="10" rx="3"/>
+    <rect x="418" y="286" width="26" height="10" rx="3"/>
+  </g>
+  <rect x="140" y="352" width="34" height="12" rx="6" fill="#f5f5f5" stroke="#000000" stroke-width="2"/>
+  <path d="M150 230v-6M250 230v-6M350 230v-6M450 230v-6"
+        stroke="#01fe93" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="146" cy="240" r="4" fill="#000000"/>
+  <circle cx="454" cy="240" r="4" fill="#000000"/>
+  <!-- logic board above the chassis line -->
+  <rect x="116" y="176" width="368" height="54" rx="16" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+  <rect x="248" y="184" width="56" height="30" rx="8" fill="#000000"/>
+  <rect x="318" y="184" width="56" height="30" rx="8" fill="#000000"/>
+  <path d="M166 194v26M206 194v26M442 194v26" stroke="#5f79ff" stroke-width="2" stroke-linecap="round"/>
+  <rect x="168" y="196" width="14" height="6" rx="3" fill="#01fe93"/>
+  <!-- battery strip -->
+  <rect x="150" y="148" width="300" height="34" rx="12" fill="#ffffff" stroke="#000000" stroke-width="2.5"/>
+  <rect x="168" y="156" width="120" height="8" rx="4" fill="#01fe93"/>
+  <rect x="296" y="156" width="88" height="8" rx="4" fill="#d9defc"/>
+  <!-- keyboard deck -->
+  <rect x="104" y="86" width="392" height="64" rx="18" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+  <g fill="#f5f5f5" stroke="#a6a6a6" stroke-width="1.5">
+    <rect x="122" y="96" width="24" height="14" rx="4"/>
+    <rect x="152" y="96" width="24" height="14" rx="4"/>
+    <rect x="182" y="96" width="24" height="14" rx="4"/>
+    <rect x="212" y="96" width="24" height="14" rx="4"/>
+    <rect x="242" y="96" width="24" height="14" rx="4"/>
+    <rect x="272" y="96" width="24" height="14" rx="4"/>
+    <rect x="302" y="96" width="24" height="14" rx="4"/>
+    <rect x="332" y="96" width="24" height="14" rx="4"/>
+    <rect x="362" y="96" width="24" height="14" rx="4"/>
+    <rect x="392" y="96" width="24" height="14" rx="4"/>
+  </g>
+  <rect x="122" y="118" width="160" height="14" rx="7" fill="#ffffff" stroke="#a6a6a6" stroke-width="1.5"/>
+  <rect x="330" y="118" width="16" height="14" rx="7" fill="#5f79ff"/>
+  <rect x="352" y="118" width="16" height="14" rx="7" fill="#01fe93"/>
+  <rect x="374" y="118" width="16" height="14" rx="7" fill="#a6a6a6"/>
+  <rect x="396" y="118" width="16" height="14" rx="7" fill="#a6a6a6"/>
+  <!-- hinge -->
+  <rect x="150" y="58" width="300" height="18" rx="9" fill="#f5f5f5" stroke="#000000" stroke-width="3"/>
+  <rect x="176" y="62" width="30" height="10" rx="5" fill="#a6a6a6"/>
+  <rect x="234" y="62" width="30" height="10" rx="5" fill="#a6a6a6"/>
+  <rect x="292" y="62" width="30" height="10" rx="5" fill="#a6a6a6"/>
+  <rect x="350" y="62" width="30" height="10" rx="5" fill="#a6a6a6"/>
+  <rect x="408" y="62" width="30" height="10" rx="5" fill="#a6a6a6"/>
+  <circle cx="300" cy="67" r="4" fill="#01fe93"/>
+  <!-- screen -->
+  <rect x="110" y="16" width="380" height="48" rx="18" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+  <circle cx="300" cy="30" r="4" fill="#000000"/>
+  <rect x="134" y="22" width="332" height="30" rx="8" fill="#f5f5f5" stroke="#a6a6a6" stroke-width="1.5"/>
+  <rect x="160" y="30" width="150" height="10" rx="5" fill="#ffffff" stroke="#a6a6a6" stroke-width="1.5"/>
+  <rect x="328" y="30" width="122" height="10" rx="5" fill="#ffffff" stroke="#a6a6a6" stroke-width="1.5"/>
+  <circle cx="300" cy="50" r="8" stroke="#000000" stroke-width="2"/>
+  <circle cx="300" cy="50" r="3" fill="#000000"/>
+</svg>

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" fill="none">
+  <!-- Keyboard deck — the input layer -->
+  <rect x="104" y="226" width="392" height="108" rx="18" fill="#ffffff" stroke="#000000" stroke-width="3"/>
+  <!-- key rows -->
+  <g fill="#f5f5f5" stroke="#a6a6a6" stroke-width="1.5">
+    <rect x="122" y="244" width="24" height="16" rx="4"/>
+    <rect x="152" y="244" width="24" height="16" rx="4"/>
+    <rect x="182" y="244" width="24" height="16" rx="4"/>
+    <rect x="212" y="244" width="24" height="16" rx="4"/>
+    <rect x="242" y="244" width="24" height="16" rx="4"/>
+    <rect x="272" y="244" width="24" height="16" rx="4"/>
+    <rect x="302" y="244" width="24" height="16" rx="4"/>
+    <rect x="332" y="244" width="24" height="16" rx="4"/>
+    <rect x="362" y="244" width="24" height="16" rx="4"/>
+    <rect x="392" y="244" width="24" height="16" rx="4"/>
+    <rect x="122" y="268" width="24" height="16" rx="4"/>
+    <rect x="152" y="268" width="24" height="16" rx="4"/>
+    <rect x="182" y="268" width="24" height="16" rx="4"/>
+    <rect x="212" y="268" width="24" height="16" rx="4"/>
+    <rect x="242" y="268" width="24" height="16" rx="4"/>
+    <rect x="272" y="268" width="24" height="16" rx="4"/>
+    <rect x="302" y="268" width="24" height="16" rx="4"/>
+    <rect x="332" y="268" width="24" height="16" rx="4"/>
+    <rect x="362" y="268" width="24" height="16" rx="4"/>
+    <rect x="392" y="268" width="24" height="16" rx="4"/>
+    <rect x="122" y="292" width="24" height="16" rx="4"/>
+    <rect x="152" y="292" width="24" height="16" rx="4"/>
+    <rect x="182" y="292" width="24" height="16" rx="4"/>
+    <rect x="212" y="292" width="24" height="16" rx="4"/>
+    <rect x="242" y="292" width="24" height="16" rx="4"/>
+    <rect x="272" y="292" width="24" height="16" rx="4"/>
+    <rect x="302" y="292" width="24" height="16" rx="4"/>
+    <rect x="332" y="292" width="24" height="16" rx="4"/>
+    <rect x="362" y="292" width="24" height="16" rx="4"/>
+    <rect x="392" y="292" width="24" height="16" rx="4"/>
+  </g>
+  <!-- spacebar + trackpad -->
+  <rect x="122" y="316" width="160" height="14" rx="7" fill="#ffffff" stroke="#a6a6a6" stroke-width="1.5"/>
+  <rect x="330" y="316" width="16" height="14" rx="7" fill="#5f79ff"/>
+  <rect x="352" y="316" width="16" height="14" rx="7" fill="#01fe93"/>
+  <rect x="374" y="316" width="16" height="14" rx="7" fill="#a6a6a6"/>
+  <rect x="396" y="316" width="16" height="14" rx="7" fill="#a6a6a6"/>
+  <!-- palm rest line -->
+  <rect x="122" y="326" width="356" height="2" rx="1" fill="#d9defc"/>
+</svg>
