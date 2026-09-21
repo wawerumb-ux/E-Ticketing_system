@@ -24,6 +24,7 @@ from models import (
     KnowledgeArticle,
     PriorityRule,
     Role,
+    ShowcasePage,
     User,
 )
 
@@ -175,6 +176,23 @@ def ensure_priority_rules_schema():
 
 
 @_with_app_context
+def ensure_showcase_schema():
+    """Create the showcase_pages table on engines that predate it.
+
+    New installs get it from ``db.create_all()``; this guard covers a live
+    database whose schema was built before the ShowcasePage model existed.
+    """
+    try:
+        inspector = db.inspect(db.engine)
+        if 'showcase_pages' in inspector.get_table_names():
+            return
+        ShowcasePage.__table__.create(db.engine)
+        logger.info('Created showcase_pages table to match the current schema')
+    except Exception as exc:
+        logger.warning(f'Could not ensure showcase schema compatibility: {exc}')
+
+
+@_with_app_context
 def seed_priority_rules():
     """Seed the developer-defined default rule set when none exist."""
     from helpers import PRIORITY_DEFAULT_RULES
@@ -280,6 +298,28 @@ def seed_starter_departments():
 
 
 @_with_app_context
+def seed_openserv_showcase():
+    """Idempotent starter showcase: the openserv-laptop landing.
+
+    Creates the showcase_pages row the render route requires (enabled) so
+    /showcase/openserv-laptop is reachable on a fresh database without the
+    admin CRUD UI (which is still Phase 5). Safe to re-run.
+    """
+    if ShowcasePage.query.filter_by(slug='openserv-laptop').first():
+        return
+    db.session.add(ShowcasePage(
+        slug='openserv-laptop',
+        title='ICT E-Ticketing — OpenServ Laptop',
+        template='openserv-laptop',
+        enabled=True,
+        created_by='seed',
+        content_json={'subtitle': 'Every component of your ICT landscape, assembled.'},
+    ))
+    db.session.commit()
+    logger.info('Seeded openserv-laptop showcase page')
+
+
+@_with_app_context
 def bootstrap_database():
     """Single entry point that creates tables, runs schema backfills and
     seeds starter data.  Called from docker-entrypoint and app.py __main__."""
@@ -291,6 +331,7 @@ def bootstrap_database():
     ensure_notification_prefs_schema()
     ensure_ussd_schema_compat()
     ensure_priority_rules_schema()
+    ensure_showcase_schema()
     seed_default_roles()
     seed_default_users()
     seed_settings()
@@ -298,6 +339,7 @@ def bootstrap_database():
     seed_starter_categories()
     seed_starter_departments()
     seed_priority_rules()
+    seed_openserv_showcase()
     logger.info('Database initialization complete')
 
 

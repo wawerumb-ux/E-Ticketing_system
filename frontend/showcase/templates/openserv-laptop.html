@@ -6,6 +6,25 @@
 <title>ICT E-Ticketing — OpenServ Laptop</title>
 <meta name="description" content="Every component of your ICT landscape, assembled. A scroll-driven laptop that builds itself from the inside out.">
 <!--SHOWCASE_CONFIG-->
+<script>
+  /* Direct-open (file://) shim: absolute /showcase/... asset paths only resolve
+     when served by the Flask /showcase route. Opened straight from disk they
+     point at filesystem root, so rewrite them to the template-relative paths. */
+  (function () {
+    if (location.protocol !== 'file:') return;
+    var BASE = function () {
+      var s = document.currentScript;
+      if (s && s.src) return s.src.slice(0, s.src.lastIndexOf('/') + 1);
+      return '';
+    }();
+    document.querySelectorAll('img').forEach(function (img) {
+      var src = img.getAttribute('src') || '';
+      if (src.indexOf('/showcase/templates/openserv-assets/') === 0) {
+        img.setAttribute('src', BASE + src.slice('/showcase/templates/'.length));
+      }
+    });
+  })();
+</script>
 <style>
 /* =====================================================================
    OpenServ Laptop — showcase template (online-only landing, self-contained)
