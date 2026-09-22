@@ -9,6 +9,7 @@ from .knowledge import knowledge_bp
 from .admin import admin_bp
 from .v1 import v1_bp
 from .main import main_bp
+from .showcase import showcase_bp
 
 ALL_BLUEPRINTS = (
     auth_bp,
@@ -19,6 +20,7 @@ ALL_BLUEPRINTS = (
     admin_bp,
     v1_bp,
     main_bp,
+    showcase_bp,
 )
 
 

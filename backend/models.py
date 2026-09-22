@@ -313,3 +313,26 @@ class Webhook(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_by = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=utcnow)
+
+
+class ShowcasePage(db.Model):
+    """Admin-authored, online-only showcase landing page config.
+
+    Templates render from frontend/showcase/templates/<template>.html with this
+    row's config injected as a JSON script tag. Online-only surface: the
+    service worker never precaches any showcase asset and the showcase folder
+    is self-contained (no reference from the user/admin portals).
+    """
+    __tablename__ = 'showcase_pages'
+
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(100), unique=True, nullable=False)
+    title = db.Column(db.String(150), nullable=False)
+    template = db.Column(db.String(50), nullable=False)
+    theme_json = db.Column(db.JSON, nullable=True)
+    hero_url = db.Column(db.Text, nullable=True)
+    content_json = db.Column(db.JSON, nullable=True)
+    enabled = db.Column(db.Boolean, default=False)
+    created_by = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)

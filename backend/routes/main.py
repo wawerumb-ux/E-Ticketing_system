@@ -62,15 +62,17 @@ def metrics_endpoint():
 # ============ FRONTEND SERVING ============
 
 @main_bp.route('/')
-def serve_login():
-    # Root deliberately serves login.html directly (200, not a redirect): it is
-    # the short link printed in the startup banner (http://<host>:<port>/),
-    # resolves straight to the login page, and avoids an extra redirect hop.
-    return send_from_directory('../frontend', 'login.html')
+def serve_landing():
+    # Root now serves the ICT Support Portal landing page (landing.html).
+    # Staff who want to go directly to login use /login.
+    # The short link printed in the startup banner (http://<host>:<port>/)
+    # lands on the marketing/info front door first.
+    return send_from_directory('../frontend', 'landing.html')
 
 
 @main_bp.route('/login')
 def serve_login_page():
+    # Login page lives exclusively at /login (and /login only).
     return send_from_directory('../frontend', 'login.html')
 
 

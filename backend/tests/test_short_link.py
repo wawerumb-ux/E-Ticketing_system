@@ -1,6 +1,7 @@
-"""Tests for the shortened URL feature: the root serves the login page
-directly (200, no redirect), the startup banner prints localhost + LAN short
-link honestly, and the /share page still renders a QR code."""
+"""Tests for the shortened URL feature: the root serves the landing page
+directly (200, no redirect), /login serves the auth page, the startup banner
+prints localhost + LAN short link honestly, and the /share page still renders
+a QR code."""
 import os
 import re
 import unittest
@@ -18,13 +19,18 @@ class ShortLinkTests(BaseTestCase):
         # Point the test app at the backend dir so '../frontend' resolves.
         self.app.root_path = os.path.join(os.path.dirname(__file__), '..')
 
-    def test_root_serves_login(self):
+    def test_root_serves_landing(self):
         r = self.client.get('/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'ICT Support Portal', r.data)
+
+    def test_login_serves_login_page(self):
+        r = self.client.get('/login')
         self.assertEqual(r.status_code, 200)
         self.assertIn(b'ICT E-Ticketing System - Login', r.data)
 
-    def test_root_serves_login_directly_not_redirect(self):
-        """The root short link resolves to login.html with 200, not a 302."""
+    def test_root_serves_landing_directly_not_redirect(self):
+        """The root short link resolves to landing.html with 200, not a 302."""
         r = self.client.get('/')
         self.assertEqual(r.status_code, 200)
         self.assertLess(r.status_code, 300)
