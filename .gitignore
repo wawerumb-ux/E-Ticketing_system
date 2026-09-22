@@ -39,3 +39,8 @@ backend/.env
 
 # Docker
 docker-compose.override.yml
+
+# Node/npm artifacts (frontend libs are vendored in frontend/vendor/ — no npm needed)
+node_modules/
+package-lock.json
+package.json

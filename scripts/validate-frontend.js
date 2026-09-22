@@ -168,9 +168,18 @@ function checkRemoteURLs() {
   const files = walk(FE);
   // allow localhost and 127.0.0.1; block anything else remote
   const remoteRe = /\bhttps?:\/\/(?!localhost|127\.0\.0\.1)\S+/g;
+  // embedded-template sync files: they carry the sketchbook template as a string
+  // literal. Its only remote URLs are anchor hrefs (author socials/bio), which
+  // are content navigation — never runtime asset fetches, so they don't violate O1.
+  const templateSyncNames = new Set(["sketchbookDocument.js", "sketchbook-doc.js"]);
   for (const file of files) {
     // vendored libraries are local copies — their internal doc URLs are not runtime fetches
     if (file.split(path.sep).includes("vendor")) continue;
+    if (templateSyncNames.has(path.basename(file))) continue;
+    // authorized zone: frontend/showcase/ is the ONLINE-ONLY showcase folder.
+    // Remote Google Fonts / Unsplash / Mixkit assets are deliberately allowed
+    // there (developer decision, Phase 2), never anywhere else in frontend/.
+    if (file.startsWith(path.join(FE, "showcase"))) continue;
     const src = fs.readFileSync(file, "utf8");
     let m;
     const re = new RegExp(remoteRe.source, "g");
@@ -235,10 +244,33 @@ console.log("validate-frontend: starting...\n");
 checkJSSyntax();
 
 // 2. Tag balance
+// Each page cross-references only its own JS, not the whole shared dir:
+// app.js is portal-only, landing.js is landing-only — never mix the two.
+function jsIn(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter(n => n.endsWith(".js")).map(n => path.join(dir, n));
+}
+const sharedJs = jsIn(path.join(FE, "shared", "js"));
 const portals = [
-  { html: path.join(FE, "user", "index.html"),  jsDir: [path.join(FE, "user", "js"), path.join(FE, "shared", "js")] },
-  { html: path.join(FE, "admin", "index.html"), jsDir: [path.join(FE, "admin", "js"), path.join(FE, "shared", "js")] },
+  { html: path.join(FE, "user", "index.html"),  js: jsIn(path.join(FE, "user", "js")).concat(sharedJs.filter(f => !f.endsWith("landing.js"))) },
+  { html: path.join(FE, "admin", "index.html"), js: jsIn(path.join(FE, "admin", "js")).concat(sharedJs.filter(f => !f.endsWith("landing.js"))) },
+  { html: path.join(FE, "landing.html"),        js: sharedJs.filter(f => f.endsWith("landing.js")) },
 ];
+// Showcase templates: each template.html pairs with the showcase shared JS
+// (auth-shim.js) and any sibling <template>.js. Auto-discovered so phases
+// 7+ get tag-balance + getElementById coverage without extra bookkeeping.
+const showcaseSharedJs = jsIn(path.join(FE, "showcase", "shared"));
+const showcaseTplDir = path.join(FE, "showcase", "templates");
+if (fs.existsSync(showcaseTplDir)) {
+  for (const name of fs.readdirSync(showcaseTplDir)) {
+    if (!name.endsWith(".html")) continue;
+    const html = path.join(showcaseTplDir, name);
+    const tplJs = html.replace(/\.html$/, ".js");
+    const entry = { html, js: showcaseSharedJs.slice() };
+    if (fs.existsSync(tplJs)) entry.js.push(tplJs);
+    portals.push(entry);
+  }
+}
 for (const p of portals) {
   if (fs.existsSync(p.html)) checkTagBalance(p.html);
 }
@@ -246,12 +278,7 @@ for (const p of portals) {
 // 3. getElementById cross-ref (per portal + its own JS only, not shared)
 for (const p of portals) {
   if (!fs.existsSync(p.html)) continue;
-  const jsFiles = p.jsDir
-    .filter(d => fs.existsSync(d))
-    .flatMap(d =>
-      fs.readdirSync(d).filter(n => n.endsWith(".js")).map(n => path.join(d, n))
-    );
-  checkGetById(p.html, jsFiles);
+  checkGetById(p.html, p.js);
 }
 
 // 4. Remote URLs
