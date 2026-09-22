@@ -273,96 +273,15 @@ class TicketingApp {
         if (sectionId === 'profile') this.loadProfile();
     }
 
-    // ============ Session expired dialog ============
-    // Registered with AuthAPI so an expired/revoked token surfaces
-    // "Session expired" here instead of forcing a logout+redirect. Back/forward
-    // and section switches never log anyone out; only an explicit logout
-    // control or this acknowledged dialog ends the session.
+    // ============ Session expired dialog (Shared module) ============
     initSessionExpiredDialog() {
-        AuthAPI.setOnSessionExpired(() => this._showSessionExpiredDialog());
-    }
-
-    _showSessionExpiredDialog() {
-        const previous = document.activeElement;
-        if (this._sessionExpiredDialog) {
-            this._sessionExpiredDialog.style.display = 'block';
-            this._focusSessionExpiredDialog(previous);
-            return;
+        if (typeof SessionExpiredDialog !== 'undefined') {
+            SessionExpiredDialog.init();
+        } else {
+            AuthAPI.setOnSessionExpired(() => {
+                if (typeof showToast === 'function') showToast('Session expired. Please log in again.', 'error');
+            });
         }
-        const dialog = document.createElement('div');
-        dialog.className = 'modal';
-        dialog.setAttribute('role', 'dialog');
-        dialog.setAttribute('aria-modal', 'true');
-        dialog.setAttribute('aria-labelledby', 'sessionExpiredTitle');
-        dialog.setAttribute('aria-describedby', 'sessionExpiredMessage');
-
-        const content = document.createElement('div');
-        content.className = 'modal-content';
-        content.style.maxWidth = '420px';
-
-        const title = document.createElement('h3');
-        title.id = 'sessionExpiredTitle';
-        title.textContent = 'Session expired';
-
-        const message = document.createElement('p');
-        message.id = 'sessionExpiredMessage';
-        message.textContent = 'Your session has expired — please log in again to continue.';
-
-        const actions = document.createElement('div');
-        actions.className = 'modal-actions';
-
-        const goLogin = document.createElement('button');
-        goLogin.id = 'sessionExpiredGoLogin';
-        goLogin.className = 'btn btn-primary';
-        goLogin.textContent = 'Go to Login';
-        goLogin.addEventListener('click', () => AuthAPI.logout());
-
-        const stay = document.createElement('button');
-        stay.id = 'sessionExpiredStay';
-        stay.className = 'btn btn-secondary';
-        stay.textContent = 'Stay here';
-        stay.addEventListener('click', () => this._closeSessionExpiredDialog(previous));
-
-        actions.appendChild(goLogin);
-        actions.appendChild(stay);
-        content.appendChild(title);
-        content.appendChild(message);
-        content.appendChild(actions);
-        dialog.appendChild(content);
-        document.body.appendChild(dialog);
-        this._sessionExpiredDialog = dialog;
-
-        dialog.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this._closeSessionExpiredDialog(previous);
-                return;
-            }
-            if (e.key !== 'Tab') return;
-            const focusables = dialog.querySelectorAll('button, [href], [tabindex]:not([tabindex="-1"])');
-            if (focusables.length === 0) return;
-            const first = focusables[0];
-            const last = focusables[focusables.length - 1];
-            if (e.shiftKey && document.activeElement === first) {
-                e.preventDefault();
-                last.focus();
-            } else if (!e.shiftKey && document.activeElement === last) {
-                e.preventDefault();
-                first.focus();
-            }
-        });
-        this._focusSessionExpiredDialog(previous);
-    }
-
-    _focusSessionExpiredDialog(previous) {
-        this._sessionExpiredPreviousFocus = previous;
-        const goLogin = document.getElementById('sessionExpiredGoLogin');
-        if (goLogin && typeof goLogin.focus === 'function') goLogin.focus();
-    }
-
-    _closeSessionExpiredDialog(previous) {
-        if (!this._sessionExpiredDialog) return;
-        this._sessionExpiredDialog.style.display = 'none';
-        if (previous && typeof previous.focus === 'function') previous.focus();
     }
 
     // ============ Personal dashboard: My Active Tickets / Recent Updates ============
@@ -570,7 +489,6 @@ class TicketingApp {
                 <td>${escapeHtml(this.capitalize(ticket.category))}</td>
                 <td><span class="priority-badge ${ticket.priority}">${this.capitalize(ticket.priority)}</span></td>
                 <td><span class="status-badge ${ticket.status}">${this.capitalize(ticket.status.replace('_', ' '))}</span></td>
-                <td>${this.slaBadge(ticket)}</td>
                 <td>${escapeHtml(ticket.assigned_to || 'Unassigned')}</td>
                 <td>${new Date(ticket.created_at).toLocaleDateString()}</td>
                 <td>
@@ -603,13 +521,6 @@ openTicketDetail(id) {
             <strong>Priority reason (${this.capitalize(ticket.priority_source.replace('_', ' '))}):</strong>
             <p style="margin:4px 0 0;color:var(--text-muted);">${escapeHtml(ticket.priority_explanation)}</p>
         </div>` : ''}
-
-        <div style="margin-bottom:20px;">
-            <strong>Service level:</strong>
-            <div class="sla-due-wrap" style="margin-top:6px;">
-                ${this.slaDueHtml(ticket)}
-            </div>
-        </div>
 
         <p style="margin-bottom:15px;"><strong>Category:</strong> ${escapeHtml(this.capitalize(ticket.category))}</p>
         <p style="margin-bottom:15px;"><strong>Assigned To:</strong> ${escapeHtml(ticket.assigned_to || 'Unassigned')}</p>
@@ -653,35 +564,6 @@ openTicketDetail(id) {
     this.loadTicketComments(id);
     this.loadTicketAttachments(id);
 }
-
-    slaBadge(ticket) {
-        const breached = ticket.sla_resolution_breached;
-        const due = ticket.sla_resolution_due;
-        if (!due) return '<span class="sla-badge none">—</span>';
-
-        const ms = new Date(due).getTime() - Date.now();
-        const hours = Math.floor(ms / 3600000);
-        const mins = Math.floor((ms % 3600000) / 60000);
-        const when = ms > 0 ? `in ${hours}h ${mins}m` : `${Math.abs(hours)}h ${Math.abs(mins)}m ago`;
-
-        if (breached) return `<span class="sla-badge breached">Breached · ${when}</span>`;
-        if (ms < 3600000) return `<span class="sla-badge due_soon">${when}</span>`;
-        return `<span class="sla-badge ok">${when}</span>`;
-    }
-
-    slaDueHtml(ticket) {
-        const active = ticket.status === 'open' || ticket.status === 'in_progress';
-        const line = (label, due, breached) => {
-            if (!due) return `<p>${label}: <em>not set</em></p>`;
-            const when = new Date(due).toLocaleString();
-            const cls = active && breached ? 'breached' : '';
-            const flag = active && breached ? ' (breached)' : '';
-            return `<p class="${cls}">${label}: ${when}${flag}</p>`;
-        };
-        const resp = line('Response', ticket.sla_response_due, active && ticket.sla_response_breached);
-        const resol = line('Resolution', ticket.sla_resolution_due, active && ticket.sla_resolution_breached);
-        return `${resp}${resol}`;
-    }
 
     async loadTicketAttachments(ticketId) {
         const container = document.getElementById('ticketAttachmentList');
@@ -2218,180 +2100,7 @@ openTicketDetail(id) {
 // Sidebar states (YouTube-style three-state behaviour):
 //   Expanded (full) <-> Mini (icon rail) on wide screens (>1024px).
 //   The 769-1024px band is Mini-fixed; the hamburger opens Expanded as an
-//   overlay there. <=768px the sidebar is Hidden; the hamburger toggles an
-//   overlay drawer.
-//   The user's chosen desktop state ('expanded'|'mini') persists in
-//   localStorage 'sidebar:state' and is only ever written by an explicit
-//   hamburger click — never by a resize. Legacy 'sidebarMode' / session
-//   'sidebarCollapsed' values migrate to it.
-//   Classes live on <html>, matching the pre-paint <head> bootstrap:
-//   .sidebar-mini (effective Mini), .sidebar-expanded-overlay (mid-size
-//   overlay), .sidebar-mobile-open (mobile drawer + body scroll lock).
-var SidebarManager = (function () {
-    var STATE_KEY = 'sidebar:state';
-    var BREAKPOINT_MOBILE = 768;
-    var BREAKPOINT_WIDE = 1025;
-    var remembered = 'expanded';
-    var drawerOpen = false;      // <=768px overlay drawer
-    var expandedOverlay = false; // 769-1024px overlay
-    var sidebarHover = false;    // transient rail expand while pointer/focus is on it
-
-    function matches(query) {
-        try { return window.matchMedia(query).matches; } catch (e) { return false; }
-    }
-
-    function isMobile() { return matches('(max-width: ' + BREAKPOINT_MOBILE + 'px)'); }
-    function isWide() { return matches('(min-width: ' + BREAKPOINT_WIDE + 'px)'); }
-
-    function readRemembered() {
-        try {
-            var v = localStorage.getItem(STATE_KEY);
-            if (v === 'expanded' || v === 'mini') return v;
-            if (localStorage.getItem('sidebarMode') === 'rail') return 'mini';
-            if (sessionStorage.getItem('sidebarCollapsed') === 'true') return 'mini';
-        } catch (e) { /* storage unavailable - fall through */ }
-        return 'expanded';
-    }
-
-    function writeRemembered(m) {
-        try { localStorage.setItem(STATE_KEY, m); } catch (e) { /* non-fatal */ }
-    }
-
-    function apply() {
-        var el = document.documentElement;
-        var small = isMobile();
-        var wide = isWide();
-        el.classList.toggle('sidebar-mobile-open', small && drawerOpen);
-        el.classList.toggle('sidebar-expanded-overlay', !small && !wide && expandedOverlay);
-        el.classList.toggle('sidebar-mini', small ? false : (sidebarHover ? false : (wide ? remembered === 'mini' : !expandedOverlay)));
-        var btn = document.getElementById('toggleSidebar');
-        var btnMobile = document.getElementById('toggleSidebarMobile');
-        var expanded = small ? drawerOpen : (!wide ? expandedOverlay : remembered === 'expanded');
-        if (btn) btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        if (btnMobile) btnMobile.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    }
-
-    function focusSidebar() {
-        var el = document.getElementById('sidebar');
-        if (el && typeof el.focus === 'function') el.focus();
-    }
-
-    function focusToggle() {
-        var btn = matches('(max-width: 1024px)')
-            ? document.getElementById('toggleSidebarMobile')
-            : document.getElementById('toggleSidebar');
-        if (btn && typeof btn.focus === 'function') btn.focus();
-    }
-
-    function closeOverlay(returnFocus) {
-        var wasOpen = drawerOpen || expandedOverlay;
-        drawerOpen = false;
-        expandedOverlay = false;
-        apply();
-        if (wasOpen && returnFocus) focusToggle();
-    }
-
-    function toggle() {
-        if (isMobile()) {
-            drawerOpen = !drawerOpen;
-            apply();
-            if (drawerOpen) focusSidebar();
-            else focusToggle();
-        } else if (isWide()) {
-            remembered = (remembered === 'mini') ? 'expanded' : 'mini';
-            writeRemembered(remembered);
-            apply();
-        } else {
-            expandedOverlay = !expandedOverlay;
-            apply();
-            if (expandedOverlay) focusSidebar();
-            else focusToggle();
-        }
-    }
-
-    function init() {
-        if (!document.getElementById('sidebar')) return;
-
-        remembered = readRemembered();
-        drawerOpen = false;
-        expandedOverlay = false;
-
-        // Flyout labels (Mini state) come straight from each item's label.
-        document.querySelectorAll('.sidebar-nav li').forEach(function (item) {
-            var span = item.querySelector('span');
-            if (span && span.textContent && !item.getAttribute('data-label')) {
-                item.setAttribute('data-label', span.textContent);
-            }
-        });
-
-        var btn = document.getElementById('toggleSidebar');
-        var btnMobile = document.getElementById('toggleSidebarMobile');
-        var backdrop = document.getElementById('sidebarBackdrop');
-
-        if (btn) btn.addEventListener('click', toggle);
-        if (btnMobile) btnMobile.addEventListener('click', toggle);
-        if (backdrop) backdrop.addEventListener('click', function () {
-            closeOverlay(true);
-        });
-
-        // Transient expand-on-hover (Mini rail): while the pointer is over the
-        // rail — or keyboard focus is inside it — the sidebar renders at full
-        // Expanded width with the labels in-line, so a flyout never floats over
-        // the content pane: the layout reflows out of the way instead. This is
-        // never persisted and never overwrites the remembered state.
-        var sidebarEl = document.getElementById('sidebar');
-        function setSidebarHover(on) {
-            if (isMobile()) return;
-            if (sidebarHover === on) return;
-            sidebarHover = on;
-            apply();
-        }
-        if (sidebarEl) {
-            sidebarEl.addEventListener('pointerenter', function () { setSidebarHover(true); });
-            sidebarEl.addEventListener('pointerleave', function () { setSidebarHover(false); });
-            sidebarEl.addEventListener('focusin', function () { setSidebarHover(true); });
-            sidebarEl.addEventListener('focusout', function (e) {
-                if (sidebarEl.contains(e.relatedTarget)) return;
-                setSidebarHover(false);
-            });
-        }
-
-        document.addEventListener('keydown', function (e) {
-            if ((e.key || '').toLowerCase() !== 'escape') return;
-            if (drawerOpen || expandedOverlay) closeOverlay(true);
-        });
-
-        document.querySelectorAll('.sidebar-nav li').forEach(function (item) {
-            // Choosing a section closes any open overlay afterwards.
-            item.addEventListener('click', function () {
-                if (drawerOpen || expandedOverlay) closeOverlay(false);
-            });
-            // Keyboard activation for the focusable nav items.
-            item.addEventListener('keydown', function (e) {
-                if (e.key !== 'Enter' && e.key !== ' ') return;
-                if (document.activeElement !== item) return;
-                e.preventDefault();
-                item.click();
-            });
-        });
-
-        // Resize recomputes the effective state. The remembered desktop
-        // state is never overwritten here — only explicit clicks persist.
-        var resizeTimer = null;
-        window.addEventListener('resize', function () {
-            if (resizeTimer) clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(function () {
-                expandedOverlay = false;
-                drawerOpen = false;
-                apply();
-            }, 150);
-        });
-
-        apply();
-    }
-
-    return { init: init };
-})();
+// SidebarManager is loaded from shared/js/sidebar.js
 
 let app;
 document.addEventListener('DOMContentLoaded', () => {

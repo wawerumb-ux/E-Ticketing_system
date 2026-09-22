@@ -7,7 +7,20 @@
 <link rel="stylesheet" href="/shared/css/style.css">
 </head>
 
-<body class="auth-fog" style="font-size:15px">
+<body class="auth-fog login-page" style="font-size:15px">
+
+  <!-- With internet the wallpaper landing replaces the auth brand panel (login
+       card stays centered). Offline this class stays off and the original
+       two-panel landing is the fallback. Inline + synchronous so the decision
+       lands before first paint (no FOUC, no layout shift on load). -->
+  <script>document.body.classList.toggle('wallpaper-active', navigator.onLine);</script>
+
+  <!-- WebGL tubes background canvas (Option C: offline only).
+       Fixed, z-index -1, full viewport — sits behind .auth-shell.
+       Hidden via CSS when wallpaper-active (online). The module is loaded
+       only when offline so online visitors never pay the 775KB cost.
+       aria-hidden: purely decorative, no information content. -->
+  <canvas id="tubes-canvas" aria-hidden="true"></canvas>
 
   <div id="toast-container" class="auth-toast"></div>
 
@@ -539,5 +552,20 @@
 
 })();
 </script>
+
+<!-- Tubes WebGL background — loads only when offline (Option C).
+     type="module" gives us ES module dynamic import() inside tubes-bg.js.
+     Deferred until after the auth JS runs so login never waits on WebGL. -->
+<script type="module">
+  if (!navigator.onLine) {
+    import('/shared/js/tubes-bg.js').then(function () {
+      var canvas = document.getElementById('tubes-canvas');
+      if (canvas && window.__tubesBg) window.__tubesBg.init(canvas);
+    }).catch(function (e) {
+      /* Silently ignore — brand panel is still visible as fallback */
+    });
+  }
+</script>
+
 </body>
 </html>

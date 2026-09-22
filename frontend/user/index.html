@@ -39,9 +39,9 @@
     </div>
     <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
     <div class="app-container">
-        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar" tabindex="-1">
+        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar" tabindex="-1" data-brand="ict">
             <div class="sidebar-header">
-                <h2><button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="false"><i data-icon="ticket-alt" aria-hidden="true"></i></button><span>ICT Tickets</span></h2>
+                <h2><button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="false"><i data-icon="ticket-alt" aria-hidden="true"></i></button><button id="sidebarBrandLabel" class="sidebar-brand-label" type="button" aria-controls="sidebar" aria-expanded="false"><span>ICT Tickets</span></button></h2>
             </div>
             <nav class="sidebar-nav">
                 <ul>
@@ -207,7 +207,6 @@
                                 <th data-sort="category">Category <i data-icon="sort" aria-hidden="true"></i></th>
                                 <th data-sort="priority">Priority <i data-icon="sort" aria-hidden="true"></i></th>
                                 <th data-sort="status">Status <i data-icon="sort" aria-hidden="true"></i></th>
-                                <th>SLA</th>
                                 <th data-sort="assigned_to">Assigned To <i data-icon="sort" aria-hidden="true"></i></th>
                                 <th data-sort="created_at">Created <i data-icon="sort" aria-hidden="true"></i></th>
                                 <th>Actions</th>
@@ -590,6 +589,8 @@
     <script src="/shared/js/password-field.js"></script>
     <script src="/shared/js/notification-prefs.js"></script>
     <script src="/shared/js/offline-db.js"></script>
+    <script src="/shared/js/sidebar.js"></script>
+    <script src="/shared/js/session-dialog.js"></script>
     <script src="/user/js/app.js"></script>
     <script>
         // Register the offline-capability service worker. Scope '/' is honoured

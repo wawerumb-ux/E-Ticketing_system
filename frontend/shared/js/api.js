@@ -849,6 +849,62 @@ static async createTicketCommentOffline(ticketId, message, isInternal = false, c
         return await response.json();
     }
 
+    static async getShowcases() {
+        try {
+            const response = await apiFetch(`${API_BASE_URL}/showcase`);
+            if (!response.ok) throw new Error('Failed to fetch showcase pages');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return [];
+        }
+    }
+
+    static async createShowcase(payload) {
+        const response = await apiFetch(`${API_BASE_URL}/showcase`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to create showcase page');
+        return data;
+    }
+
+    static async updateShowcase(id, payload) {
+        const response = await apiFetch(`${API_BASE_URL}/showcase/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to update showcase page');
+        return data;
+    }
+
+    static async deleteShowcase(id) {
+        const response = await apiFetch(`${API_BASE_URL}/showcase/${id}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to delete showcase page');
+        return data;
+    }
+
+    static async setShowcaseEnabled(id, enabled) {
+        const response = await apiFetch(`${API_BASE_URL}/showcase/${id}/${enabled ? 'enable' : 'disable'}`, { method: 'PUT' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to update showcase page');
+        return data;
+    }
+
+    static async getShowcasePageHtml(slug) {
+        const base = API_BASE_URL.replace(/\/api\/?$/, '');
+        const response = await fetch(`${base}/showcase/${encodeURIComponent(slug)}?preview=1`, {
+            headers: { ...authHeader() }
+        });
+        if (!response.ok) throw new Error('Failed to fetch showcase preview');
+        return await response.text();
+    }
+
     static async getAuditLogs(entity = '', action = '') {
         try {
             const params = new URLSearchParams();

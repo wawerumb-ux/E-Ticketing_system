@@ -37,9 +37,9 @@
     </div>
     <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
     <div class="app-container">
-        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar" tabindex="-1">
+        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar" tabindex="-1" data-brand="admin">
             <div class="sidebar-header">
-                <h2><button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="false"><i data-icon="ticket-alt" aria-hidden="true"></i></button><span>ICT Admin</span></h2>
+                <h2><button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="false"><i data-icon="ticket-alt" aria-hidden="true"></i></button><button id="sidebarBrandLabel" class="sidebar-brand-label" type="button" aria-controls="sidebar" aria-expanded="false"><span>ICT Admin</span></button></h2>
             </div>
             <nav class="sidebar-nav">
                 <ul>
@@ -1202,6 +1202,8 @@
     <script src="/shared/js/password-field.js"></script>
     <script src="/shared/js/notification-prefs.js"></script>
     <script src="/shared/js/offline-db.js"></script>
+    <script src="/shared/js/sidebar.js"></script>
+    <script src="/shared/js/session-dialog.js"></script>
     <script src="/admin/js/app.js"></script>
     <script>
         // Register the shared origin-wide offline engine. Scope '/' is honoured

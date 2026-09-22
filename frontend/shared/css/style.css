@@ -153,9 +153,11 @@ body {
     --auth-on-ink: #ECEEF0;
     --auth-on-ink-muted: #9195A0;
     --auth-fog: #EDEFF1;
+    --auth-fog-glass: rgba(237, 239, 241, 0.96);
     --auth-fog-line: rgba(20, 21, 27, 0.12);
+    --login-wallpaper: url("../assets/wallpapers/wallpaper-light.webp");
     --auth-on-fog: #14151B;
-    --auth-on-fog-muted: #6B6E76;
+    --auth-on-fog-muted: #4E5158;
     --auth-accent: #7C3232;
     --auth-accent-deep: #602727;
     --auth-brass: #B9924A;
@@ -480,6 +482,15 @@ a {
     border-right: 1px solid var(--sidebar-border);
 }
 
+/* Glassmorphism gate: backdrop-filter is expensive on old hardware.
+   Browsers without support keep the solid --sidebar-bg gradient fallback.
+   No new tokens — the gradient token IS the fallback surface. */
+@supports not (backdrop-filter: blur(8px)) {
+    .sidebar {
+        backdrop-filter: none;
+    }
+}
+
 .sidebar-header {
     padding: 28px 24px 20px;
     border-bottom: 1px solid var(--sidebar-border);
@@ -518,8 +529,84 @@ a {
 }
 
 .sidebar-brand-toggle:focus-visible {
-    outline: 2px solid var(--primary);
+    /* Ring uses --primary-light: the sidebar surface is a constant dark
+       graphite in every theme (--sidebar-* live only at :root), and the
+       per-theme --primary values land 2.2-2.8:1 on it — below the 3:1 UI
+       component requirement. #dbeafe gives >=14:1 in all 11 surfaces (BLD3). */
+    outline: 2px solid var(--primary-light);
     outline-offset: 2px;
+}
+
+/* ---- Full/Half toggle visibility ------------------------------------------
+   UX spec: the brand-glyph toggle is hidden in the Full (Expanded) state and
+   visible in the Half (Mini) rail, where it is the only brand mark.
+   Desktop-wide only — the mobile drawer and 769-1024px overlay keep the
+   toggle for their own overlay/drawer roles (sidebar.js isMobile/isWide).
+   visibility + opacity keep it in the DOM; the box is zeroed so the Full
+   header shows just the brand label. JS removes it from the tab order while
+   hidden (Phase 4). */
+@media (min-width: 1025px) {
+    html:not(.sidebar-mini) #toggleSidebar {
+        visibility: hidden;
+        opacity: 0;
+        pointer-events: none;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+    }
+}
+
+/* ---- Brand label (collapse-by-text) ---------------------------------------
+   The brand text becomes a real button in Full state (Phase 4 markup). In the
+   Half rail the label is hidden along with the <span> it replaces, so the
+   button must also drop out there or it would linger as a blank focusable
+   chip next to the centered glyph. */
+.sidebar-brand-label {
+    background: none;
+    border: none;
+    margin: -4px -8px;
+    padding: 4px 8px;
+    font: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: background var(--transition), color var(--transition);
+}
+
+.sidebar-brand-label:hover {
+    background: var(--sidebar-hover);
+}
+
+.sidebar-brand-label:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
+}
+
+/* Nav links in the sidebar are <a> elements; give them the same high-contrast
+   ring so keyboard users see focus in every theme (single dark sidebar
+   surface, --primary-light constant >=14:1). */
+.sidebar-nav li a:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: -2px;
+}
+
+html.sidebar-mini #sidebarBrandLabel {
+    display: none;
+}
+
+/* ---- Brand variant hooks --------------------------------------------------
+   data-brand resolves on the <aside> (Phase 4/5 markup). Default 'ict' and
+   'admin' keep the base --primary-light glyph; the 'dev' hook is themed-ready
+   but wired to nothing — no isDev flag exists in the app (S2: not invented).
+   --primary is defined in :root + all 10 theme blocks (THM2). */
+.sidebar[data-brand="admin"] .sidebar-header h2 i {
+    color: var(--primary-light);
+}
+
+.sidebar[data-brand="dev"] .sidebar-header h2 i {
+    color: var(--primary);
 }
 
 .sidebar-nav ul {
@@ -2341,11 +2428,29 @@ body.focus-mode .service-status-badge {
     margin: 0;
     max-width: 100%;
 }
+/* Login-page wallpaper (frontend/login.html only). Decorative fixed layer
+   behind .auth-shell (z-index -1 < base 0 of the LAY2 scale). Single local
+   asset, zero JS. If it fails to load, background-color falls back to --bg —
+   no broken-image placeholder (OFF-CT2). --login-wallpaper defined in :root. */
+body.login-page::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--login-wallpaper);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: var(--bg);
+}
 .auth-shell {
     display: flex;
     min-height: 100vh;
     min-height: 100dvh;
     flex-direction: column;
+    position: relative;
+    z-index: 1; /* above the wallpaper (-1), below header/toast layers */
 }
 .auth-panel {
     position: relative;
@@ -2363,7 +2468,40 @@ body.focus-mode .service-status-badge {
     justify-content: center;
     padding: 3.5rem 1.5rem;
 }
-.auth-card { width: 100%; max-width: 380px; }
+.auth-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--auth-fog-glass);
+    border: 1px solid var(--auth-fog-line);
+    border-radius: 1rem;
+}
+/* With internet the wallpaper landing replaces the auth brand panel; the login
+   card stays centered and the form panel fills the shell. The class is toggled
+   by an inline script in login.html from navigator.onLine before first paint.
+   Offline the original two-panel landing (brand + card) remains — the wallpaper
+   still renders behind it from cache. */
+body.wallpaper-active .auth-brand { display: none; }
+
+/* WebGL tubes canvas (login.html, offline only — Option C).
+   Fixed full-viewport layer, z-index -1: below .auth-shell (z-index 1) and
+   above the body.login-page::before wallpaper pseudo-element (z-index -1,
+   same layer — canvas wins via DOM order).
+   Hidden when online (wallpaper-active) so the static wallpaper shows instead.
+   pointer-events none: all clicks fall through to the form above unless
+   the user aims outside the card, in which case the canvas click handler
+   fires to randomise colours (tubes-bg.js). */
+#tubes-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: auto;
+    display: block;
+    background: var(--auth-ink); /* fallback if WebGL fails */
+}
+body.wallpaper-active #tubes-canvas { display: none; }
+
 .auth-logo { height: 3rem; width: auto; }
 .auth-headline {
     font-family: var(--auth-font-display);
