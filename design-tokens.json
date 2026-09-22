@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json.schemastore.org/design-tokens",
+  "name": "E-Ticketing Editorial Design Tokens",
+  "version": "1.0.0",
+  "description": "Design tokens engineered for offline-first, hyper-accessible, high-craft editorial interfaces.",
+  "tokens": {
+    "color": {
+      "brand": {
+        "primary": { "value": "#2563eb", "description": "High-contrast editorial sapphire blue" },
+        "primary-dark": { "value": "#1d4ed8", "description": "Deep cobalt for interactive pressed states" },
+        "primary-light": { "value": "#dbeafe", "description": "Tonal atmospheric tint for badges and halos" },
+        "accent": { "value": "#f97316", "description": "Warm terracotta accent ink" },
+        "accent-light": { "value": "#fff7ed", "description": "Subtle amber wash for highlighted items" },
+        "brass": { "value": "#b9924a", "description": "Editorial brass metallic accent for seals and identity" }
+      },
+      "neutral": {
+        "ink-strong": { "value": "#0f172a", "description": "Primary high-contrast typography ink (Slate 900)" },
+        "ink-body": { "value": "#334155", "description": "Body prose reading ink (Slate 700)" },
+        "ink-muted": { "value": "#64748b", "description": "Secondary metadata and caption ink (Slate 500)" },
+        "ink-subtle": { "value": "#94a3b8", "description": "Tertiary iconography and subtle borders (Slate 400)" },
+        "surface": { "value": "#ffffff", "description": "Pure white canvas layer" },
+        "surface-subtle": { "value": "#f8fafc", "description": "Subtle editorial warm off-white canvas (Slate 50)" },
+        "surface-card": { "value": "#ffffff", "description": "Card and elevation panel background" },
+        "surface-glass": { "value": "rgba(255, 255, 255, 0.85)", "description": "Translucent backdrop with blur" },
+        "border": { "value": "#e2e8f0", "description": "Hairline architectural rule (Slate 200)" },
+        "border-strong": { "value": "#cbd5e1", "description": "Deliberate boundary and input rule (Slate 300)" }
+      },
+      "semantic": {
+        "success": {
+          "ink": { "value": "#15803d", "description": "Emerald forest ink (WCAG AA compliant)" },
+          "tint": { "value": "#dcfce7", "description": "Soft mint pill background" }
+        },
+        "warning": {
+          "ink": { "value": "#b45309", "description": "Warm ochre ink (WCAG AA compliant)" },
+          "tint": { "value": "#fef3c7", "description": "Ochre tone wash" }
+        },
+        "danger": {
+          "ink": { "value": "#b91c1c", "description": "Crimson signal ink" },
+          "tint": { "value": "#fee2e2", "description": "Signal alert tint" }
+        },
+        "info": {
+          "ink": { "value": "#1d4ed8", "description": "Deep sky telemetry ink" },
+          "tint": { "value": "#e0f2fe", "description": "Sky telemetry wash" }
+        }
+      }
+    },
+    "typography": {
+      "fontFamily": {
+        "display": {
+          "value": "'Fraunces', Georgia, 'Times New Roman', serif",
+          "description": "Editorial variable serif display stack (self-hosted OFL woff2)"
+        },
+        "sans": {
+          "value": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+          "description": "System UI stack with zero network overhead"
+        },
+        "mono": {
+          "value": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
+          "description": "System monospace stack for ticket hashes and metrics"
+        }
+      },
+      "fluidScale": {
+        "display": {
+          "value": "clamp(2.25rem, 1.8rem + 2.25vw, 3.5rem)",
+          "description": "Hero display scale with dynamic viewport interpolation"
+        },
+        "titleLarge": {
+          "value": "clamp(1.5rem, 1.25rem + 1.25vw, 2.25rem)",
+          "description": "Section headers and primary modal titles"
+        },
+        "titleMedium": {
+          "value": "clamp(1.2rem, 1.05rem + 0.75vw, 1.65rem)",
+          "description": "Card and portal header headings"
+        },
+        "bodyLarge": {
+          "value": "clamp(1rem, 0.95rem + 0.25vw, 1.125rem)",
+          "description": "Editorial lead paragraphs"
+        },
+        "body": {
+          "value": "1rem",
+          "description": "Standard 16px body text baseline"
+        },
+        "bodySmall": {
+          "value": "0.875rem",
+          "description": "Secondary descriptive annotations (14px)"
+        },
+        "caption": {
+          "value": "0.75rem",
+          "description": "Accessible legibility floor (12px minimum per TXT7)"
+        }
+      },
+      "lineHeight": {
+        "tight": { "value": "1.15" },
+        "heading": { "value": "1.25" },
+        "body": { "value": "1.55" },
+        "relaxed": { "value": "1.75" }
+      },
+      "fontWeight": {
+        "regular": { "value": "400" },
+        "medium": { "value": "500" },
+        "semibold": { "value": "600" },
+        "bold": { "value": "700" }
+      }
+    },
+    "spacing": {
+      "3xs": { "value": "0.25rem", "pixels": "4px" },
+      "2xs": { "value": "0.5rem", "pixels": "8px" },
+      "xs": { "value": "0.75rem", "pixels": "12px" },
+      "sm": { "value": "1rem", "pixels": "16px" },
+      "md": { "value": "1.5rem", "pixels": "24px" },
+      "lg": { "value": "2rem", "pixels": "32px" },
+      "xl": { "value": "3rem", "pixels": "48px" },
+      "2xl": { "value": "4rem", "pixels": "64px" }
+    },
+    "elevation": {
+      "surface-raised": {
+        "value": "0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 1px rgba(15, 23, 42, 0.02)",
+        "description": "Hairline tactile lift"
+      },
+      "surface-floating": {
+        "value": "0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04)",
+        "description": "Editorial header, modal, and drawer floating shadow"
+      },
+      "surface-overlay": {
+        "value": "0 25px 50px -12px rgba(15, 23, 42, 0.22)",
+        "description": "Deep popover and notification layer"
+      },
+      "focus-ring": {
+        "value": "0 0 0 3px rgba(37, 99, 235, 0.25)",
+        "description": "High-visibility accessibility focus indicator"
+      }
+    },
+    "radius": {
+      "sm": { "value": "6px" },
+      "md": { "value": "10px" },
+      "lg": { "value": "16px" },
+      "pill": { "value": "9999px" }
+    },
+    "motion": {
+      "timing": {
+        "instant": { "value": "100ms" },
+        "swift": { "value": "180ms" },
+        "deliberate": { "value": "280ms" }
+      },
+      "easing": {
+        "spring": { "value": "cubic-bezier(0.16, 1, 0.3, 1)", "description": "Natural editorial spring rebound" },
+        "standard": { "value": "cubic-bezier(0.4, 0, 0.2, 1)", "description": "Material acceleration-deceleration curve" },
+        "sharp": { "value": "cubic-bezier(0.4, 0, 0.6, 1)", "description": "Immediate exit motion" }
+      }
+    },
+    "layout": {
+      "headerHeight": { "value": "72px" },
+      "footerMinHeight": { "value": "160px" },
+      "maxContentWidth": { "value": "1360px" }
+    }
+  }
+}

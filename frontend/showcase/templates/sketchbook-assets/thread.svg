@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 1240" role="img" aria-label="The comment thread — conversation">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#141a2b"/>
+      <stop offset="55%" stop-color="#0b0e16"/>
+      <stop offset="100%" stop-color="#05070c"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#20283c"/>
+      <stop offset="100%" stop-color="#121828"/>
+    </linearGradient>
+  </defs>
+  <rect width="1760" height="1240" fill="url(#bg)"/>
+
+  <g opacity="0.06" font-family="Georgia, serif" font-size="420" fill="#f2f2f2" text-anchor="middle">
+    <text x="880" y="500">06</text>
+  </g>
+
+  <g fill="none" stroke="#e9e4d8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="1360" cy="240" r="120" opacity="0.5"/>
+    <circle cx="1360" cy="240" r="70" opacity="0.35"/>
+  </g>
+
+  <line x1="880" y1="320" x2="880" y2="880" stroke="#7f8cb0" stroke-width="4" stroke-dasharray="4 20" opacity="0.6"/>
+
+  <circle cx="880" cy="360" r="40" fill="#dbeafe" stroke="#1d4ed8" stroke-width="4"/>
+  <g fill="none" stroke="#3b82f6" stroke-width="5" stroke-linecap="round" opacity="0.7">
+    <path d="M880 348 q-18 -6 -30 6 M880 348 q18 -6 30 6"/>
+  </g>
+
+  <rect x="640" y="428" width="480" height="104" rx="18" fill="url(#card)" stroke="#39415a" stroke-width="5" opacity="0.92"/>
+  <g fill="none" stroke="#7f8cb0" stroke-width="4" opacity="0.85">
+    <line x1="680" y1="472" x2="1020" y2="472"/>
+    <line x1="680" y1="508" x2="940" y2="508"/>
+  </g>
+
+  <rect x="660" y="560" width="440" height="96" rx="18" fill="url(#card)" stroke="#39415a" stroke-width="5" opacity="0.92" transform="translate(24 4)"/>
+  <g fill="none" stroke="#7f8cb0" stroke-width="4" opacity="0.85">
+    <line x1="708" y1="602" x2="984" y2="602"/>
+    <line x1="708" y1="634" x2="908" y2="634"/>
+  </g>
+
+  <rect x="700" y="684" width="400" height="90" rx="18" fill="url(#card)" stroke="#39415a" stroke-width="5" opacity="0.92" transform="translate(8 6)"/>
+  <g fill="none" stroke="#7f8cb0" stroke-width="4" opacity="0.85">
+    <line x1="732" y1="722" x2="990" y2="722"/>
+    <line x1="732" y1="754" x2="928" y2="754"/>
+  </g>
+
+  <g fill="none" stroke="#f97316" stroke-width="5" stroke-linecap="round">
+    <path d="M600 860 q180 26 360 0" opacity="0.5"/>
+  </g>
+
+  <g font-family="Georgia, serif" fill="#b7bfd4" text-anchor="middle">
+    <text x="880" y="1110" font-size="30" letter-spacing="14">THE COMMENT THREAD</text>
+    <text x="880" y="1156" font-size="22" letter-spacing="10" fill="#7c86a3">CONVERSATION</text>
+  </g>
+</svg>

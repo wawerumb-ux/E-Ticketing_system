@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 1240" role="img" aria-label="SLA on the clock — response and resolution targets">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#141a2b"/>
+      <stop offset="55%" stop-color="#0b0e16"/>
+      <stop offset="100%" stop-color="#05070c"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#20283c"/>
+      <stop offset="100%" stop-color="#121828"/>
+    </linearGradient>
+  </defs>
+  <rect width="1760" height="1240" fill="url(#bg)"/>
+
+  <g opacity="0.06" font-family="Georgia, serif" font-size="420" fill="#f2f2f2" text-anchor="middle">
+    <text x="880" y="500">05</text>
+  </g>
+
+  <g fill="none" stroke="#e9e4d8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="1360" cy="240" r="120" opacity="0.5"/>
+    <circle cx="1360" cy="240" r="70" opacity="0.35"/>
+  </g>
+
+  <rect x="540" y="300" width="700" height="560" rx="26" fill="url(#card)" stroke="#39415a" stroke-width="6" opacity="0.92"/>
+
+  <circle cx="890" cy="560" r="170" fill="#0f172a" stroke="#e9e4d8" stroke-width="5"/>
+  <path d="M890 560 m-142 0 a142 142 0 1 0 284 0 a142 142 0 1 0 -284 0" fill="none" stroke="#7f8cb0" stroke-width="3" opacity="0.5"/>
+  <path d="M890 438 v-16 M890 706 v-16 M748 560 h-16 M1032 560 h-16" stroke="#7f8cb0" stroke-width="6" stroke-linecap="round"/>
+  <path d="M890 560 L890 492" stroke="#e9e4d8" stroke-width="6" stroke-linecap="round"/>
+  <path d="M890 560 L976 620" stroke="#f97316" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="890" cy="560" r="12" fill="#f97316"/>
+
+  <g font-family="Georgia, serif" fill="#f2f2f2">
+    <text x="890" y="390" font-size="34" letter-spacing="4" text-anchor="middle">SLA — THE CLOCK</text>
+  </g>
+  <rect x="690" y="790" width="150" height="54" rx="27" fill="#fef3c7"/>
+  <text x="765" y="827" font-size="28" fill="#b45309" text-anchor="middle">DUE</text>
+
+  <g fill="none" stroke="#f97316" stroke-width="5" stroke-linecap="round">
+    <path d="M600 300 q100 26 40 96" opacity="0.4"/>
+    <path d="M1150 856 q-120 22 -240 0" opacity="0.5"/>
+  </g>
+
+  <g font-family="Georgia, serif" fill="#b7bfd4" text-anchor="middle">
+    <text x="880" y="1110" font-size="30" letter-spacing="14">SLA ON THE CLOCK</text>
+    <text x="880" y="1156" font-size="22" letter-spacing="10" fill="#7c86a3">RESPONSE AND RESOLUTION TARGETS</text>
+  </g>
+</svg>

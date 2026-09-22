@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="glass-corporate">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>ICT E-Ticketing — Showcase</title>
+<!--SHOWCASE_CONFIG-->
+
+<!-- Authorized online-only asset: Google Fonts (Manrope display + Inter body).
+     System stack fallbacks if either request fails. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+/* ============================================================
+   Glass Corporate — showcase template (online-only).
+   Light theamed glassmorphism for a professional read.
+   Self-contained; config.theme.accent re-tones the brand color.
+   ============================================================ */
+:root{
+  --sc-bg:#eef2f9;
+  --sc-surface:rgba(255,255,255,.62);
+  --sc-surface-strong:rgba(255,255,255,.86);
+  --sc-border:rgba(19,32,58,.12);
+  --sc-ink:#13203a;
+  --sc-ink-muted:#55627c;
+  --sc-accent:#155df0;
+  --sc-accent-light:#dbe7ff;
+  --sc-accent-dark:#0b1f4d;
+  --sc-accent-tint:rgba(21,93,240,.13);
+  --sc-success:#0f7a52;
+  --sc-danger:#b42318;
+  --sc-focus:3px solid var(--sc-accent);
+  --sc-radius:16px;
+  --sc-font-display:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --sc-font-body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --z-header:100; --z-skip:5000;
+}
+html{ scroll-behavior:smooth; }
+body{
+  margin:0; background:var(--sc-bg); color:var(--sc-ink);
+  font-family:var(--sc-font-body); font-size:16px; line-height:1.6;
+  overflow-x:hidden;
+}
+*{ box-sizing:border-box; }
+
+/* ---------- accessibility ---------- */
+.skip-link{
+  position:fixed; top:-100px; left:16px; z-index:var(--z-skip);
+  background:var(--sc-ink); color:#fff; padding:.6rem 1.1rem;
+  border-radius:10px; font-weight:600; text-decoration:none;
+}
+.skip-link:focus{ top:12px; }
+:focus-visible{ outline:var(--sc-focus); outline-offset:2px; }
+a{ color:var(--sc-accent); }
+
+/* ---------- soft gradient mesh backdrop ---------- */
+.mesh{ position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.mesh::before,.mesh::after{
+  content:""; position:absolute; border-radius:50%; filter:blur(80px); opacity:.5;
+}
+.mesh::before{
+  width:50vmax; height:50vmax; left:-16vmax; top:-14vmax;
+  background:radial-gradient(circle at 30% 30%, #c2d4ff, transparent 62%);
+}
+.mesh::after{
+  width:44vmax; height:44vmax; right:-14vmax; bottom:-12vmax;
+  background:radial-gradient(circle at 60% 60%, #d9ccff, transparent 62%);
+}
+.page{ position:relative; z-index:1; }
+
+/* ---------- header ---------- */
+.masthead{
+  position:sticky; top:0; z-index:var(--z-header);
+  display:flex; align-items:center; gap:1.4rem;
+  padding:.85rem clamp(1rem,4vw,2.5rem);
+  background:rgba(238,242,249,.78);
+  -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--sc-border);
+}
+.brand{
+  display:flex; align-items:center; gap:.6rem;
+  font-family:var(--sc-font-display); font-weight:700; color:var(--sc-ink);
+  text-decoration:none; letter-spacing:-.01em; white-space:nowrap;
+}
+.brand-mark{ width:26px; height:30px; color:var(--sc-accent); }
+.nav{ display:flex; gap:.4rem; margin-left:auto; align-items:center; }
+.nav a{
+  text-decoration:none; color:var(--sc-ink); font-size:14px; font-weight:500;
+  padding:.45rem .75rem; border-radius:9px;
+}
+.nav a:hover{ background:var(--sc-accent-tint); }
+.pill{
+  display:inline-flex; align-items:center; gap:.4rem;
+  background:var(--sc-accent-tint); color:var(--sc-accent-dark);
+  border:1px solid var(--sc-border); border-radius:999px;
+  padding:.3rem .8rem; font-size:13px; font-weight:600; white-space:nowrap;
+}
+.pill svg{ width:14px; height:14px; color:var(--sc-accent); }
+
+/* ---------- hero ---------- */
+.hero{
+  min-height:calc(100vh - 64px); display:grid; place-items:center;
+  padding:clamp(5rem,14vh,8rem) clamp(1rem,6vw,3.5rem);
+}
+.hero-inner{ max-width:70ch; text-align:center; display:grid; gap:1.3rem; }
+.hero-eyebrow{
+  display:inline-block; justify-self:center; margin:0;
+  font-size:13px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--sc-accent);
+}
+.hero h1{
+  font-family:var(--sc-font-display); font-weight:700;
+  font-size:clamp(2.2rem,5.6vw,4rem); line-height:1.08; margin:0;
+  letter-spacing:-.02em;
+}
+.hero-sub{ font-size:clamp(1.05rem,2.1vw,1.3rem); color:var(--sc-ink-muted); max-width:48ch; margin:0 auto; }
+.hero-actions{ display:flex; flex-wrap:wrap; gap:.9rem; justify-content:center; }
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.55rem;
+  min-height:48px; padding:.7rem 1.4rem; border-radius:12px;
+  font-family:var(--sc-font-body); font-size:15px; font-weight:600;
+  text-decoration:none; cursor:pointer; color:var(--sc-ink);
+  background:var(--sc-surface-strong); border:1px solid var(--sc-border);
+  box-shadow:0 8px 24px rgba(19,32,58,.08);
+}
+.btn svg{ width:16px; height:16px; color:var(--sc-accent); }
+.btn-primary{
+  background:var(--sc-accent); border-color:transparent; color:#fff;
+  box-shadow:0 10px 26px rgba(21,93,240,.28);
+}
+.btn-primary svg{ color:#fff; }
+.btn-primary:hover{ background:#0b46c0; }
+.btn-secondary:hover{ border-color:var(--sc-accent); }
+
+/* ---------- login glass card ---------- */
+.login{
+  scroll-margin-top:90px; padding:4.5rem clamp(1rem,6vw,3.5rem);
+  display:grid; gap:2rem; justify-items:center;
+}
+.login-card{
+  position:relative; width:min(440px,100%);
+  background:var(--sc-surface);
+  -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px);
+  border:1px solid var(--sc-border); border-radius:20px;
+  padding:2rem clamp(1.4rem,5vw,2.2rem);
+  box-shadow:0 24px 70px rgba(19,32,58,.14);
+}
+.login-card::before{
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  background:linear-gradient(180deg,rgba(255,255,255,.65),transparent 45%);
+  pointer-events:none;
+}
+.showcase-auth-form{ display:grid; gap:1.1rem; }
+.showcase-auth-title{
+  font-family:var(--sc-font-display); font-weight:700; font-size:1.5rem;
+  margin:0 0 .15rem; letter-spacing:-.01em;
+}
+.showcase-auth-field{ display:grid; gap:.4rem; }
+.showcase-auth-field label,.showcase-auth-twofa label{
+  font-size:14px; font-weight:600; color:var(--sc-ink);
+}
+.showcase-auth-field input,.showcase-auth-twofa input{
+  width:100%; min-height:46px; padding:.6rem .95rem; border-radius:11px;
+  border:1px solid var(--sc-border); background:rgba(255,255,255,.85);
+  color:var(--sc-ink); font-size:15px; font-family:var(--sc-font-body);
+}
+.showcase-auth-field input:focus{ outline:none; border-color:var(--sc-accent); box-shadow:0 0 0 3px var(--sc-accent-tint); }
+.showcase-auth-field input::placeholder{ color:rgba(19,32,58,.4); }
+.showcase-auth-password-wrap{ position:relative; display:flex; align-items:center; }
+.showcase-auth-password-wrap input{ padding-right:2.9rem; }
+.showcase-auth-eye{
+  position:absolute; right:.5rem; top:50%; transform:translateY(-50%);
+  width:40px; height:40px; display:grid; place-items:center;
+  background:transparent; border:0; border-radius:9px; cursor:pointer;
+  color:var(--sc-ink-muted);
+}
+.showcase-auth-eye:hover{ color:var(--sc-accent); }
+.showcase-auth-eye svg{ width:19px; height:19px; }
+.showcase-auth-error{ color:var(--sc-danger); font-size:13px; margin:.15rem 0 0; line-height:1.4; }
+.showcase-auth-turnstile{ min-height:65px; }
+.showcase-auth-submit{
+  min-height:48px; border-radius:11px; border:0; cursor:pointer;
+  background:var(--sc-accent); color:#fff; font-size:15px; font-weight:600;
+  font-family:var(--sc-font-body);
+  box-shadow:0 10px 26px rgba(21,93,240,.28);
+}
+.showcase-auth-submit:disabled{ opacity:.7; cursor:progress; }
+.showcase-auth-hint{ font-size:13px; color:var(--sc-ink-muted); margin:0; text-align:center; }
+.showcase-auth-twofa{ display:grid; gap:.55rem; border-top:1px solid var(--sc-border); padding-top:1.1rem; }
+.showcase-auth-back{
+  background:transparent; border:0; color:var(--sc-accent); cursor:pointer;
+  font-size:14px; padding:.3rem 0; text-align:left; font-weight:500;
+}
+.showcase-auth-toast{
+  position:absolute; left:1.4rem; right:1.4rem; bottom:1.1rem; z-index:10;
+  padding:.7rem .95rem; border-radius:11px; font-size:14px; font-weight:500;
+  background:var(--sc-danger); color:#fff; border:1px solid rgba(0,0,0,.08);
+  box-shadow:0 12px 30px rgba(19,32,58,.22);
+  transition:opacity .25s ease;
+}
+.showcase-auth-toast[data-type="success"]{ background:var(--sc-success); color:#fff; }
+.showcase-auth-toast[data-type="warning"]{ background:#f2a30d; color:#3a2700; }
+.login-note{ max-width:46ch; text-align:center; color:var(--sc-ink-muted); }
+
+/* ---------- philosophy ---------- */
+.philosophy{
+  text-align:center; padding:4.5rem clamp(1rem,6vw,3.5rem); scroll-margin-top:90px;
+}
+.philosophy blockquote{ margin:0 auto; max-width:58ch; }
+.philosophy p{
+  font-family:var(--sc-font-display); font-weight:600;
+  font-size:clamp(1.5rem,3.6vw,2.25rem); line-height:1.3; margin:0;
+  letter-spacing:-.01em;
+}
+.philosophy cite{ display:block; margin-top:1.1rem; font-style:normal; font-size:14px; color:var(--sc-ink-muted); }
+
+/* ---------- sections ---------- */
+.section{ padding:4.5rem clamp(1rem,6vw,3.5rem); scroll-margin-top:90px; }
+.section-head{ text-align:center; max-width:56ch; margin:0 auto 2.6rem; display:grid; gap:1rem; }
+.section-kicker{
+  margin:0; font-size:13px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--sc-accent);
+}
+.section-title{
+  font-family:var(--sc-font-display); font-weight:700;
+  font-size:clamp(1.9rem,4vw,2.7rem); line-height:1.15; margin:0; letter-spacing:-.02em;
+}
+.section-sub{ color:var(--sc-ink-muted); margin:0; }
+
+/* ---------- cards ---------- */
+.cards{
+  display:grid; gap:1.2rem; grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr));
+  max-width:1080px; margin:0 auto;
+}
+.card{
+  background:var(--sc-surface); border:1px solid var(--sc-border); border-radius:18px;
+  padding:1.6rem; display:grid; gap:.7rem;
+  box-shadow:0 14px 40px rgba(19,32,58,.07);
+}
+.card i{ color:var(--sc-accent); width:26px; height:26px; }
+.card h3{ margin:0; font-size:1.08rem; font-weight:600; }
+.card p{ margin:0; color:var(--sc-ink-muted); font-size:15px; }
+
+/* ---------- services ---------- */
+.services{ max-width:840px; margin:0 auto; display:grid; gap:1rem; }
+.service{
+  display:grid; grid-template-columns:auto 1fr; gap:1.2rem; align-items:baseline;
+  background:var(--sc-surface); border:1px solid var(--sc-border);
+  border-radius:16px; padding:1.3rem 1.5rem;
+  box-shadow:0 14px 40px rgba(19,32,58,.06);
+}
+.service .svc-index{
+  font-family:var(--sc-font-display); font-weight:700; font-size:1rem;
+  color:var(--sc-accent);
+}
+.service h3{ margin:0 0 .3rem; font-size:1.05rem; font-weight:600; }
+.service p{ margin:0; color:var(--sc-ink-muted); font-size:15px; }
+
+/* ---------- footer ---------- */
+.footer{
+  border-top:1px solid var(--sc-border);
+  padding:2.2rem clamp(1rem,6vw,3.5rem);
+  display:flex; flex-wrap:wrap; gap:.8rem; align-items:center; justify-content:space-between;
+  color:var(--sc-ink-muted); font-size:14px;
+}
+
+/* ---------- reveal ---------- */
+.reveal{ opacity:0; transform:translateY(14px); transition:opacity .5s ease,transform .5s ease; }
+.reveal.is-in{ opacity:1; transform:none; }
+@media (prefers-reduced-motion:reduce){
+  html{ scroll-behavior:auto; }
+  .reveal{ opacity:1; transform:none; transition:none; }
+  .btn{ transition:none; }
+}
+
+/* ---------- responsive ---------- */
+@media (max-width:768px){
+  .nav .nav-hide-sm{ display:none; }
+  .service{ grid-template-columns:1fr; gap:.4rem; }
+}
+@media (max-width:400px){
+  .login-card{ padding:1.5rem 1.1rem; }
+  .btn{ width:100%; margin:.2rem 0; }
+}
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#login-zone">Skip to sign in</a>
+<div class="mesh" aria-hidden="true"></div>
+
+<div class="page">
+  <header class="masthead" role="banner">
+    <a class="brand" href="#hero-zone">
+      <svg class="brand-mark" viewBox="0 0 28 32" fill="none" role="img" aria-label="ICT E-Ticketing logo">
+        <path d="M2 30V14C2 7.373 7.373 2 14 2C20.627 2 26 7.373 26 14V30" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+      <span id="brand-title">ICT E-Ticketing</span>
+    </a>
+    <nav class="nav" aria-label="On this page">
+      <a href="#login-zone">Sign in</a>
+      <a href="#capabilities" class="nav-hide-sm">Capabilities</a>
+      <a href="#services" class="nav-hide-sm">How it works</a>
+      <a href="#philosophy" class="nav-hide-sm">Why</a>
+    </nav>
+    <span class="pill">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7.5 12 12 15 14"/></svg>
+      <span id="pill-label">Demo</span>
+    </span>
+  </header>
+
+  <main>
+    <!-- ============ HERO ============ -->
+    <section class="hero" id="hero-zone" aria-labelledby="hero-title">
+      <div class="hero-inner">
+        <p class="hero-eyebrow" id="hero-eyebrow">A calmer way to open a ticket</p>
+        <h1 id="hero-title">Service, made visible.</h1>
+        <p class="hero-sub" id="hero-sub">
+          One system for support tickets, replies and response targets — built to
+          feel trustworthy from the first click.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#login-zone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Sign in
+          </a>
+          <a class="btn btn-secondary" href="#capabilities">See the capabilities</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ LOGIN ============ -->
+    <section class="login" id="login-zone" aria-label="Sign in">
+      <div class="login-card" data-showcase-auth></div>
+      <p class="login-note" id="login-note">
+        This showcase page signs you in to the same e-ticketing account you use
+        every day — only the surface has changed.
+      </p>
+    </section>
+
+    <!-- ============ PHILOSOPHY ============ -->
+    <section class="philosophy reveal" id="philosophy" aria-labelledby="quote-text">
+      <blockquote>
+        <p id="quote-text">Support that is quiet until it needs to speak.</p>
+        <cite id="quote-cite">— ICT operations</cite>
+      </blockquote>
+    </section>
+
+    <!-- ============ CAPABILITIES ============ -->
+    <section class="section reveal" id="capabilities" aria-labelledby="cap-title">
+      <div class="section-head">
+        <p class="section-kicker">Capabilities</p>
+        <h2 class="section-title" id="cap-title">Raise. Track. Resolve.</h2>
+        <p class="section-sub" id="cap-sub">
+          The essentials, without the noise.
+        </p>
+      </div>
+      <div class="cards" id="cap-cards"></div>
+    </section>
+
+    <!-- ============ SERVICES ============ -->
+    <section class="section reveal" id="services" aria-labelledby="svc-title">
+      <div class="section-head">
+        <p class="section-kicker">How it is put together</p>
+        <h2 class="section-title" id="svc-title">Two portals. One engine.</h2>
+        <p class="section-sub" id="svc-sub">
+          Separate surfaces for staff and admins, sharing one backend and one database.
+        </p>
+      </div>
+      <div class="services" id="svc-rows"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>© 2026 ICT E-Ticketing system</span>
+    <span id="footer-slug">Admin-controlled showcase page.</span>
+  </footer>
+</div>
+
+<script src="/shared/js/icons.js"></script>
+<script src="/shared/js/api.js"></script>
+<script src="/shared/js/session-dialog.js"></script>
+<script src="/showcase/shared/auth-shim.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- config ---------- */
+  var configScript = $('showcase-config');
+  var config = null;
+  if (configScript) {
+    try { config = JSON.parse(configScript.textContent) || null; } catch (e) { config = null; }
+  }
+  var content = (config && config.content) || {};
+  var safeText = function (v, fallback) {
+    return (typeof v === 'string' && v.trim()) ? v : fallback;
+  };
+
+  /* ---------- title / theme ---------- */
+  if (config && config.title) document.title = config.title;
+  if (config && config.slug) $('footer-slug').textContent = 'Admin-controlled showcase · /showcase/' + config.slug;
+
+  var theme = (config && config.theme) || {};
+  if (typeof theme.accent === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(theme.accent)) {
+    document.documentElement.style.setProperty('--sc-accent', theme.accent);
+    document.documentElement.style.setProperty('--sc-accent-light', theme.accent + '1f');
+  }
+
+  /* ---------- hero ---------- */
+  $('hero-title').textContent = safeText(content.hero && content.hero.title, 'Service, made visible.');
+  $('hero-sub').textContent = safeText(content.hero && content.hero.subtitle,
+    'One system for support tickets, replies and response targets — built to feel trustworthy from the first click.');
+
+  /* ---------- pill ---------- */
+  if (config && config.preview) $('pill-label').textContent = 'Preview';
+  else if (config && config.enabled) $('pill-label').textContent = 'Live';
+
+  if (!config) {
+    $('login-note').innerHTML = '<strong>This showcase page is not configured.</strong>' +
+      ' An administrator must attach content before it can publish.';
+  }
+
+  /* ---------- login ---------- */
+  var loginZone = $('login-zone').querySelector('[data-showcase-auth]');
+  if (typeof ShowcaseAuth !== 'undefined' && loginZone) {
+    ShowcaseAuth.mount(loginZone, { title: 'Welcome back', siteKey: '' });
+  }
+
+  /* ---------- capabilities ---------- */
+  var CAP_ICONS = ['ticket-alt', 'bell', 'users', 'clock', 'chart-pie', 'search'];
+  var defaultCaps = [
+    { icon: 'ticket-alt', title: 'Requester portal', text: 'Raise a support ticket in seconds and follow it until it closes.' },
+    { icon: 'bell', title: 'Realtime updates', text: 'See the moment a technician replies or your ticket moves.' },
+    { icon: 'users', title: 'Collaboration', text: 'Conversations live beside the ticket, so context never gets lost.' },
+    { icon: 'clock', title: 'SLA awareness', text: 'Response and resolution targets are tracked, not aspirational.' },
+    { icon: 'chart-pie', title: 'Reporting', text: 'Admins export honest summaries of how support is performing.' }
+  ];
+  var caps = Array.isArray(content.capabilities) && content.capabilities.length
+    ? content.capabilities
+    : defaultCaps;
+  var capCards = $('cap-cards');
+  caps.forEach(function (cap, idx) {
+    var icon = CAP_ICONS.indexOf(cap.icon) >= 0 ? cap.icon : CAP_ICONS[idx % CAP_ICONS.length];
+    var card = document.createElement('article');
+    card.className = 'card';
+    var i = document.createElement('i');
+    i.setAttribute('data-icon', icon);
+    i.setAttribute('aria-hidden', 'true');
+    var h = document.createElement('h3');
+    h.textContent = safeText(cap.title, 'Capability');
+    var p = document.createElement('p');
+    p.textContent = safeText(cap.text, '');
+    card.appendChild(i); card.appendChild(h); card.appendChild(p);
+    capCards.appendChild(card);
+  });
+  if (typeof Icons !== 'undefined' && typeof Icons.hydrate === 'function') Icons.hydrate();
+
+  /* ---------- services ---------- */
+  var defaultServices = [
+    { title: 'Staff + admin portals', text: 'One backend and one database — the user surface and the admin surface stay separate by design.' },
+    { title: 'Configurable priority rules', text: 'Admins tune how tickets are prioritised; the client mirrors the same rules offline.' },
+    { title: 'Offline-first resilience', text: 'The core app keeps working without the internet, so support is never hostage to a connection.' }
+  ];
+  var svcs = Array.isArray(content.services) && content.services.length
+    ? content.services
+    : defaultServices;
+  var svcRows = $('svc-rows');
+  svcs.forEach(function (svc, idx) {
+    var row = document.createElement('div');
+    row.className = 'service';
+    var idxEl = document.createElement('span');
+    idxEl.className = 'svc-index';
+    idxEl.textContent = String(idx + 1).padStart(2, '0');
+    idxEl.setAttribute('aria-hidden', 'true');
+    var box = document.createElement('div');
+    var h = document.createElement('h3');
+    h.textContent = safeText(svc.title, '');
+    var p = document.createElement('p');
+    p.textContent = safeText(svc.text, '');
+    box.appendChild(h); box.appendChild(p);
+    row.appendChild(idxEl); row.appendChild(box);
+    svcRows.appendChild(row);
+  });
+
+  /* ---------- reveal ---------- */
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) { entry.target.classList.add('is-in'); io.unobserve(entry.target); }
+      });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('is-in'); });
+  }
+})();
+</script>
+</body>
+</html>

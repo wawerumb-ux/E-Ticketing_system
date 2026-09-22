@@ -1,0 +1,139 @@
+/**
+ * ==============================================================================
+ * E-TICKETING SYSTEM — EDITORIAL DESIGN SYSTEM VARIABLES
+ * File: vars.css
+ * Prefix: --site-* and --brand-*
+ * Description: High-craft, offline-first design tokens with fluid typography,
+ * subtle spring physics, layered elevations, and WCAG 2.1 AA accessibility baselines.
+ * ==============================================================================
+ */
+
+:root {
+  /* --- Brand Identity & Core Palette --- */
+  --brand-primary: var(--primary, #2563eb);
+  --brand-primary-dark: var(--primary-dark, #1d4ed8);
+  --brand-primary-light: var(--primary-light, #dbeafe);
+  --brand-accent: var(--accent, #f97316);
+  --brand-accent-light: var(--accent-light, #fff7ed);
+  --brand-brass: #b9924a;
+
+  /* --- Semantic Signals (Tint & Ink Pairs) --- */
+  --site-success-ink: var(--success-dark, #15803d);
+  --site-success-tint: var(--success-light, #dcfce7);
+  --site-warning-ink: var(--warning-dark, #b45309);
+  --site-warning-tint: var(--warning-light, #fef3c7);
+  --site-danger-ink: var(--danger-dark, #b91c1c);
+  --site-danger-tint: var(--danger-light, #fee2e2);
+  --site-info-ink: var(--info, #1d4ed8);
+  --site-info-tint: var(--info-light, #e0f2fe);
+
+  /* --- Editorial Neutral Surfaces & Inks --- */
+  --site-bg: var(--bg, #f6f8fc);
+  --site-surface: var(--surface, #ffffff);
+  --site-surface-subtle: #f8fafc;
+  --site-surface-glass: rgba(255, 255, 255, 0.88);
+  --site-surface-glass-border: rgba(255, 255, 255, 0.45);
+  
+  --site-text-primary: var(--text, #0f172a);
+  --site-text-secondary: var(--text-secondary, #475569);
+  --site-text-muted: var(--text-muted, #64748b);
+  --site-text-subtle: #94a3b8;
+
+  --site-border: var(--border, #e2e8f0);
+  --site-border-subtle: rgba(226, 232, 240, 0.7);
+  --site-border-strong: #cbd5e1;
+
+  /* --- Editorial Textures & Meshes (Pure Data-URI SVGs, 100% Offline) --- */
+  --site-texture-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.025'/%3E%3C/svg%3E");
+  --site-mesh-accent: radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.05) 0px, transparent 50%),
+                      radial-gradient(at 100% 100%, rgba(249, 115, 22, 0.04) 0px, transparent 50%);
+
+  /* --- Fluid Typography Scale (Continuous Interpolation) --- */
+  --site-font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --site-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --site-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  --site-text-display: clamp(2rem, 1.6rem + 2vw, 3.25rem);
+  --site-text-title-lg: clamp(1.4rem, 1.15rem + 1.25vw, 2.15rem);
+  --site-text-title-md: clamp(1.15rem, 1rem + 0.75vw, 1.5rem);
+  --site-text-body-lead: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --site-text-body: 1rem;
+  --site-text-body-sm: 0.875rem;
+  --site-text-caption: 0.75rem; /* Hard legibility floor per TXT7 */
+
+  /* --- Spacing Scale --- */
+  --site-space-3xs: 0.25rem;
+  --site-space-2xs: 0.5rem;
+  --site-space-xs: 0.75rem;
+  --site-space-sm: 1rem;
+  --site-space-md: 1.5rem;
+  --site-space-lg: 2rem;
+  --site-space-xl: 3rem;
+  --site-space-2xl: 4rem;
+
+  /* --- Border Radius --- */
+  --site-radius-sm: 6px;
+  --site-radius-md: 10px;
+  --site-radius-lg: 16px;
+  --site-radius-pill: 9999px;
+
+  /* --- Layered Elevations & Architectural Shadows --- */
+  --site-shadow-hairline: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --site-shadow-sm: 0 2px 4px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+  --site-shadow-md: 0 8px 24px -4px rgba(15, 23, 42, 0.07), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+  --site-shadow-floating: 0 16px 36px -8px rgba(15, 23, 42, 0.10), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+  --site-shadow-overlay: 0 25px 50px -12px rgba(15, 23, 42, 0.22);
+  --site-focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.28);
+
+  /* --- Layout Geometries --- */
+  --site-header-height: 72px;
+  --site-footer-min-height: 180px;
+  --site-max-width: 1360px;
+  --site-z-header: 100;
+  --site-z-drawer: 1000;
+  --site-z-dropdown: 1500;
+
+  /* --- Micro-Interactions & Spring Physics --- */
+  --site-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --site-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --site-duration-instant: 100ms;
+  --site-duration-swift: 180ms;
+  --site-duration-deliberate: 280ms;
+}
+
+/* --- Dark Theme Harmonization --- */
+html.dark-theme,
+html[data-theme="abyss"],
+html[data-theme="night-owl"],
+html[data-theme="catppuccin-mocha"] {
+  --site-bg: var(--bg, #0b0f19);
+  --site-surface: var(--surface, #131b2e);
+  --site-surface-subtle: #0f1626;
+  --site-surface-glass: rgba(19, 27, 46, 0.88);
+  --site-surface-glass-border: rgba(255, 255, 255, 0.08);
+
+  --site-text-primary: var(--text, #f1f5f9);
+  --site-text-secondary: var(--text-secondary, #94a3b8);
+  --site-text-muted: var(--text-muted, #64748b);
+  --site-text-subtle: #475569;
+
+  --site-border: var(--border, #1e293b);
+  --site-border-subtle: rgba(255, 255, 255, 0.06);
+  --site-border-strong: #334155;
+
+  --site-shadow-hairline: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --site-shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+  --site-shadow-floating: 0 16px 36px -8px rgba(0, 0, 0, 0.6);
+  --site-focus-ring: 0 0 0 3px rgba(96, 165, 250, 0.35);
+}
+
+/* --- Accessibility: Reduced Motion Override --- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --site-duration-instant: 0.01ms;
+    --site-duration-swift: 0.01ms;
+    --site-duration-deliberate: 0.01ms;
+    --site-ease-spring: linear;
+    --site-ease-standard: linear;
+  }
+}

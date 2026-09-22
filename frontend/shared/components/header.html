@@ -1,0 +1,777 @@
+<!--
+  ==============================================================================
+  E-TICKETING SYSTEM — EDITORIAL SITE HEADER COMPONENT
+  File: header.html
+  Standard: WCAG 2.1 AA | Offline-First | Semantic HTML5 | BEM Architecture
+  Features: Skip link, search trigger, notification badge, focus mode toggle,
+            accessible mobile drawer with focus trap & keyboard esc handling.
+  ==============================================================================
+-->
+
+<!-- 1. Accessible Skip Navigation -->
+<a href="#main-content" class="site-skip-link">Skip to main content</a>
+
+<!-- 2. Sticky Editorial Header -->
+<header class="site-header" role="banner">
+  <div class="site-header__container">
+    
+    <!-- Left Cluster: Mobile Drawer Trigger, Brand Seal & Page Title -->
+    <div class="site-header__left">
+      <button 
+        type="button" 
+        class="site-header__menu-btn" 
+        id="siteHeaderDrawerOpen" 
+        aria-label="Open navigation menu" 
+        aria-controls="siteMobileDrawer" 
+        aria-expanded="false"
+      >
+        <svg class="site-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+
+      <div class="site-header__brand">
+        <div class="site-header__seal" aria-hidden="true">
+          <svg class="site-icon site-icon--seal" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2"/>
+            <line x1="15" y1="5" x2="15" y2="10"/>
+            <circle cx="15" cy="12" r="1.6" fill="currentColor" stroke="none"/>
+            <line x1="15" y1="14" x2="15" y2="19"/>
+          </svg>
+        </div>
+        <div class="site-header__brand-text">
+          <span class="site-header__title" id="siteHeaderPortalTitle">ICT Operations</span>
+          <span class="site-header__subline" id="siteHeaderPortalSubtitle">Incident &amp; Ticket Portal</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Cluster: Command & Search Bar -->
+    <div class="site-header__center">
+      <div class="site-header__search-wrap">
+        <span class="site-header__search-icon" aria-hidden="true">
+          <svg class="site-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </span>
+        <input 
+          type="search" 
+          id="siteGlobalSearch" 
+          class="site-header__search-input" 
+          placeholder="Search tickets, knowledge base, users... (Press / to focus)" 
+          aria-label="Search tickets and knowledge base" 
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <kbd class="site-header__search-kbd" aria-hidden="true">/</kbd>
+      </div>
+    </div>
+
+    <!-- Right Cluster: Telemetry, Focus Mode, Notifications, User Identity -->
+    <div class="site-header__right">
+      
+      <!-- Focus Mode Micro-interaction Toggle -->
+      <button 
+        type="button" 
+        class="site-header__action-btn site-header__action-btn--focus" 
+        id="siteFocusToggleBtn" 
+        aria-label="Toggle focus mode (dim visual noise)" 
+        aria-pressed="false"
+        title="Reduce visual clutter and animations"
+      >
+        <svg class="site-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        <span class="site-header__btn-label">Focus</span>
+      </button>
+
+      <!-- Offline / Online Connection Pill Indicator -->
+      <div class="site-header__network-pill" id="siteNetworkStatusPill" role="status" aria-live="polite">
+        <span class="site-header__network-dot" aria-hidden="true"></span>
+        <span class="site-header__network-label" id="siteNetworkStatusLabel">Online</span>
+      </div>
+
+      <!-- Notification Bell with Count Pill -->
+      <div class="site-header__dropdown-anchor">
+        <button 
+          type="button" 
+          class="site-header__action-btn site-header__action-btn--bell" 
+          id="siteNotificationBtn" 
+          aria-label="Notifications" 
+          aria-haspopup="dialog" 
+          aria-expanded="false"
+        >
+          <svg class="site-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="site-header__badge" id="siteNotificationCount" style="display:none;">0</span>
+        </button>
+      </div>
+
+      <!-- User Profile / Session Menu Trigger -->
+      <div class="site-header__user">
+        <div class="site-header__avatar" id="siteHeaderAvatar" aria-hidden="true">
+          <span>U</span>
+        </div>
+        <div class="site-header__user-info">
+          <span class="site-header__user-name" id="siteHeaderUserName">Agent User</span>
+          <span class="site-header__user-role" id="siteHeaderUserRole">Staff</span>
+        </div>
+        <button 
+          type="button" 
+          class="site-header__action-btn site-header__action-btn--logout" 
+          id="siteHeaderLogoutBtn" 
+          aria-label="Sign out of ticketing portal"
+          title="Sign out"
+        >
+          <svg class="site-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+</header>
+
+<!-- 3. Accessible Mobile Navigation Drawer (Off-Canvas) -->
+<div 
+  class="site-drawer-backdrop" 
+  id="siteDrawerBackdrop" 
+  aria-hidden="true" 
+  tabindex="-1"
+></div>
+
+<aside 
+  class="site-drawer" 
+  id="siteMobileDrawer" 
+  role="dialog" 
+  aria-modal="true" 
+  aria-label="Navigation drawer" 
+  hidden
+>
+  <div class="site-drawer__header">
+    <div class="site-drawer__brand">
+      <svg class="site-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="14" rx="2"/>
+        <line x1="15" y1="5" x2="15" y2="10"/>
+        <circle cx="15" cy="12" r="1.6" fill="currentColor" stroke="none"/>
+        <line x1="15" y1="14" x2="15" y2="19"/>
+      </svg>
+      <span>Navigation</span>
+    </div>
+    <button 
+      type="button" 
+      class="site-drawer__close-btn" 
+      id="siteHeaderDrawerClose" 
+      aria-label="Close navigation menu"
+    >
+      <svg class="site-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+
+  <nav class="site-drawer__nav" aria-label="Mobile Main Navigation">
+    <ul class="site-drawer__list">
+      <li class="site-drawer__item site-drawer__item--active">
+        <a href="#/dashboard" class="site-drawer__link">
+          <svg class="site-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <line x1="12" y1="12" x2="12" y2="3"/>
+            <line x1="12" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li class="site-drawer__item">
+        <a href="#/tickets" class="site-drawer__link">
+          <svg class="site-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="9" y1="6" x2="20" y2="6"/>
+            <line x1="9" y1="12" x2="20" y2="12"/>
+            <line x1="9" y1="18" x2="20" y2="18"/>
+            <circle cx="5" cy="6" r="1.2" fill="currentColor" stroke="none"/>
+            <circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none"/>
+            <circle cx="5" cy="18" r="1.2" fill="currentColor" stroke="none"/>
+          </svg>
+          <span>All Tickets</span>
+        </a>
+      </li>
+      <li class="site-drawer__item">
+        <a href="#/create" class="site-drawer__link">
+          <svg class="site-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <line x1="12" y1="7.5" x2="12" y2="16.5"/>
+            <line x1="7.5" y1="12" x2="16.5" y2="12"/>
+          </svg>
+          <span>Create Ticket</span>
+        </a>
+      </li>
+      <li class="site-drawer__item">
+        <a href="#/knowledge" class="site-drawer__link">
+          <svg class="site-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          <span>Knowledge Base</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="site-drawer__footer">
+    <div class="site-drawer__offline-note">
+      <svg class="site-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <line x1="12" y1="20" x2="12.01" y2="20"/>
+      </svg>
+      <span>Local offline sync ready</span>
+    </div>
+  </div>
+</aside>
+
+<!-- Scoped Stylesheet for Site Header Component -->
+<style>
+/* Skip Link */
+.site-skip-link {
+  position: absolute;
+  top: -100px;
+  left: 1.5rem;
+  z-index: 9999;
+  background: var(--brand-primary, #2563eb);
+  color: #ffffff;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--site-radius-md, 10px);
+  font-family: var(--site-font-sans, sans-serif);
+  font-size: var(--site-text-body-sm, 0.875rem);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--site-shadow-floating, 0 10px 25px rgba(0,0,0,0.15));
+  transition: top var(--site-duration-swift, 180ms) var(--site-ease-spring);
+}
+.site-skip-link:focus-visible {
+  top: 1rem;
+  outline: 3px solid #ffffff;
+}
+
+/* Header Container */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--site-z-header, 100);
+  width: 100%;
+  height: var(--site-header-height, 72px);
+  background: var(--site-surface-glass, rgba(255, 255, 255, 0.88));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--site-border, #e2e8f0);
+  background-image: var(--site-texture-noise, none);
+  transition: background var(--site-duration-deliberate, 280ms), border-color var(--site-duration-deliberate, 280ms);
+}
+
+.site-header__container {
+  max-width: var(--site-max-width, 1360px);
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 var(--site-space-lg, 2rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--site-space-md, 1.5rem);
+}
+
+/* Left Brand Cluster */
+.site-header__left {
+  display: flex;
+  align-items: center;
+  gap: var(--site-space-sm, 1rem);
+  flex-shrink: 0;
+}
+
+.site-header__menu-btn {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--site-border, #e2e8f0);
+  border-radius: var(--site-radius-md, 10px);
+  color: var(--site-text-secondary, #475569);
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: background var(--site-duration-swift, 180ms);
+}
+.site-header__menu-btn:hover {
+  background: var(--site-surface-subtle, #f8fafc);
+  color: var(--site-text-primary, #0f172a);
+}
+
+.site-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.site-header__seal {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--site-radius-md, 10px);
+  background: linear-gradient(135deg, var(--brand-primary, #2563eb) 0%, var(--brand-primary-dark, #1d4ed8) 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.site-header__brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.site-header__title {
+  font-family: var(--site-font-display, Georgia, serif);
+  font-size: var(--site-text-title-md, 1.15rem);
+  font-weight: 700;
+  color: var(--site-text-primary, #0f172a);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.site-header__subline {
+  font-family: var(--site-font-sans, sans-serif);
+  font-size: var(--site-text-caption, 0.75rem);
+  font-weight: 500;
+  color: var(--site-text-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Center Search Cluster */
+.site-header__center {
+  flex: 1;
+  max-width: 480px;
+}
+
+.site-header__search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.site-header__search-icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--site-text-subtle, #94a3b8);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.site-header__search-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 2.5rem 0 2.35rem;
+  border: 1px solid var(--site-border, #e2e8f0);
+  border-radius: var(--site-radius-pill, 9999px);
+  background: var(--site-surface, #ffffff);
+  color: var(--site-text-primary, #0f172a);
+  font-family: var(--site-font-sans, sans-serif);
+  font-size: var(--site-text-body-sm, 0.875rem);
+  transition: border-color var(--site-duration-swift, 180ms), box-shadow var(--site-duration-swift, 180ms);
+}
+.site-header__search-input:focus {
+  outline: none;
+  border-color: var(--brand-primary, #2563eb);
+  box-shadow: var(--site-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.25));
+}
+
+.site-header__search-kbd {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--site-surface-subtle, #f8fafc);
+  border: 1px solid var(--site-border, #e2e8f0);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: var(--site-font-mono, monospace);
+  font-size: 0.7rem;
+  color: var(--site-text-muted, #64748b);
+  pointer-events: none;
+}
+
+/* Right Actions Cluster */
+.site-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--site-space-xs, 0.75rem);
+  flex-shrink: 0;
+}
+
+.site-header__action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 38px;
+  padding: 0 0.75rem;
+  background: var(--site-surface, #ffffff);
+  border: 1px solid var(--site-border, #e2e8f0);
+  border-radius: var(--site-radius-md, 10px);
+  color: var(--site-text-secondary, #475569);
+  font-family: var(--site-font-sans, sans-serif);
+  font-size: var(--site-text-body-sm, 0.875rem);
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  transition: all var(--site-duration-swift, 180ms) var(--site-ease-spring);
+}
+.site-header__action-btn:hover {
+  background: var(--site-surface-subtle, #f8fafc);
+  border-color: var(--site-border-strong, #cbd5e1);
+  color: var(--site-text-primary, #0f172a);
+}
+.site-header__action-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--site-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.25));
+}
+.site-header__action-btn--focus[aria-pressed="true"] {
+  background: var(--brand-accent-light, #fff7ed);
+  border-color: var(--brand-accent, #f97316);
+  color: var(--brand-accent, #f97316);
+}
+
+.site-header__action-btn--bell {
+  width: 38px;
+  padding: 0;
+}
+
+.site-header__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--site-danger-ink, #dc2626);
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid var(--site-surface, #ffffff);
+}
+
+/* Network Telemetry Pill */
+.site-header__network-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--site-radius-pill, 9999px);
+  background: var(--site-success-tint, #dcfce7);
+  color: var(--site-success-ink, #15803d);
+  font-family: var(--site-font-mono, monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.site-header__network-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.2);
+}
+.site-header__network-pill--offline {
+  background: var(--site-danger-tint, #fee2e2);
+  color: var(--site-danger-ink, #b91c1c);
+}
+.site-header__network-pill--offline .site-header__network-dot {
+  box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.2);
+}
+
+/* User Identity Cluster */
+.site-header__user {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--site-border, #e2e8f0);
+}
+
+.site-header__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--brand-primary-light, #dbeafe);
+  color: var(--brand-primary, #2563eb);
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--site-border, #e2e8f0);
+}
+
+.site-header__user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.site-header__user-name {
+  font-size: var(--site-text-body-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--site-text-primary, #0f172a);
+  line-height: 1.2;
+}
+
+.site-header__user-role {
+  font-size: var(--site-text-caption, 0.75rem);
+  color: var(--site-text-muted, #64748b);
+}
+
+.site-header__action-btn--logout {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* Mobile Responsive Drawer Breakpoints */
+@media (max-width: 1024px) {
+  .site-header__menu-btn {
+    display: inline-flex;
+  }
+  .site-header__center {
+    display: none;
+  }
+  .site-header__user-info {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .site-header__container {
+    padding: 0 1rem;
+  }
+  .site-header__subline {
+    display: none;
+  }
+  .site-header__btn-label {
+    display: none;
+  }
+  .site-header__network-pill {
+    display: none;
+  }
+}
+
+/* Drawer & Backdrop Styles */
+.site-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: calc(var(--site-z-drawer, 1000) - 1);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--site-duration-swift, 180ms) ease;
+}
+.site-drawer-backdrop[data-active="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.site-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(320px, 85vw);
+  background: var(--site-surface, #ffffff);
+  z-index: var(--site-z-drawer, 1000);
+  transform: translateX(-100%);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--site-shadow-overlay, 0 25px 50px rgba(0,0,0,0.22));
+  transition: transform var(--site-duration-deliberate, 280ms) var(--site-ease-spring);
+}
+.site-drawer:not([hidden]) {
+  transform: translateX(0);
+}
+
+.site-drawer__header {
+  height: var(--site-header-height, 72px);
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--site-border, #e2e8f0);
+}
+.site-drawer__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--site-font-display, Georgia, serif);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--site-text-primary, #0f172a);
+}
+.site-drawer__close-btn {
+  background: transparent;
+  border: none;
+  color: var(--site-text-secondary, #475569);
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: var(--site-radius-sm, 6px);
+}
+
+.site-drawer__nav {
+  flex: 1;
+  padding: 1.5rem 1rem;
+  overflow-y: auto;
+}
+.site-drawer__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.site-drawer__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--site-radius-md, 10px);
+  color: var(--site-text-secondary, #475569);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: var(--site-text-body-sm, 0.875rem);
+  transition: all var(--site-duration-swift, 180ms);
+}
+.site-drawer__link:hover {
+  background: var(--site-surface-subtle, #f8fafc);
+  color: var(--site-text-primary, #0f172a);
+}
+.site-drawer__item--active .site-drawer__link {
+  background: var(--brand-primary-light, #dbeafe);
+  color: var(--brand-primary, #2563eb);
+  font-weight: 600;
+}
+
+.site-drawer__footer {
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid var(--site-border, #e2e8f0);
+  background: var(--site-surface-subtle, #f8fafc);
+}
+.site-drawer__offline-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--site-text-muted, #64748b);
+}
+</style>
+
+<!-- Native A11y & Focus Trapping Script -->
+<script>
+(function() {
+  'use strict';
+
+  const openBtn = document.getElementById('siteHeaderDrawerOpen');
+  const closeBtn = document.getElementById('siteHeaderDrawerClose');
+  const drawer = document.getElementById('siteMobileDrawer');
+  const backdrop = document.getElementById('siteDrawerBackdrop');
+  const searchInput = document.getElementById('siteGlobalSearch');
+  const networkPill = document.getElementById('siteNetworkStatusPill');
+  const networkLabel = document.getElementById('siteNetworkStatusLabel');
+
+  let previousActiveElement = null;
+
+  function openDrawer() {
+    if (!drawer) return;
+    previousActiveElement = document.activeElement;
+    drawer.removeAttribute('hidden');
+    backdrop.setAttribute('data-active', 'true');
+    openBtn.setAttribute('aria-expanded', 'true');
+    
+    // Focus first focusable inside drawer
+    closeBtn.focus();
+    document.addEventListener('keydown', trapFocus);
+  }
+
+  function closeDrawer() {
+    if (!drawer) return;
+    drawer.setAttribute('hidden', '');
+    backdrop.removeAttribute('data-active');
+    openBtn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('keydown', trapFocus);
+    
+    if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+      previousActiveElement.focus();
+    }
+  }
+
+  function trapFocus(e) {
+    if (e.key === 'Escape') {
+      closeDrawer();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+
+    const focusables = drawer.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
+  if (openBtn) openBtn.addEventListener('click', openDrawer);
+  if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+  if (backdrop) backdrop.addEventListener('click', closeDrawer);
+
+  // Global search keyboard shortcut '/'
+  document.addEventListener('keydown', function(e) {
+    if (e.key === '/' && searchInput && document.activeElement !== searchInput && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+      e.preventDefault();
+      searchInput.focus();
+    }
+  });
+
+  // Offline / Online Status Monitoring
+  function updateNetworkStatus() {
+    if (!networkPill || !networkLabel) return;
+    if (navigator.onLine) {
+      networkPill.classList.remove('site-header__network-pill--offline');
+      networkLabel.textContent = 'Online';
+    } else {
+      networkPill.classList.add('site-header__network-pill--offline');
+      networkLabel.textContent = 'Offline';
+    }
+  }
+  window.addEventListener('online', updateNetworkStatus);
+  window.addEventListener('offline', updateNetworkStatus);
+  updateNetworkStatus();
+})();
+</script>

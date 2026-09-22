@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 1240" role="img" aria-label="Raise a ticket — request portal">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#141a2b"/>
+      <stop offset="55%" stop-color="#0b0e16"/>
+      <stop offset="100%" stop-color="#05070c"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#20283c"/>
+      <stop offset="100%" stop-color="#121828"/>
+    </linearGradient>
+  </defs>
+  <rect width="1760" height="1240" fill="url(#bg)"/>
+
+  <g opacity="0.06" font-family="Georgia, serif" font-size="420" fill="#f2f2f2" text-anchor="middle">
+    <text x="880" y="500">01</text>
+  </g>
+
+  <g fill="none" stroke="#e9e4d8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="1360" cy="240" r="120" opacity="0.5"/>
+    <circle cx="1360" cy="240" r="70" opacity="0.35"/>
+    <path d="M1360 240 m-60 0 a60 60 0 1 0 120 0 a60 60 0 1 0 -120 0" opacity="0.18"/>
+  </g>
+
+  <path d="M560 330 H1180 a24 24 0 0 1 24 24 v256 a40 40 0 0 0 0 80 v150 a24 24 0 0 1 -24 24 H560 a24 24 0 0 1 -24 -24 v-150 a40 40 0 0 0 0 -80 v-256 a24 24 0 0 1 24 -24 Z"
+        fill="url(#card)" stroke="#39415a" stroke-width="6" opacity="0.92"/>
+
+  <line x1="884" y1="358" x2="884" y2="876" stroke="#e9e4d8" stroke-width="4" stroke-dasharray="3 22" opacity="0.7"/>
+
+  <g fill="none" stroke="#7f8cb0" stroke-width="4" opacity="0.9">
+    <line x1="930" y1="420" x2="1210" y2="420"/>
+    <line x1="930" y1="492" x2="1210" y2="492"/>
+    <line x1="930" y1="564" x2="1210" y2="564"/>
+    <line x1="930" y1="636" x2="1210" y2="636"/>
+    <line x1="930" y1="708" x2="1100" y2="708"/>
+    <line x1="930" y1="780" x2="1210" y2="780"/>
+  </g>
+
+  <g font-family="Georgia, serif" fill="#f2f2f2">
+    <text x="656" y="470" font-size="66" letter-spacing="6">ICT-01024</text>
+    <text x="656" y="560" font-size="40" fill="#94a3b8">SUPPORT REQUEST</text>
+  </g>
+
+  <rect x="656" y="640" width="156" height="60" rx="30" fill="#2563eb"/>
+  <text x="734" y="683" font-family="Georgia, serif" font-size="34" fill="#ffffff" text-anchor="middle">NEW</text>
+
+  <g fill="none" stroke="#f97316" stroke-width="5" stroke-linecap="round">
+    <path d="M656 790 q120 26 240 -8" opacity="0.85"/>
+    <path d="M940 798 q90 20 180 -8" opacity="0.5"/>
+  </g>
+
+  <g fill="none" stroke="#e9e4d8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M520 520 l-60 34 a14 14 0 0 1 -22 -10 v-48 a14 14 0 0 1 22 -10 l60 34 z" transform="rotate(-12 430 520)" opacity="0.55"/>
+    <path d="M1260 700 l52 30 a14 14 0 0 0 21 -9 v-42 a14 14 0 0 0 -21 -9 l-52 30 z" transform="rotate(10 1313 700)" opacity="0.45"/>
+  </g>
+
+  <g font-family="Georgia, serif" fill="#b7bfd4" text-anchor="middle">
+    <text x="880" y="1110" font-size="30" letter-spacing="14">RAISE A TICKET</text>
+    <text x="880" y="1156" font-size="22" letter-spacing="10" fill="#7c86a3">REQUEST PORTAL</text>
+  </g>
+</svg>

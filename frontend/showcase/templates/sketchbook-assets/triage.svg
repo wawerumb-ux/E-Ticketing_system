@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 1240" role="img" aria-label="Triage and priority — the queue">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#141a2b"/>
+      <stop offset="55%" stop-color="#0b0e16"/>
+      <stop offset="100%" stop-color="#05070c"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#20283c"/>
+      <stop offset="100%" stop-color="#121828"/>
+    </linearGradient>
+  </defs>
+  <rect width="1760" height="1240" fill="url(#bg)"/>
+
+  <g opacity="0.06" font-family="Georgia, serif" font-size="420" fill="#f2f2f2" text-anchor="middle">
+    <text x="880" y="500">02</text>
+  </g>
+
+  <g fill="none" stroke="#e9e4d8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="1360" cy="240" r="120" opacity="0.5"/>
+    <circle cx="1360" cy="240" r="70" opacity="0.35"/>
+  </g>
+
+  <path d="M540 300 q40 -34 92 -24 l430 8 q64 2 74 66 l14 180 q10 76 -54 92 l-430 18 q-66 8 -90 -50 l-28 -244 q-8 -44 0 -46 v0 l-8 -8 q0 -52 0 0 Z"
+        fill="url(#card)" stroke="#39415a" stroke-width="6" opacity="0.92"/>
+
+  <g font-family="Georgia, serif">
+    <rect x="700" y="420" width="360" height="70" rx="35" fill="#fef3c7"/>
+    <rect x="700" y="540" width="360" height="70" rx="35" fill="#dbeafe"/>
+    <rect x="700" y="660" width="360" height="70" rx="35" fill="#fee2e2"/>
+
+    <text x="760" y="468" font-size="32" fill="#b45309">LOW</text>
+    <line x1="1120" y1="425" x2="1350" y2="425" stroke="#b45309" stroke-width="7" stroke-linecap="round" opacity="0.7"/>
+    <line x1="1120" y1="545" x2="1350" y2="545" stroke="#1d4ed8" stroke-width="7" stroke-linecap="round" opacity="0.7"/>
+    <line x1="1120" y1="665" x2="1350" y2="665" stroke="#b91c1c" stroke-width="7" stroke-linecap="round" opacity="0.7"/>
+
+    <text x="760" y="588" font-size="32" fill="#1d4ed8">MED</text>
+    <text x="760" y="708" font-size="32" fill="#b91c1c">HIGH</text>
+  </g>
+
+  <g fill="none" stroke="#f97316" stroke-width="5" stroke-linecap="round">
+    <path d="M680 800 q150 30 300 -6" opacity="0.85"/>
+    <path d="M960 816 q80 22 160 -8" opacity="0.5"/>
+  </g>
+
+  <g fill="none" stroke="#7f8cb0" stroke-width="4" opacity="0.8">
+    <path d="M470 360 l-60 40 M470 360 l60 40 M470 360 v150" opacity="0.5"/>
+  </g>
+
+  <g font-family="Georgia, serif" fill="#b7bfd4" text-anchor="middle">
+    <text x="880" y="1110" font-size="30" letter-spacing="14">TRIAGE AND PRIORITY</text>
+    <text x="880" y="1156" font-size="22" letter-spacing="10" fill="#7c86a3">THE QUEUE</text>
+  </g>
+</svg>

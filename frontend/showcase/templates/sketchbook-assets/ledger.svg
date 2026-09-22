@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 1240" role="img" aria-label="Reports and audit — the ledger">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#141a2b"/>
+      <stop offset="55%" stop-color="#0b0e16"/>
+      <stop offset="100%" stop-color="#05070c"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#20283c"/>
+      <stop offset="100%" stop-color="#121828"/>
+    </linearGradient>
+  </defs>
+  <rect width="1760" height="1240" fill="url(#bg)"/>
+
+  <g opacity="0.06" font-family="Georgia, serif" font-size="420" fill="#f2f2f2" text-anchor="middle">
+    <text x="880" y="500">08</text>
+  </g>
+
+  <g fill="none" stroke="#e9e4d8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="1360" cy="240" r="120" opacity="0.5"/>
+    <circle cx="1360" cy="240" r="70" opacity="0.35"/>
+  </g>
+
+  <rect x="540" y="300" width="700" height="560" rx="26" fill="url(#card)" stroke="#39415a" stroke-width="6" opacity="0.92"/>
+
+  <line x1="620" y1="440" x2="620" y2="800" stroke="#7f8cb0" stroke-width="4" opacity="0.6"/>
+  <line x1="620" y1="800" x2="1180" y2="800" stroke="#7f8cb0" stroke-width="4" opacity="0.6"/>
+
+  <rect x="680" y="680" width="60" height="120" fill="#2563eb" opacity="0.9"/>
+  <rect x="780" y="600" width="60" height="200" fill="#f97316" opacity="0.9"/>
+  <rect x="880" y="540" width="60" height="260" fill="#3b82f6" opacity="0.9"/>
+  <rect x="980" y="640" width="60" height="160" fill="#b9924a" opacity="0.9"/>
+  <rect x="1080" y="720" width="60" height="80" fill="#7c86a3" opacity="0.9"/>
+
+  <path d="M680 700 q60 -26 120 6" fill="none" stroke="#e9e4d8" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+
+  <g font-family="Georgia, serif" fill="#f2f2f2">
+    <text x="880" y="412" font-size="40" letter-spacing="4" text-anchor="middle">THE LEDGER</text>
+  </g>
+
+  <g fill="none" stroke="#f97316" stroke-width="5" stroke-linecap="round">
+    <path d="M760 320 q120 26 60 96" opacity="0.4"/>
+  </g>
+
+  <g font-family="Georgia, serif" fill="#b7bfd4" text-anchor="middle">
+    <text x="880" y="1110" font-size="30" letter-spacing="14">REPORTS AND AUDIT</text>
+    <text x="880" y="1156" font-size="22" letter-spacing="10" fill="#7c86a3">CSV AND AUDIT LOGS</text>
+  </g>
+</svg>

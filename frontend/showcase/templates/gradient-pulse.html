@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="gradient-pulse">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>ICT E-Ticketing — Showcase</title>
+<!--SHOWCASE_CONFIG-->
+
+<!-- Authorized online-only asset: Google Fonts (Space Grotesk display + Inter body).
+     System fallbacks keep the layout intact if the request fails. -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+/* ============================================================
+   Gradient Pulse — showcase template (online-only).
+   Bold two-tone gradients over a dark base. config.theme.accent /
+   theme.accent2 re-tone the pair (validated, fallback kept).
+   ============================================================ */
+:root{
+  --sc-bg:#0d0b1a;
+  --sc-surface:rgba(255,255,255,.05);
+  --sc-surface-strong:rgba(255,255,255,.09);
+  --sc-border:rgba(255,255,255,.14);
+  --sc-ink:#f7f3ff;
+  --sc-ink-muted:rgba(247,243,255,.72);
+  --sc-accent:#8b5cf6;
+  --sc-accent2:#ec4899;
+  --sc-accent3:#22d3ee;
+  --sc-accent-light:#cfc4ff;
+  --sc-accent-dark:#120a26;
+  --sc-accent-tint:rgba(139,92,246,.16);
+  --sc-grad:linear-gradient(120deg,var(--sc-accent),var(--sc-accent2));
+  --sc-focus:2px solid var(--sc-accent3);
+  --sc-radius:18px;
+  --sc-font-display:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --sc-font-body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --z-header:100; --z-skip:5000;
+}
+html{ scroll-behavior:smooth; }
+body{
+  margin:0; background:var(--sc-bg); color:var(--sc-ink);
+  font-family:var(--sc-font-body); font-size:16px; line-height:1.55;
+  overflow-x:hidden;
+}
+*{ box-sizing:border-box; }
+::selection{ background:var(--sc-accent2); color:var(--sc-accent-dark); }
+
+/* ---------- accessibility ---------- */
+.skip-link{
+  position:fixed; top:-100px; left:16px; z-index:var(--z-skip);
+  background:var(--sc-ink); color:var(--sc-accent-dark);
+  padding:.6rem 1.1rem; border-radius:10px; font-weight:700; text-decoration:none;
+}
+.skip-link:focus{ top:12px; }
+:focus-visible{ outline:var(--sc-focus); outline-offset:2px; }
+a{ color:var(--sc-accent-light); }
+
+/* ---------- animated gradient backdrop ---------- */
+.pulse{ position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.pulse::before{
+  content:""; position:absolute; inset:-30%;
+  background:conic-gradient(from 0deg at 50% 50%,
+    rgba(139,92,246,.16), rgba(236,72,153,.12), rgba(34,211,238,.10),
+    rgba(139,92,246,.16));
+  animation:pulse-spin 24s linear infinite;
+}
+.pulse::after{
+  content:""; position:absolute; inset:0;
+  background:radial-gradient(ellipse at 50% 118%, rgba(236,72,153,.14), transparent 58%);
+}
+@keyframes pulse-spin{ to{ transform:rotate(360deg); } }
+.page{ position:relative; z-index:1; }
+
+/* ---------- header ---------- */
+.masthead{
+  position:sticky; top:0; z-index:var(--z-header);
+  display:flex; align-items:center; gap:1.2rem;
+  padding:.85rem clamp(1rem,4vw,2.5rem);
+  background:rgba(13,11,26,.78);
+  -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--sc-border);
+}
+.brand{
+  display:flex; align-items:center; gap:.6rem;
+  font-family:var(--sc-font-display); font-weight:700; color:var(--sc-ink);
+  text-decoration:none; letter-spacing:.01em; white-space:nowrap;
+}
+.brand-mark{ width:26px; height:30px; }
+.brand-mark path{ stroke:url(#sc-brand-grad); }
+.brand b{ background:var(--sc-grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.pill{
+  display:inline-flex; align-items:center; gap:.4rem;
+  background:var(--sc-accent-tint); color:var(--sc-accent-light);
+  border:1px solid var(--sc-border); border-radius:999px;
+  padding:.3rem .85rem; font-size:13px; font-weight:600; white-space:nowrap;
+}
+.pill::before{
+  content:""; width:8px; height:8px; border-radius:50%;
+  background:var(--sc-accent2);
+}
+.pill.preview::before{ background:var(--sc-accent3); }
+
+/* ---------- hero ---------- */
+.hero{
+  min-height:calc(100vh - 62px); display:grid; place-items:center;
+  padding:clamp(5rem,14vh,8rem) clamp(1rem,6vw,3.5rem);
+}
+.hero-inner{ max-width:64ch; text-align:center; display:grid; gap:1.3rem; }
+.hero-eyebrow{
+  justify-self:center; margin:0; font-family:var(--sc-font-display);
+  font-size:14px; font-weight:600; letter-spacing:.16em; text-transform:uppercase;
+}
+.hero-eyebrow span{ background:var(--sc-grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.hero h1{
+  font-family:var(--sc-font-display); font-weight:700;
+  font-size:clamp(2.5rem,7vw,4.8rem); line-height:1.05; margin:0;
+  letter-spacing:-.02em;
+}
+.hero h1 em{
+  font-style:normal; background:var(--sc-grad);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.hero-sub{ font-size:clamp(1.05rem,2.2vw,1.3rem); color:var(--sc-ink-muted); max-width:46ch; margin:0 auto; }
+.hero-actions{ display:flex; flex-wrap:wrap; gap:.9rem; justify-content:center; }
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.55rem;
+  min-height:50px; padding:.75rem 1.5rem; border-radius:14px;
+  font-family:var(--sc-font-body); font-size:15px; font-weight:600;
+  text-decoration:none; cursor:pointer;
+  background:var(--sc-surface-strong); color:var(--sc-ink);
+  border:1px solid var(--sc-border);
+}
+.btn svg{ width:16px; height:16px; }
+.btn-primary{
+  background:var(--sc-grad); border-color:transparent; color:var(--sc-accent-dark);
+  font-weight:700;
+}
+.btn-primary:hover{ filter:brightness(1.08); }
+.btn-ghost svg{ color:var(--sc-accent-light); }
+.btn-ghost:hover{ border-color:var(--sc-accent); }
+
+/* ---------- login glass card ---------- */
+.login{
+  scroll-margin-top:90px; padding:4.5rem clamp(1rem,6vw,3.5rem);
+  display:grid; gap:2rem; justify-items:center;
+}
+.login-card{
+  position:relative; width:min(452px,100%);
+  background:var(--sc-surface);
+  -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px);
+  border:1px solid var(--sc-border); border-radius:22px;
+  padding:2rem clamp(1.4rem,5vw,2.2rem);
+  box-shadow:0 30px 80px rgba(0,0,0,.45);
+}
+.login-card::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.08),transparent 38%);
+}
+.login-card::after{
+  content:""; position:absolute; top:0; left:12%; right:12%; height:2px;
+  background:var(--sc-grad); border-radius:999px;
+}
+.showcase-auth-form{ display:grid; gap:1.05rem; }
+.showcase-auth-title{
+  font-family:var(--sc-font-display); font-weight:700; font-size:1.5rem;
+  margin:0 0 .15rem; letter-spacing:-.01em;
+}
+.showcase-auth-title b{ background:var(--sc-grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.showcase-auth-field{ display:grid; gap:.4rem; }
+.showcase-auth-field label,.showcase-auth-twofa label{ font-size:14px; font-weight:600; color:var(--sc-ink); }
+.showcase-auth-field input,.showcase-auth-twofa input{
+  width:100%; min-height:48px; padding:.6rem 1rem; border-radius:12px;
+  border:1px solid var(--sc-border); background:rgba(0,0,0,.28);
+  color:var(--sc-ink); font-size:15px; font-family:var(--sc-font-body);
+}
+.showcase-auth-field input:focus{ outline:none; border-color:var(--sc-accent); box-shadow:0 0 0 3px var(--sc-accent-tint); }
+.showcase-auth-field input::placeholder{ color:rgba(247,243,255,.4); }
+.showcase-auth-password-wrap{ position:relative; display:flex; align-items:center; }
+.showcase-auth-password-wrap input{ padding-right:3rem; }
+.showcase-auth-eye{
+  position:absolute; right:.5rem; top:50%; transform:translateY(-50%);
+  width:40px; height:40px; display:grid; place-items:center;
+  background:transparent; border:0; border-radius:9px; cursor:pointer;
+  color:var(--sc-ink-muted);
+}
+.showcase-auth-eye:hover{ color:var(--sc-ink); }
+.showcase-auth-eye svg{ width:19px; height:19px; }
+.showcase-auth-error{ color:var(--sc-accent3); font-size:13px; margin:.15rem 0 0; line-height:1.4; }
+.showcase-auth-turnstile{ min-height:65px; }
+.showcase-auth-submit{
+  min-height:50px; border-radius:13px; border:0; cursor:pointer;
+  background:var(--sc-grad); color:var(--sc-accent-dark); font-size:15px; font-weight:700;
+  font-family:var(--sc-font-body);
+}
+.showcase-auth-submit:disabled{ opacity:.7; cursor:progress; }
+.showcase-auth-hint{ font-size:13px; color:var(--sc-ink-muted); margin:0; text-align:center; }
+.showcase-auth-twofa{ display:grid; gap:.55rem; border-top:1px solid var(--sc-border); padding-top:1.1rem; }
+.showcase-auth-back{
+  background:transparent; border:0; color:var(--sc-accent-light); cursor:pointer;
+  font-size:14px; padding:.3rem 0; text-align:left; font-weight:500;
+}
+.showcase-auth-toast{
+  position:absolute; left:1.4rem; right:1.4rem; bottom:1.1rem; z-index:10;
+  padding:.7rem .95rem; border-radius:12px; font-size:14px; font-weight:600;
+  background:rgba(190,38,90,.92); color:#ffe3ef; border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 12px 30px rgba(0,0,0,.4);
+  transition:opacity .25s ease;
+}
+.showcase-auth-toast[data-type="success"]{ background:rgba(20,120,90,.92); color:#e2fff2; }
+.showcase-auth-toast[data-type="warning"]{ background:rgba(160,108,20,.94); color:#fff1d6; }
+.login-note{ max-width:46ch; text-align:center; color:var(--sc-ink-muted); }
+
+/* ---------- philosophy ---------- */
+.philosophy{
+  text-align:center; padding:4.5rem clamp(1rem,6vw,3.5rem); scroll-margin-top:90px;
+}
+.philosophy blockquote{ margin:0 auto; max-width:56ch; }
+.philosophy p{
+  font-family:var(--sc-font-display); font-weight:600;
+  font-size:clamp(1.6rem,4vw,2.5rem); line-height:1.25; margin:0;
+  letter-spacing:-.01em;
+}
+.philosophy p span{ background:var(--sc-grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.philosophy cite{ display:block; margin-top:1.1rem; font-style:normal; font-size:14px; color:var(--sc-ink-muted); }
+
+/* ---------- sections ---------- */
+.section{ padding:4.5rem clamp(1rem,6vw,3.5rem); scroll-margin-top:90px; }
+.section-head{ text-align:center; max-width:56ch; margin:0 auto 2.6rem; display:grid; gap:1rem; }
+.section-kicker{
+  margin:0; font-family:var(--sc-font-display); font-size:14px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase;
+}
+.section-kicker span{ background:var(--sc-grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.section-title{
+  font-family:var(--sc-font-display); font-weight:700;
+  font-size:clamp(1.9rem,4vw,2.8rem); line-height:1.12; margin:0; letter-spacing:-.02em;
+}
+.section-sub{ color:var(--sc-ink-muted); margin:0; }
+
+/* ---------- cards ---------- */
+.cards{
+  display:grid; gap:1.1rem; grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr));
+  max-width:1080px; margin:0 auto;
+}
+.card{
+  background:var(--sc-surface); border:1px solid var(--sc-border); border-radius:var(--sc-radius);
+  padding:1.5rem; display:grid; gap:.7rem;
+}
+.card i{ color:var(--sc-accent-light); width:26px; height:26px; }
+.card h3{ margin:0; font-size:1.08rem; font-weight:600; }
+.card p{ margin:0; color:var(--sc-ink-muted); font-size:15px; }
+.card .tag{
+  justify-self:start; font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--sc-accent-light); background:var(--sc-accent-tint);
+  border:1px solid var(--sc-border); border-radius:999px; padding:.2rem .6rem;
+}
+
+/* ---------- services ---------- */
+.services{ max-width:820px; margin:0 auto; display:grid; gap:1rem; }
+.service{
+  display:grid; grid-template-columns:auto 1fr; gap:1.2rem; align-items:baseline;
+  background:var(--sc-surface); border:1px solid var(--sc-border);
+  border-radius:16px; padding:1.3rem 1.5rem;
+}
+.service .svc-index{
+  font-family:var(--sc-font-display); font-weight:700; font-size:1rem;
+  background:var(--sc-grad); -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.service h3{ margin:0 0 .3rem; font-size:1.05rem; font-weight:600; }
+.service p{ margin:0; color:var(--sc-ink-muted); font-size:15px; }
+
+/* ---------- footer ---------- */
+.footer{
+  border-top:1px solid var(--sc-border);
+  padding:2.2rem clamp(1rem,6vw,3.5rem);
+  display:flex; flex-wrap:wrap; gap:.8rem; align-items:center; justify-content:space-between;
+  color:var(--sc-ink-muted); font-size:14px;
+}
+
+/* ---------- reveal ---------- */
+.reveal{ opacity:0; transform:translateY(14px); transition:opacity .5s ease,transform .5s ease; }
+.reveal.is-in{ opacity:1; transform:none; }
+@media (prefers-reduced-motion:reduce){
+  html{ scroll-behavior:auto; }
+  .pulse::before{ animation:none; }
+  .reveal{ opacity:1; transform:none; transition:none; }
+  .btn{ transition:none; }
+}
+@media (max-width:400px){
+  .login-card{ padding:1.5rem 1.1rem; }
+  .hero-actions .btn{ width:100%; }
+}
+</style>
+</head>
+
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="sc-brand-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="var(--sc-accent)"/>
+      <stop offset="1" stop-color="var(--sc-accent2)"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<a class="skip-link" href="#login-zone">Skip to sign in</a>
+<div class="pulse" aria-hidden="true"></div>
+
+<div class="page">
+  <header class="masthead" role="banner">
+    <a class="brand" href="#hero-zone">
+      <svg class="brand-mark" viewBox="0 0 28 32" fill="none" role="img" aria-label="ICT E-Ticketing logo">
+        <path d="M2 30V14C2 7.373 7.373 2 14 2C20.627 2 26 7.373 26 14V30" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      ICT <b>E-Ticketing</b>
+    </a>
+    <span class="pill" id="pill"><span id="pill-label">Demo</span></span>
+  </header>
+
+  <main>
+    <!-- ============ HERO ============ -->
+    <section class="hero" id="hero-zone" aria-labelledby="hero-title">
+      <div class="hero-inner">
+        <p class="hero-eyebrow" id="hero-eyebrow"><span>open · track · resolve</span></p>
+        <h1 id="hero-title">Service, made <em>visible</em>.</h1>
+        <p class="hero-sub" id="hero-sub">
+          One calm place for support tickets, replies and response targets — with just
+          enough energy to feel alive.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#login-zone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Sign in
+          </a>
+          <a class="btn btn-ghost" href="#capabilities">The toolkit</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ LOGIN ============ -->
+    <section class="login" id="login-zone" aria-label="Sign in">
+      <div class="login-card" data-showcase-auth></div>
+      <p class="login-note" id="login-note">
+        Same account, same credentials, same system — this is just the 
+        presentation layer.
+      </p>
+    </section>
+
+    <!-- ============ PHILOSOPHY ============ -->
+    <section class="philosophy reveal" id="philosophy" aria-labelledby="quote-text">
+      <blockquote>
+        <p id="quote-text">A help desk with <span>heart</span>, not noise.</p>
+        <cite id="quote-cite">— ICT operations</cite>
+      </blockquote>
+    </section>
+
+    <!-- ============ CAPABILITIES ============ -->
+    <section class="section reveal" id="capabilities" aria-labelledby="cap-title">
+      <div class="section-head">
+        <p class="section-kicker"><span>Capabilities</span></p>
+        <h2 class="section-title" id="cap-title">Raise. Track. Resolve.</h2>
+        <p class="section-sub" id="cap-sub">The essentials, tuned bright.</p>
+      </div>
+      <div class="cards" id="cap-cards"></div>
+    </section>
+
+    <!-- ============ SERVICES ============ -->
+    <section class="section reveal" id="services" aria-labelledby="svc-title">
+      <div class="section-head">
+        <p class="section-kicker"><span>Architecture</span></p>
+        <h2 class="section-title" id="svc-title">Two portals. One engine.</h2>
+        <p class="section-sub" id="svc-sub">Separate surfaces, a single trusted backend.</p>
+      </div>
+      <div class="services" id="svc-rows"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>© 2026 ICT E-Ticketing system</span>
+    <span id="footer-slug">Admin-controlled showcase page.</span>
+  </footer>
+</div>
+
+<script src="/shared/js/icons.js"></script>
+<script src="/shared/js/api.js"></script>
+<script src="/shared/js/session-dialog.js"></script>
+<script src="/showcase/shared/auth-shim.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- config ---------- */
+  var configScript = $('showcase-config');
+  var config = null;
+  if (configScript) {
+    try { config = JSON.parse(configScript.textContent) || null; } catch (e) { config = null; }
+  }
+  var content = (config && config.content) || {};
+  var safeText = function (v, fallback) {
+    return (typeof v === 'string' && v.trim()) ? v : fallback;
+  };
+
+  /* ---------- title / theme ---------- */
+  if (config && config.title) document.title = config.title;
+  if (config && config.slug) $('footer-slug').textContent = 'Admin-controlled showcase · /showcase/' + config.slug;
+
+  var theme = (config && config.theme) || {};
+  if (typeof theme.accent === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(theme.accent)) {
+    document.documentElement.style.setProperty('--sc-accent', theme.accent);
+  }
+  if (typeof theme.accent2 === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(theme.accent2)) {
+    document.documentElement.style.setProperty('--sc-accent2', theme.accent2);
+  }
+
+  /* ---------- hero ---------- */
+  $('hero-title').textContent = safeText(content.hero && content.hero.title, 'Service, made visible.');
+  $('hero-sub').textContent = safeText(content.hero && content.hero.subtitle,
+    'One calm place for support tickets, replies and response targets — with just enough energy to feel alive.');
+
+  /* ---------- pill ---------- */
+  var pill = $('pill');
+  if (config && config.preview) { $('pill-label').textContent = 'Preview'; pill.classList.add('preview'); }
+  else if (config && config.enabled) { $('pill-label').textContent = 'Live'; }
+
+  if (!config) {
+    $('login-note').innerHTML = '<strong>This showcase page is not configured.</strong>' +
+      ' An administrator must attach content before it can publish.';
+  }
+
+  /* ---------- login ---------- */
+  var loginZone = $('login-zone').querySelector('[data-showcase-auth]');
+  if (typeof ShowcaseAuth !== 'undefined' && loginZone) {
+    ShowcaseAuth.mount(loginZone, { title: 'Welcome <b>back</b>', siteKey: '' });
+  }
+
+  /* ---------- capabilities ---------- */
+  var CAP_ICONS = ['ticket-alt', 'bell', 'users', 'clock', 'chart-pie', 'search'];
+  var defaultCaps = [
+    { icon: 'ticket-alt', title: 'Requester portal', text: 'Raise a support ticket in seconds and follow it until it closes.' },
+    { icon: 'bell', title: 'Realtime updates', text: 'See the moment a technician replies or your ticket moves.' },
+    { icon: 'users', title: 'Collaboration', text: 'Conversations live beside the ticket, so context never gets lost.' },
+    { icon: 'clock', title: 'SLA awareness', text: 'Response and resolution targets are tracked, not aspirational.' },
+    { icon: 'chart-pie', title: 'Reporting', text: 'Admins export honest summaries of how support is performing.' }
+  ];
+  var caps = Array.isArray(content.capabilities) && content.capabilities.length
+    ? content.capabilities
+    : defaultCaps;
+  var capCards = $('cap-cards');
+  caps.forEach(function (cap, idx) {
+    var icon = CAP_ICONS.indexOf(cap.icon) >= 0 ? cap.icon : CAP_ICONS[idx % CAP_ICONS.length];
+    var card = document.createElement('article');
+    card.className = 'card';
+    var i = document.createElement('i');
+    i.setAttribute('data-icon', icon);
+    i.setAttribute('aria-hidden', 'true');
+    var h = document.createElement('h3');
+    h.textContent = safeText(cap.title, 'Capability');
+    var p = document.createElement('p');
+    p.textContent = safeText(cap.text, '');
+    card.appendChild(i); card.appendChild(h); card.appendChild(p);
+    capCards.appendChild(card);
+  });
+  if (typeof Icons !== 'undefined' && typeof Icons.hydrate === 'function') Icons.hydrate();
+
+  /* ---------- services ---------- */
+  var defaultServices = [
+    { title: 'Staff + admin portals', text: 'One backend and one database — the user surface and the admin surface stay separate by design.' },
+    { title: 'Configurable priority rules', text: 'Admins tune how tickets are prioritised; the client mirrors the same rules offline.' },
+    { title: 'Offline-first resilience', text: 'The core app keeps working without the internet, so support is never hostage to a connection.' }
+  ];
+  var svcs = Array.isArray(content.services) && content.services.length
+    ? content.services
+    : defaultServices;
+  var svcRows = $('svc-rows');
+  svcs.forEach(function (svc, idx) {
+    var row = document.createElement('div');
+    row.className = 'service';
+    var idxEl = document.createElement('span');
+    idxEl.className = 'svc-index';
+    idxEl.textContent = String(idx + 1).padStart(2, '0');
+    idxEl.setAttribute('aria-hidden', 'true');
+    var box = document.createElement('div');
+    var h = document.createElement('h3');
+    h.textContent = safeText(svc.title, '');
+    var p = document.createElement('p');
+    p.textContent = safeText(svc.text, '');
+    box.appendChild(h); box.appendChild(p);
+    row.appendChild(idxEl); row.appendChild(box);
+    svcRows.appendChild(row);
+  });
+
+  /* ---------- reveal ---------- */
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) { entry.target.classList.add('is-in'); io.unobserve(entry.target); }
+      });
+    }, { threshold: 0.15 });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('is-in'); });
+  }
+})();
+</script>
+</body>
+</html>
