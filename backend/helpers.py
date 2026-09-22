@@ -1112,10 +1112,20 @@ def run_sla_sweep():
                 .all())
 
     escalate = get_setting('sla_auto_escalate', 'false').lower() == 'true'
+    # The requester must never see raw SLA/breach data. When a ticket breaches,
+    # an admin-authored public comment is posted on it instead, so the update
+    # lands in the normal conversation. Author is the first active admin, else
+    # 'system' (TicketComment.author_username is a plain name reference, no FK).
+    comment_author = 'system'
+    admin_user = (User.query
+                  .filter_by(role='admin', is_active=True)
+                  .order_by(User.id).first())
+    if admin_user:
+        comment_author = admin_user.username
     for t in breached:
         t.sla_breach_notified = True
-        admin_names = [a.username for a in User.query.filter_by(role='admin').all()]
-        recipients = set(list(admin_names))
+        admin_names = [a.username for a in User.query.filter_by(role='admin', is_active=True).all()]
+        recipients = set(admin_names)
         if t.assigned_to:
             recipients.add(t.assigned_to)
         message = (f"SLA breach: {t.ticket_number} ({t.title}) — "
@@ -1127,14 +1137,38 @@ def run_sla_sweep():
             f"response deadline and is still {t.status.replace('_', ' ')}."
         )
         action = 'SLA breached: ' + t.ticket_number
+        escalated_this = False
         if escalate and t.priority != 'high':
             t.priority = 'high'
             apply_sla(t)
-            action += f" — auto-escalated to high priority"
+            action += " — auto-escalated to high priority"
+            escalated_this = True
             log_audit('system', 'escalate', 'ticket', t.id, f"Auto-escalated {t.ticket_number} to high priority after SLA breach")
         log_audit('system', 'sla_breach', 'ticket', t.id, action)
         emit_event('sla.breach', {'ticket_id': t.id, 'ticket_number': t.ticket_number,
-                                  'title': t.title, 'escalated': escalate and t.status != 'high'})
+                                  'title': t.title, 'escalated': escalated_this})
+
+        comment_text = (
+            "This ticket has been escalated and is being prioritized. "
+            "A technician will follow up with an update here shortly."
+            if escalated_this else
+            "Our team has been alerted and is prioritizing this ticket. "
+            "We will post an update here shortly."
+        )
+        db.session.add(TicketComment(
+            ticket_id=t.id,
+            author_username=comment_author,
+            author_role='admin',
+            message=comment_text,
+        ))
+        if t.created_by:
+            notify_users(
+                {t.created_by}, 'technician_reply',
+                f"New comment on {t.ticket_number} from {comment_author}",
+                str(t.id),
+                f"New comment on ticket {t.ticket_number}",
+                comment_text,
+            )
 
     if breached:
         db.session.commit()
