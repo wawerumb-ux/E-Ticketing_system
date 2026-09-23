@@ -24,6 +24,7 @@ No JWT, no session cookie, no CSRF on this path — see the blueprint route.
 
 from datetime import timedelta
 import json
+import os
 
 from flask import Blueprint, request, Response
 from sqlalchemy import text as sqla_text
@@ -410,12 +411,61 @@ def _dispatch(session, phone, parts):
 
 
 # ---------------------------------------------------------------------------
+# CIDR allow-list for USSD gateways (Africa's Talking, Twilio, etc.)
+# ---------------------------------------------------------------------------
+# Configure via USSD_ALLOWED_CIDRS env var: comma-separated list of CIDR blocks
+# Example: USSD_ALLOWED_CIDRS="196.201.214.0/24,103.21.244.0/22"
+# If empty, only localhost connections are allowed (safe default).
+
+def _get_ussd_allowed_cidrs():
+    """Get allowed CIDR blocks for USSD from environment."""
+    raw = os.getenv('USSD_ALLOWED_CIDRS', '').strip()
+    if not raw:
+        # Default: only allow localhost/private networks when not configured
+        return ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']
+    return [cidr.strip() for cidr in raw.split(',') if cidr.strip()]
+
+
+def _is_ip_in_cidrs(ip, cidrs):
+    """Check if an IP address is in any of the given CIDR blocks."""
+    import ipaddress
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+        for cidr in cidrs:
+            try:
+                if ip_obj in ipaddress.ip_network(cidr):
+                    return True
+            except ValueError:
+                continue
+    except ValueError:
+        pass
+    return False
+
+
+# ---------------------------------------------------------------------------
 # The single entry point the gateway calls.
 # ---------------------------------------------------------------------------
 @ussd_bp.route('/ussd', methods=['POST'])
 @limiter.limit('600 per minute', override_defaults=True)
 def ussd_entry():
     """Handle one USSD "page". Always idempotent on (session_id, text)."""
+    # Validate client IP against allow-list
+    allowed_cidrs = _get_ussd_allowed_cidrs()
+    client_ip = request.remote_addr
+    
+    # Handle X-Forwarded-For if behind a reverse proxy
+    forwarded_for = request.headers.get('X-Forwarded-For')
+    if forwarded_for:
+        # Take the first IP in the chain (original client)
+        client_ip = forwarded_for.split(',')[0].strip()
+    
+    if not _is_ip_in_cidrs(client_ip, allowed_cidrs):
+        logger.warning(
+            f'USSD request rejected from unauthorized IP {client_ip}. '
+            f'Allowed CIDRs: {allowed_cidrs}'
+        )
+        return Response('END Access denied.', content_type='text/plain; charset=utf-8', status=403)
+    
     parsed = parse_gateway_request(request)
     session_id = parsed['session_id']
     phone = parsed['phone']

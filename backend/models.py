@@ -55,6 +55,7 @@ class User(db.Model):
     locked_until = db.Column(db.DateTime, nullable=True)
     totp_secret = db.Column(db.String(64), nullable=True)
     totp_enabled = db.Column(db.Boolean, default=False)
+    token_version = db.Column(db.Integer, default=0)
     notifications = db.relationship('Notification', backref='user', lazy=True, cascade='all, delete-orphan')
 
 
@@ -99,6 +100,7 @@ class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     type = db.Column(db.String(30), default='ticket_update')
+    category = db.Column(db.String(40))  # explicit category cid (custom categories)
     message = db.Column(db.String(255), nullable=False)
     link = db.Column(db.String(50))
     is_read = db.Column(db.Boolean, default=False)
@@ -113,6 +115,29 @@ class NotificationPreference(db.Model):
     in_app_enabled = db.Column(db.Boolean, default=True)
     categories = db.Column(db.JSON, nullable=True)
     user = db.relationship('User', backref=db.backref('notification_pref', uselist=False))
+
+
+class NotificationCategory(db.Model):
+    """Configurable notification category registry (custom-trigger subsystem).
+
+    Built-in rows are seeded from the static registry in helpers.py and carry
+    their real trigger type (via CATEGORY_BY_TYPE). Admin-created categories
+    specify their own label/icon/role and a trigger; a category with trigger
+    'broadcast' can receive manually-sent announcements. ``active`` is a
+    soft-delete flag (E4): rows are never hard-deleted.
+    """
+    __tablename__ = 'notification_categories'
+
+    id = db.Column(db.Integer, primary_key=True)
+    cid = db.Column(db.String(40), unique=True, nullable=False)
+    label = db.Column(db.String(80), nullable=False)
+    description = db.Column(db.String(255), default='')
+    icon = db.Column(db.String(30), default='bell')
+    role = db.Column(db.String(10), default='shared')  # 'shared' | 'admin'
+    trigger_type = db.Column(db.String(30), nullable=True)  # None | 'broadcast' | <type>
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
 
 # ---------------------------------------------------------------------------

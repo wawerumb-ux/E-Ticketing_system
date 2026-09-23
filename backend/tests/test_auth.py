@@ -38,7 +38,8 @@ class LoginTestCase(BaseTestCase):
         for _ in range(5):
             self.assertEqual(self.login('admin', 'badpass123').status_code, 401)
         locked = self.login('admin', 'badpass123').get_json()
-        self.assertIn('locked', locked['error'].lower())
+        # Error message is now generic to prevent account enumeration
+        self.assertEqual(locked['error'], 'Invalid username or password')
         self.assertEqual(User.query.filter_by(username='admin').first().failed_login_attempts, 0)
 
 

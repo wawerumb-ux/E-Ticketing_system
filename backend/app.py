@@ -112,10 +112,57 @@ app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25 MB upper bound for any
 
 # Bind the shared extensions to this app.
 db.init_app(app)
-jwt.init_app(app)    
+jwt.init_app(app)
 limiter.init_app(app)
 oauth.init_app(app)
 from extensions import logger  # noqa: E402
+
+
+# ============ JWT TOKEN VERSION CALLBACKS ============
+from flask_jwt_extended import get_jwt, get_jwt_identity
+from models import User
+
+
+@jwt.token_in_blocklist_loader
+def check_token_revoked(jwt_header, jwt_payload):
+    """Check if a token has been revoked by comparing token_version.
+    
+    If the token's version doesn't match the user's current token_version,
+    the token is considered revoked (e.g., user logged out, password changed, etc.)
+    """
+    from extensions import db
+    jti = jwt_payload.get('jti')
+    identity = jwt_payload.get('sub')
+    if identity:
+        try:
+            uid = int(identity)
+            user = db.session.get(User, uid)
+            if user:
+                # Token version in JWT must match user's current version
+                token_version = jwt_payload.get('token_version', 0)
+                if user.token_version != token_version:
+                    logger.warning(
+                        f'Token revoked for user {user.username}: '
+                        f'token_version={token_version}, user.token_version={user.token_version}'
+                    )
+                    return True
+        except (ValueError, TypeError):
+            pass
+    return False
+
+
+@jwt.additional_claims_loader
+def add_claims_to_jwt(identity):
+    """Add token_version to every JWT so revocation can be checked."""
+    from extensions import db
+    try:
+        uid = int(identity)
+        user = db.session.get(User, uid)
+        if user:
+            return {'token_version': user.token_version}
+    except (ValueError, TypeError):
+        pass
+    return {'token_version': 0}
 
 # ============ CLOUDFLARE TURNSTILE CONFIG ============
 # Site key is public (embedded in the login/reset HTML). Secret is read by

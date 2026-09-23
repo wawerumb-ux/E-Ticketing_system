@@ -27,6 +27,7 @@ def make_test_app():
         SECRET_KEY='test-secret',
         JWT_SECRET_KEY='test-secret',
         UPLOAD_FOLDER='/tmp/ict-uploads-test',
+        REGISTRATION_ENABLED='true',
     )
     db.init_app(test_app)
     jwt.init_app(test_app)

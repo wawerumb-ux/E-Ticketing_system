@@ -15,7 +15,7 @@ from flask_jwt_extended import decode_token, jwt_required
 
 from extensions import db, utcnow
 from helpers import _run_periodic_tasks, cache_get, cache_key, cache_set, metric_snapshot
-from models import SystemEvent, Ticket
+from models import SystemEvent, Ticket, User
 from qr import qr_svg
 from datetime import timedelta
 import json
@@ -321,12 +321,61 @@ def get_dashboard_stats():
 
 # ============ REAL-TIME EVENTS (SSE) ============
 
+@main_bp.route('/api/events/subscribe', methods=['POST'])
+@jwt_required()
+def create_sse_subscription():
+    """Generate a short-lived subscription token for SSE streams.
+    
+    This token is separate from the JWT access token and has a shorter
+    lifetime (5 minutes). It's designed to be passed in the query string
+    to /api/events/stream, which is necessary because the browser's
+    EventSource API cannot send Authorization headers.
+    
+    The subscription token contains the user's identity and token_version,
+    so it can be validated and revoked just like regular JWTs.
+    """
+    from flask_jwt_extended import create_access_token
+    from datetime import timedelta
+    
+    identity = get_jwt_identity()
+    try:
+        uid = int(identity)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid session'}), 401
+    
+    user = db.session.get(User, uid)
+    if user is None or not user.is_active:
+        return jsonify({'error': 'Invalid session'}), 401
+    
+    # Create a short-lived (5 min) subscription token
+    subscription_token = create_access_token(
+        identity=identity,
+        additional_claims={'token_version': user.token_version, 'purpose': 'sse'},
+        expires_delta=timedelta(minutes=5)
+    )
+    return jsonify({'subscription_token': subscription_token}), 200
+
+
 @main_bp.route('/api/events/stream')
 def event_stream():
-    token = request.args.get('token')
+    # Try to get token from Authorization header first (for non-browser clients)
+    from flask_jwt_extended import get_jwt
+    token = None
+    
+    # Check Authorization header first
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header[7:]
+    
+    # Fallback to query parameter (for browser EventSource which can't send headers)
+    if not token:
+        token = request.args.get('token')
+    
     if not token:
         return jsonify({'error': 'Token required'}), 401
+    
     try:
+        # Decode and verify the token (works for both JWT and subscription tokens)
         decode_token(token)
     except Exception:
         return jsonify({'error': 'Invalid token'}), 401

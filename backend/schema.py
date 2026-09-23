@@ -22,6 +22,7 @@ from models import (
     Category,
     Department,
     KnowledgeArticle,
+    NotificationCategory,
     PriorityRule,
     Role,
     ShowcasePage,
@@ -53,10 +54,13 @@ def ensure_user_schema():
         if 'users' not in inspector.get_table_names():
             return
         columns = {col['name'] for col in inspector.get_columns('users')}
-        if 'is_active' not in columns:
-            with db.engine.begin() as connection:
+        with db.engine.begin() as connection:
+            if 'is_active' not in columns:
                 connection.execute(sqla_text('ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE'))
-            logger.info('Added missing users.is_active column to existing schema')
+                logger.info('Added missing users.is_active column to existing schema')
+            if 'token_version' not in columns:
+                connection.execute(sqla_text('ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0'))
+                logger.info('Added missing users.token_version column to existing schema')
     except Exception as exc:
         logger.warning(f'Could not ensure users schema compatibility: {exc}')
 
@@ -190,6 +194,69 @@ def ensure_showcase_schema():
         logger.info('Created showcase_pages table to match the current schema')
     except Exception as exc:
         logger.warning(f'Could not ensure showcase schema compatibility: {exc}')
+
+
+@_with_app_context
+def ensure_notification_categories_schema():
+    """Create the notification_categories table and add notifications.category.
+
+    New installs get the table from ``db.create_all()``; the guard covers live
+    databases that predate the model. The ``notifications.category`` column is
+    added via ALTER on existing tables (E3) — custom-category notifications
+    need a place to carry their explicit category cid.
+    """
+    try:
+        inspector = db.inspect(db.engine)
+        if 'notification_categories' not in inspector.get_table_names():
+            NotificationCategory.__table__.create(db.engine)
+            logger.info('Created notification_categories table to match the current schema')
+        else:
+            ncols = {col['name'] for col in inspector.get_columns('notification_categories')}
+            if 'trigger' in ncols and 'trigger_type' not in ncols:
+                with db.engine.begin() as connection:
+                    connection.execute(sqla_text(
+                        'ALTER TABLE notification_categories CHANGE `trigger` trigger_type VARCHAR(30)'
+                    ))
+                logger.info('Renamed notification_categories.trigger to trigger_type (reserved word)')
+        if 'notifications' in inspector.get_table_names():
+            ncols = {col['name'] for col in inspector.get_columns('notifications')}
+            if 'category' not in ncols:
+                with db.engine.begin() as connection:
+                    connection.execute(sqla_text('ALTER TABLE notifications ADD COLUMN category VARCHAR(40)'))
+                logger.info('Added missing notifications.category column to existing schema')
+    except Exception as exc:
+        logger.warning(f'Could not ensure notification categories schema compatibility: {exc}')
+
+
+@_with_app_context
+def seed_notification_categories():
+    """Seed the built-in category registry rows from helpers.py.
+
+    Idempotent: existing rows are left untouched. Built-in rows keep their real
+    trigger type (via CATEGORY_BY_TYPE) so they keep firing; categories without
+    a trigger are surfaced as disabled 'coming soon' rows (S2).
+    """
+    from helpers import CATEGORY_BY_TYPE, NOTIFICATION_CATEGORIES
+    existing = {c.cid for c in NotificationCategory.query.all()}
+    type_by_category = {v: k for k, v in CATEGORY_BY_TYPE.items()}
+    to_add = []
+    for cid, meta in NOTIFICATION_CATEGORIES.items():
+        if cid in existing:
+            continue
+        trigger = type_by_category.get(cid)
+        to_add.append(NotificationCategory(
+            cid=cid,
+            label=meta.get('label', cid),
+            description=meta.get('description', ''),
+            icon=meta.get('icon', 'bell'),
+            role=meta.get('role', 'shared'),
+            trigger_type=trigger,
+            active=meta.get('active', True),
+        ))
+    if to_add:
+        db.session.bulk_save_objects(to_add)
+        db.session.commit()
+        logger.info('Seeded %d notification categories', len(to_add))
 
 
 @_with_app_context
@@ -332,6 +399,7 @@ def bootstrap_database():
     ensure_ussd_schema_compat()
     ensure_priority_rules_schema()
     ensure_showcase_schema()
+    ensure_notification_categories_schema()
     seed_default_roles()
     seed_default_users()
     seed_settings()
@@ -339,6 +407,7 @@ def bootstrap_database():
     seed_starter_categories()
     seed_starter_departments()
     seed_priority_rules()
+    seed_notification_categories()
     seed_openserv_showcase()
     logger.info('Database initialization complete')
 

@@ -53,11 +53,15 @@ def login():
         db.session.commit()
         return jsonify({'error': 'Invalid username or password'}), 401
 
+    if not user.is_active:
+        log_audit(username, 'login_blocked', 'auth', user.username if user else None, 'inactive account')
+        db.session.commit()
+        return jsonify({'error': 'Invalid username or password'}), 401
+
     if user.locked_until and user.locked_until > utcnow():
-        remaining = int((user.locked_until - utcnow()).total_seconds() / 60) + 1
         log_audit(user.username, 'login_blocked', 'auth', user.username, 'account locked')
         db.session.commit()
-        return jsonify({'error': f'Account temporarily locked due to repeated failed attempts. Try again in {remaining} minute(s).'}), 403
+        return jsonify({'error': 'Invalid username or password'}), 401
 
     if not check_password_hash(user.password_hash, password):
         user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
@@ -68,27 +72,26 @@ def login():
         db.session.commit()
         return jsonify({'error': 'Invalid username or password'}), 401
 
-    if not user.is_active:
-        log_audit(user.username, 'login_blocked', 'auth', user.username, 'inactive account')
-        db.session.commit()
-        return jsonify({'error': 'This account has been deactivated. Contact an administrator.'}), 403
-
     user.failed_login_attempts = 0
     user.locked_until = None
+    
+    # Increment token_version on login to invalidate any existing tokens
+    user.token_version = (user.token_version or 0) + 1
+    
     log_audit(user.username, 'login', 'auth', user.username)
     db.session.commit()
 
     if user.totp_enabled:
         pending = create_access_token(
             identity=str(user.id),
-            additional_claims={'role': user.role, 'username': user.username, 'purpose': '2fa'},
+            additional_claims={'role': user.role, 'username': user.username, 'purpose': '2fa', 'token_version': user.token_version},
             expires_delta=timedelta(minutes=5),
         )
         return jsonify({'needs_2fa': True, 'pending_token': pending,
                         'user': {'id': user.id, 'username': user.username, 'role': user.role}}), 200
 
     identity = str(user.id)
-    additional_claims = {'role': user.role, 'username': user.username}
+    additional_claims = {'role': user.role, 'username': user.username, 'token_version': user.token_version}
 
     access_token = create_access_token(identity=identity, additional_claims=additional_claims)
     refresh_token = create_refresh_token(identity=identity, additional_claims=additional_claims)
@@ -115,19 +118,29 @@ def verify_2fa():
     if claims.get('purpose') != '2fa':
         return jsonify({'error': 'Invalid token purpose'}), 401
 
+    from extensions import decrypt_totp_secret
+    
     user_id = claims.get('sub')
     user = User.query.get(int(user_id))
     if user is None or not user.is_active or not user.totp_enabled or not user.totp_secret:
         return jsonify({'error': 'Two-factor authentication is not configured for this account'}), 403
 
-    if not totp_verify(user.totp_secret, code):
+    # Decrypt the secret before verification
+    secret = decrypt_totp_secret(user.totp_secret)
+    if not totp_verify(secret, code):
         log_audit(user.username, 'login_failed', 'auth', user.username, 'invalid 2FA code')
         db.session.commit()
         return jsonify({'error': 'Invalid verification code'}), 401
 
     log_audit(user.username, 'login_2fa', 'auth', user.username)
+    
+    # Increment token_version on successful 2FA login to invalidate any existing tokens
+    user.token_version = (user.token_version or 0) + 1
+    user.failed_login_attempts = 0
+    user.locked_until = None
     db.session.commit()
-    additional_claims = {'role': user.role, 'username': user.username}
+    
+    additional_claims = {'role': user.role, 'username': user.username, 'token_version': user.token_version}
     access_token = create_access_token(identity=str(user.id), additional_claims=additional_claims)
     refresh_token = create_refresh_token(identity=str(user.id), additional_claims=additional_claims)
     return jsonify({'access_token': access_token, 'refresh_token': refresh_token,
@@ -137,6 +150,10 @@ def verify_2fa():
 @auth_bp.route('/api/auth/register', methods=['POST'])
 @limiter.limit("3 per minute")
 def register():
+    from flask import current_app
+    if current_app.config.get('REGISTRATION_ENABLED', '').strip().lower() != 'true':
+        return jsonify({'error': 'Registration is currently disabled. Contact an administrator.'}), 403
+    
     data = request.json or {}
     username = (data.get('username') or '').strip()
     email = (data.get('email') or '').strip().lower()
@@ -159,10 +176,10 @@ def register():
         return jsonify({'error': 'Password must be at least 8 characters'}), 400
 
     if User.query.filter_by(username=username).first():
-        return jsonify({'error': 'Username already exists'}), 400
+        return jsonify({'error': 'An account with that username or email may already exist'}), 400
 
     if User.query.filter_by(email=email).first():
-        return jsonify({'error': 'Email already exists'}), 400
+        return jsonify({'error': 'An account with that username or email may already exist'}), 400
 
     new_user = User(
         username=username[:50],
@@ -193,11 +210,22 @@ def refresh():
     # gets a token that carries the CURRENT username/role, not stale claims.
     if user is None or not user.is_active:
         return jsonify({'error': 'Invalid session'}), 401
+    
+    # Increment token_version and issue both new access and refresh tokens
+    # This provides refresh token rotation - each refresh gets a new refresh token
+    # and invalidates the old one via token_version
+    user.token_version = (user.token_version or 0) + 1
+    db.session.commit()
+    
     new_access_token = create_access_token(
         identity=str(user.id),
-        additional_claims={'role': user.role, 'username': user.username}
+        additional_claims={'role': user.role, 'username': user.username, 'token_version': user.token_version}
     )
-    return jsonify({'access_token': new_access_token}), 200
+    new_refresh_token = create_refresh_token(
+        identity=str(user.id),
+        additional_claims={'role': user.role, 'username': user.username, 'token_version': user.token_version}
+    )
+    return jsonify({'access_token': new_access_token, 'refresh_token': new_refresh_token}), 200
 
 
 # ============ TWO-FACTOR AUTHENTICATION ============
@@ -214,11 +242,14 @@ def get_2fa_status():
 @auth_bp.route('/api/auth/2fa/setup', methods=['POST'])
 @jwt_required()
 def setup_2fa():
+    from extensions import encrypt_totp_secret, decrypt_totp_secret
+    
     user = User.query.filter_by(username=get_jwt().get('username')).first()
     if user is None:
         return jsonify({'error': 'User not found'}), 404
     secret = totp_generate_secret()
-    user.totp_secret = secret
+    # Encrypt the secret before storing
+    user.totp_secret = encrypt_totp_secret(secret)
     user.totp_enabled = False
     db.session.commit()
     return jsonify({
@@ -231,13 +262,17 @@ def setup_2fa():
 @auth_bp.route('/api/auth/2fa/setup/verify', methods=['POST'])
 @jwt_required()
 def verify_2fa_setup():
+    from extensions import decrypt_totp_secret
+    
     user = User.query.filter_by(username=get_jwt().get('username')).first()
     if user is None:
         return jsonify({'error': 'User not found'}), 404
     if not user.totp_secret:
         return jsonify({'error': 'Run setup first'}), 400
     code = (request.json or {}).get('code', '')
-    if not totp_verify(user.totp_secret, code):
+    # Decrypt the secret before verification
+    secret = decrypt_totp_secret(user.totp_secret)
+    if not totp_verify(secret, code):
         return jsonify({'error': 'Invalid verification code'}), 401
     user.totp_enabled = True
     log_audit(user.username, '2fa_enabled', 'user', user.username)
@@ -248,13 +283,17 @@ def verify_2fa_setup():
 @auth_bp.route('/api/auth/2fa/disable', methods=['POST'])
 @jwt_required()
 def disable_2fa():
+    from extensions import decrypt_totp_secret
+    
     user = User.query.filter_by(username=get_jwt().get('username')).first()
     if user is None:
         return jsonify({'error': 'User not found'}), 404
     if not user.totp_enabled:
         return jsonify({'enabled': False}), 200
     code = (request.json or {}).get('code', '')
-    if not totp_verify(user.totp_secret, code):
+    # Decrypt the secret before verification
+    secret = decrypt_totp_secret(user.totp_secret) if user.totp_secret else None
+    if not totp_verify(secret, code):
         return jsonify({'error': 'Invalid verification code'}), 401
     user.totp_secret = None
     user.totp_enabled = False
@@ -398,10 +437,14 @@ def _resolve_social_user(provider, provider_user_id, email, name):
 
 
 def _finish_social_login(user):
+    # Increment token_version for social login to invalidate any existing tokens
+    user.token_version = (user.token_version or 0) + 1
+    db.session.commit()
+    
     identity = str(user.id)
-    claims = {'role': user.role, 'username': user.username}
-    access_token = create_access_token(identity=identity, additional_claims=claims)
-    refresh_token = create_refresh_token(identity=identity, additional_claims=claims)
+    additional_claims = {'role': user.role, 'username': user.username, 'token_version': user.token_version}
+    access_token = create_access_token(identity=identity, additional_claims=additional_claims)
+    refresh_token = create_refresh_token(identity=identity, additional_claims=additional_claims)
     target = session.pop('oauth_redirect', None) or ('/admin' if user.role == 'admin' else '/user')
     if not target.startswith('/'):
         target = '/user'
