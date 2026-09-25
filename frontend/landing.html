@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ICT Support Portal</title>
+<link rel="icon" type="image/jpeg" href="/shared/assets/logo/county%20logo%20dark.jpg">
 <meta name="description" content="ICT department support portal. Raise tickets, track requests, and get help fast." />
 
 <!-- Inline theme lock: prevents FOUC. No dark-theme toggle on the landing —
@@ -38,8 +39,38 @@
   --accent:       #b9924a;       /* --auth-brass */
   --accent-deep:  #9a7838;
   --accent-glow:  rgba(185,146,74,0.18);
+  /* Offline accent ink (brass). The online variant overrides
+     --accent-text with the five-slot palette in body.landing-only. */
+  --accent-text:  #b9924a;
   --danger:       #b23b2e;
   --success:      #3f6b52;
+  /* Tokenized literals — offline values equal the former literals. */
+  --nav-bg:             rgba(14,15,20,0.82);
+  --hover-bg:           rgba(255,255,255,0.06);
+  --ghost-hover-border: rgba(255,255,255,0.28);
+  --card-bg:            rgba(22,24,31,0.85);
+  --rail-bg:            rgba(255,255,255,0.08);
+  --btn-ink:            #0e0f14;
+  --accent-border-soft: rgba(185,146,74,0.3);   /* hero eyebrow  */
+  --accent-border-soft-2: rgba(185,146,74,0.25);/* about icon    */
+  --accent-border-soft-3: rgba(185,146,74,0.2); /* contact icon  */
+  --success-bg:     rgba(63,107,82,0.15);
+  --success-border: rgba(63,107,82,0.35);
+  --success-ink:    #6fcf97;
+  --danger-bg:      rgba(178,59,46,0.12);
+  --danger-border:  rgba(178,59,46,0.30);
+  --danger-ink:     #f87171;
+  --danger-text:    #ef8b7f;           /* login-modal error ink (PX) */
+  --banner-shadow:  rgba(0,0,0,0.4);
+  --paper:          #ece7dc;                    /* sketchbook host */
+  --paper-hint:     rgba(43,39,33,0.45);
+  --paper-fade-a:   rgba(236,231,220,0.95);
+  --paper-fade-b:   rgba(236,231,220,0);
+  --input-bg:       rgba(14,15,20,0.35);        /* login modal field */
+  --scene-bg:       #0e0f14;
+  --scene-accent:   #b9924a;
+  --scene-fill:     #6b7cff;
+  --scene-pcb:      #1b4332;
   --radius:       12px;
   --radius-sm:    8px;
   --nav-h:        60px;
@@ -47,6 +78,104 @@
                   "Helvetica Neue", Arial, sans-serif;
   --font-display: 'Fraunces', Georgia, "Times New Roman", serif;
   --transition:   0.25s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ============================================================
+   ONLINE-ONLY FIVE-SLOT PALETTE  (body.landing-only)
+   Applied by the inline toggle script when navigator.onLine.
+   Offline: this block never matches, so the landing keeps the
+   :root defaults above — identical to the pre-palette design.
+   Slots roles: s1 amber = primary CTA · s2 coral = secondary/
+   hover · s3 sky = links/badges/Preview · s4 green = success ·
+   s5 violet = heading accent + brand. All colors derive from the
+   five slots or the two neutrals (THM1–THM4, TXT2, BLD2).
+   ============================================================ */
+body.landing-only {
+  --slot-1: #F5B851;  /* amber  — primary CTA            */
+  --slot-2: #F5855E;  /* coral  — secondary CTA + hover  */
+  --slot-3: #6FB5E8;  /* sky    — links, badges, Preview */
+  --slot-4: #8CC26B;  /* green  — success only           */
+  --slot-5: #A863C4;  /* violet — heading accent + brand */
+
+  --bg:           color-mix(in srgb, var(--slot-5) 8%, black);
+  --surface:      color-mix(in srgb, var(--slot-5) 14%, black);
+  --surface-2:    color-mix(in srgb, var(--slot-5) 20%, black);
+  --border:       rgba(248,245,240,0.14);
+  --border-hover: rgba(248,245,240,0.28);
+  --text:         #F8F5F0;
+  --text-muted:   color-mix(in srgb, var(--text) 70%, var(--btn-ink));
+  --text-dim:     color-mix(in srgb, var(--text) 50%, var(--btn-ink));
+  --accent:       var(--slot-1);       /* primary CTA — amber */
+  --accent-deep:  var(--slot-2);       /* primary hover — coral */
+  --accent-glow:  rgba(111,181,232,0.18);   /* sky family (badges/focus) */
+  --accent-text:  color-mix(in srgb, var(--slot-3) 85%, var(--text)); /* sky ink, AA on dark */
+  --heading-accent: color-mix(in srgb, var(--slot-5) 60%, var(--text)); /* violet ink for accents */
+  --nav-bg:             rgba(11,8,16,0.88);
+  --hover-bg:           rgba(248,245,240,0.10);
+  --ghost-hover-border: rgba(248,245,240,0.28);
+  --card-bg:            rgba(11,8,16,0.82);
+  --rail-bg:            rgba(248,245,240,0.14);
+  --btn-ink:            #1A1612;      /* warm black ink on amber/coral */
+  --accent-border-soft: rgba(111,181,232,0.45);  /* sky badge borders */
+  --accent-border-soft-2: rgba(111,181,232,0.40);
+  --accent-border-soft-3: rgba(111,181,232,0.35);
+  --success-bg:     color-mix(in srgb, var(--slot-4) 16%, transparent);
+  --success-border: color-mix(in srgb, var(--slot-4) 40%, transparent);
+  --success-ink:    color-mix(in srgb, var(--slot-4) 50%, var(--text));
+  --danger-bg:      color-mix(in srgb, var(--slot-2) 18%, transparent);
+  --danger-border:  color-mix(in srgb, var(--slot-2) 40%, transparent);
+  --danger-ink:     color-mix(in srgb, var(--slot-2) 55%, var(--text));
+  --danger-text:    color-mix(in srgb, var(--slot-2) 55%, var(--text));
+  --banner-shadow:  rgba(0,0,0,0.5);
+  --paper:          color-mix(in srgb, var(--slot-1) 5%, white); /* light amber-tinted paper */
+  --paper-hint:     #1A1612;          /* warm black ink on light paper */
+  --paper-fade-a:   rgba(254,251,246,0.95);
+  --paper-fade-b:   rgba(254,251,246,0);
+  --input-bg:       rgba(11,8,16,0.45);
+  --scene-bg:       #0D0810;    /* slot-5 8% + black (hex for 3D parse) */
+  --scene-accent:   #6FB5E8;    /* slot-3 sky — accent light/materials  */
+  --scene-fill:     #F5B851;    /* slot-1 amber — warm fill             */
+  --scene-pcb:      #321E3B;    /* slot-5 30% + black (hex for 3D parse) */
+  --palette-gradient: linear-gradient(90deg, var(--slot-1) 0%,
+                     var(--slot-2) 25%, var(--slot-3) 50%,
+                     var(--slot-4) 75%, var(--slot-5) 100%);
+}
+
+/* Heading-accent elements use the violet ink per role (online only) */
+body.landing-only .section-label,
+body.landing-only .hero-heading em,
+body.landing-only .hw-card h3 {
+  color: var(--heading-accent);
+}
+
+/* Gradient presence, ONLINE only, never behind text (TXT1):
+   hero progress rail + section dividers + nav-pill hover underline. */
+body.landing-only .hw-fill {
+  background: var(--palette-gradient);
+}
+
+body.landing-only #about,
+body.landing-only #contact,
+body.landing-only .footer {
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(90deg, var(--slot-1) 0%,
+                 var(--slot-2) 25%, var(--slot-3) 50%,
+                 var(--slot-4) 75%, var(--slot-5) 100%) 1;
+}
+
+body.landing-only .nav-links a:hover,
+body.landing-only .nav-links a:focus-visible {
+  position: relative;
+}
+body.landing-only .nav-links a:hover::after,
+body.landing-only .nav-links a:focus-visible::after {
+  content: "";
+  position: absolute;
+  left: 0.75rem; right: 0.75rem;
+  bottom: 0.2rem;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--palette-gradient);
 }
 
 html {
@@ -79,7 +208,7 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ---------- Focus ring (BLD3) ---------- */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-text);
   outline-offset: 3px;
   border-radius: 4px;
 }
@@ -96,7 +225,7 @@ button { font-family: inherit; cursor: pointer; }
   align-items: center;
   justify-content: space-between;
   padding: 0 clamp(1rem, 5vw, 3rem);
-  background: rgba(14,15,20,0.82);
+  background: var(--nav-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
@@ -114,9 +243,12 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .nav-logo {
-  width: 26px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 50%;
+  object-position: center;
 }
 
 .nav-links {
@@ -138,7 +270,7 @@ button { font-family: inherit; cursor: pointer; }
 .nav-links a:hover,
 .nav-links a:focus-visible {
   color: var(--text);
-  background: rgba(255,255,255,0.06);
+  background: var(--hover-bg);
 }
 
 .nav-links a[aria-current="page"] {
@@ -188,7 +320,7 @@ button { font-family: inherit; cursor: pointer; }
   transition: color var(--transition), background var(--transition);
 }
 
-.nav-drawer a:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.nav-drawer a:hover { color: var(--text); background: var(--hover-bg); }
 
 /* ============================================================
    BUTTONS
@@ -216,13 +348,13 @@ button { font-family: inherit; cursor: pointer; }
 
 .btn-ghost:hover, .btn-ghost:focus-visible {
   color: var(--text);
-  border-color: rgba(255,255,255,0.28);
-  background: rgba(255,255,255,0.06);
+  border-color: var(--ghost-hover-border);
+  background: var(--hover-bg);
 }
 
 .btn-primary {
   background: var(--accent);
-  color: #0e0f14;
+  color: var(--btn-ink);
   border-color: var(--accent);
   font-weight: 600;
 }
@@ -252,7 +384,7 @@ button { font-family: inherit; cursor: pointer; }
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-text);
   margin-bottom: 0.75rem;
 }
 
@@ -274,25 +406,77 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 /* ============================================================
-   HERO  (#home)
-   Full-viewport hero. Laptop scroll-animation sits below the
-   headline inside the same section.
+   HERO  (#home) — Hardware exploded-view 3D
+   Scroll-pinned hero: a 400vh runner with a 100vh sticky stage,
+   staged by GSAP ScrollTrigger (local /vendor libs, O1). Canvas
+   sits behind the overlay; overlay stages cross-fade by scroll.
    ============================================================ */
 #home {
-  min-height: 100vh;
-  padding-top: calc(var(--nav-h) + 2rem);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
+  padding: 0;
+  min-height: 0;
   max-width: 100%;
 }
 
-.hero-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 clamp(1rem,5vw,3rem);
-  width: 100%;
+#hw-scroll {
+  height: 400vh;
+  position: relative;
 }
+
+.hw-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#hw-canvas {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+}
+
+#hw-canvas canvas { display: block; }
+
+.hw-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.hw-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 clamp(1rem, 5vw, 3rem);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  text-align: center;
+}
+
+.hw-stage.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hw-stage--hero {
+  justify-content: flex-start;
+  padding-top: calc(var(--nav-h) + 5rem);
+}
+
+.hw-stage--hero .hero-sub { margin-bottom: 2rem; }
 
 .hero-eyebrow {
   display: inline-flex;
@@ -300,11 +484,11 @@ button { font-family: inherit; cursor: pointer; }
   gap: 0.5rem;
   padding: 0.35rem 0.875rem;
   background: var(--accent-glow);
-  border: 1px solid rgba(185,146,74,0.3);
+  border: 1px solid var(--accent-border-soft);
   border-radius: 100px;
   font-size: 0.8rem;
   font-weight: 500;
-  color: var(--accent);
+  color: var(--accent-text);
   letter-spacing: 0.02em;
   margin-bottom: 1.5rem;
 }
@@ -333,7 +517,7 @@ button { font-family: inherit; cursor: pointer; }
 
 .hero-heading em {
   font-style: normal;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .hero-sub {
@@ -351,37 +535,71 @@ button { font-family: inherit; cursor: pointer; }
   flex-wrap: wrap;
 }
 
-.hero-meta {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  margin-top: 3rem;
-  flex-wrap: wrap;
+/* Left progress rail — brass fill, driven by the scroll timeline */
+.hw-rail {
+  position: absolute;
+  left: clamp(1rem, 3vw, 2.5rem);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 180px;
+  background: var(--rail-bg);
+  border-radius: 3px;
+  overflow: hidden;
 }
 
-.hero-stat {
-  display: flex;
-  flex-direction: column;
+.hw-fill {
+  width: 100%;
+  height: 0%;
+  background: var(--accent);
+  transition: height 0.08s linear;
+  border-radius: 3px;
 }
 
-.hero-stat-num {
-  font-family: var(--font-display);
-  font-size: 1.75rem;
+/* Stage feature cards (Display/Hinge, Keyboard/Core, Thermal/Power) */
+.hw-card {
+  max-width: 380px;
+  background: var(--card-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(1.25rem);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.hw-card.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hw-card h3 {
+  font-size: 1.0625rem;
   font-weight: 600;
-  color: var(--text);
-  line-height: 1;
+  margin-bottom: 0.375rem;
+  color: var(--accent-text);
 }
 
-.hero-stat-label {
-  font-size: 0.8rem;
+.hw-card p {
+  font-size: 0.875rem;
   color: var(--text-muted);
-  margin-top: 0.25rem;
+  line-height: 1.5;
 }
 
-.hero-stat-divider {
-  width: 1px;
-  height: 36px;
-  background: var(--border);
+.hw-stage--end { justify-content: center; }
+
+.scroll-hint {
+  position: absolute;
+  bottom: 2rem;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 /* ============================================================
@@ -419,7 +637,7 @@ button { font-family: inherit; cursor: pointer; }
   width: 36px;
   height: 36px;
   background: var(--accent-glow);
-  border: 1px solid rgba(185,146,74,0.25);
+  border: 1px solid var(--accent-border-soft-2);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -479,7 +697,7 @@ button { font-family: inherit; cursor: pointer; }
   width: 36px;
   height: 36px;
   background: var(--accent-glow);
-  border: 1px solid rgba(185,146,74,0.2);
+  border: 1px solid var(--accent-border-soft-3);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -556,7 +774,7 @@ button { font-family: inherit; cursor: pointer; }
 .field-input:focus,
 .field-textarea:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--accent-text);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
@@ -574,10 +792,10 @@ button { font-family: inherit; cursor: pointer; }
 .contact-form-success {
   display: none;
   padding: 0.875rem 1rem;
-  background: rgba(63,107,82,0.15);
-  border: 1px solid rgba(63,107,82,0.35);
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
   border-radius: var(--radius-sm);
-  color: #6fcf97;
+  color: var(--success-ink);
   font-size: 0.9rem;
   line-height: 1.5;
 }
@@ -603,6 +821,14 @@ button { font-family: inherit; cursor: pointer; }
   gap: 0.5rem;
   font-size: 0.875rem;
   color: var(--text-muted);
+}
+
+.footer-logo {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .footer-links {
@@ -643,7 +869,7 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--text-muted);
   z-index: 200;
   white-space: nowrap;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  box-shadow: 0 8px 24px var(--banner-shadow);
 }
 
 .offline-banner.visible { display: block; }
@@ -656,7 +882,7 @@ button { font-family: inherit; cursor: pointer; }
    ============================================================ */
 .sketchbook-host {
   width: 100%;
-  background: #ece7dc;
+  background: var(--paper);
   position: relative;
 }
 
@@ -668,8 +894,8 @@ button { font-family: inherit; cursor: pointer; }
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(43,39,33,0.45);
-  background: linear-gradient(180deg, rgba(236,231,220,0.95) 0%, rgba(236,231,220,0) 100%);
+  color: var(--paper-hint);
+  background: linear-gradient(180deg, var(--paper-fade-a) 0%, var(--paper-fade-b) 100%);
   pointer-events: none;
   position: relative;
   z-index: 2;
@@ -680,7 +906,7 @@ button { font-family: inherit; cursor: pointer; }
   width: 100%;
   height: clamp(480px, 70svh, 780px);
   border: 0;
-  background: #ece7dc;
+  background: var(--paper);
 }
 
 /* ============================================================
@@ -696,6 +922,8 @@ button { font-family: inherit; cursor: pointer; }
   .contact-form-row { grid-template-columns: 1fr; }
 
   .hero-meta { gap: 1rem; }
+  .hw-rail { display: none; }
+  .hw-stage--hero { padding-top: calc(var(--nav-h) + 4rem); }
 
   #sketchbook-frame {
     height: clamp(360px, 55svh, 560px);
@@ -714,11 +942,30 @@ button { font-family: inherit; cursor: pointer; }
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .hero-eyebrow-dot { animation: none; }
+  .hw-stage, .hw-card { transition: none; }
 }
 </style>
+
+<!-- Login modal: shared component stylesheet (offline-first, local file).
+     Only needed when the online sign-in modal is triggered. -->
+<link rel="stylesheet" href="/shared/css/login-modal.css">
 </head>
 
 <body>
+
+<!-- ============================================================
+     ONLINE-ONLY PALETTE SWITCH
+     The rose palette is applied to the online landing through the
+     body.landing-only class — NOT on :root/<html>. Offline (no
+     connection) the class is absent and the landing renders with
+     the :root defaults below, identical to before this task.
+     ============================================================ -->
+<script>
+  document.body.classList.toggle('landing-only', navigator.onLine);
+  window.addEventListener('online',  function () { document.body.classList.add('landing-only'); });
+  window.addEventListener('offline', function () { document.body.classList.remove('landing-only'); });
+</script>
 
 <!-- ============================================================
      OFFLINE BANNER
@@ -744,10 +991,7 @@ button { font-family: inherit; cursor: pointer; }
      ============================================================ -->
 <nav class="nav" role="navigation" aria-label="Main navigation">
   <a href="#home" class="nav-brand" aria-label="ICT Support Portal home">
-    <svg class="nav-logo" viewBox="0 0 28 32" fill="none" aria-hidden="true">
-      <path d="M2 30V14C2 7.373 7.373 2 14 2C20.627 2 26 7.373 26 14V30"
-            stroke="#b9924a" stroke-width="1.6"/>
-    </svg>
+    <img class="nav-logo" src="/shared/assets/logo/nakuru%20county%20logo.png" alt="">
     ICT Support Portal
   </a>
 
@@ -790,68 +1034,103 @@ button { font-family: inherit; cursor: pointer; }
 </div>
 
 <!-- ============================================================
-     HERO  (#home)
+     HERO  (#home) — Hardware exploded-view 3D
+     Scroll-pinned: 400vh runner, 100vh sticky stage. The 3D scene
+     runs on Three.js (local /vendor), staged by GSAP ScrollTrigger.
+     Sign-in CTAs are <a href="/login"> so the shared login modal
+     intercepts them (never navigates away).
      ============================================================ -->
 <section id="home" aria-labelledby="hero-heading">
 
-  <div class="hero-inner">
+  <div id="hw-scroll">
+    <div class="hw-sticky">
 
-    <div class="hero-eyebrow" aria-label="System status: operational">
-      <span class="hero-eyebrow-dot" aria-hidden="true"></span>
-      ICT Department — Support Portal
-    </div>
+      <div id="hw-canvas"></div>
 
-    <h1 class="hero-heading" id="hero-heading">
-      Your IT issues,<br>
-      <em>resolved fast.</em>
-    </h1>
+      <div class="hw-overlay">
 
-    <p class="hero-sub">
-      The ICT Support Portal lets staff raise tickets, track progress in real time,
-      and communicate directly with the ICT team — all in one place.
-    </p>
+        <!-- Left progress rail -->
+        <div class="hw-rail" aria-hidden="true">
+          <div class="hw-fill" id="hw-progress-fill"></div>
+        </div>
 
-    <div class="hero-actions">
-      <a href="/login" class="btn btn-primary btn-lg">
-        Sign in to your account
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M5 12h14M13 6l6 6-6 6"/>
-        </svg>
-      </a>
-      <a href="#about" class="btn btn-ghost btn-lg">
-        Learn more
-      </a>
-    </div>
+        <!-- Stage 1: Hero (progress 0.00–0.25) -->
+        <div class="hw-stage hw-stage--hero active" id="hw-stage-1">
+          <div class="hero-eyebrow" aria-label="Hardware intelligence">
+            <span class="hero-eyebrow-dot" aria-hidden="true"></span>
+            Hardware Intelligence
+          </div>
+          <h1 class="hero-heading" id="hero-heading">
+            Complete hardware<br>
+            <em>visibility.</em>
+          </h1>
+          <p class="hero-sub">
+            Scroll down to explore the 10-layer component architecture.
+          </p>
+          <a href="/login" class="btn btn-primary">
+            Sign in to your account
+          </a>
+          <p class="scroll-hint">Scroll to explode stack</p>
+        </div>
 
-    <div class="hero-meta" role="list" aria-label="System stats">
-      <div class="hero-stat" role="listitem">
-        <span class="hero-stat-num">24/7</span>
-        <span class="hero-stat-label">Ticket tracking</span>
-      </div>
-      <div class="hero-stat-divider" aria-hidden="true"></div>
-      <div class="hero-stat" role="listitem">
-        <span class="hero-stat-num">&lt;4 hr</span>
-        <span class="hero-stat-label">Avg. first response</span>
-      </div>
-      <div class="hero-stat-divider" aria-hidden="true"></div>
-      <div class="hero-stat" role="listitem">
-        <span class="hero-stat-num">Staff</span>
-        <span class="hero-stat-label">Access only</span>
-      </div>
-    </div>
+        <!-- Stage 2: Display & Hinge (0.25–0.55) -->
+        <div class="hw-stage" id="hw-stage-2">
+          <div class="hw-card" id="hw-feature-1">
+            <h3>Display &amp; Hinge Assembly</h3>
+            <p>
+              The display lid rotates open at −110° on the hinge pivot axis,
+              giving full visibility of the hinge mechanism and screen stack.
+            </p>
+          </div>
+        </div>
 
-  </div><!-- /hero-inner -->
+        <!-- Stage 3: Keyboard & Core PCB (0.55–0.78) -->
+        <div class="hw-stage" id="hw-stage-3">
+          <div class="hw-card" id="hw-feature-2">
+            <h3>Keyboard Deck &amp; Core PCB</h3>
+            <p>
+              The top keyboard deck layer, key matrix, and motherboard separate
+              for full diagnostic access to the core circuitry.
+            </p>
+          </div>
+        </div>
 
-  <!-- ============================================================
-       SKETCHBOOK — Interactive 3D page-curl viewer
-       Replaces the former laptop scroll section.
-       The iframe is sandboxed (allow-scripts only) and sized
-       responsively. sketchbook-doc.js injects 12 pages:
-       9 Singapore sketches + 3 HP OmniBook X spreads.
-       All interactions (drag, tilt, zoom, magnifier) work
-       inside the sandboxed document — no JS in the parent.
-       ============================================================ -->
+        <!-- Stage 4: Thermal & Power (0.78–0.92) -->
+        <div class="hw-stage" id="hw-stage-4">
+          <div class="hw-card" id="hw-feature-3">
+            <h3>Thermal &amp; Power Layer</h3>
+            <p>
+              Fan cooling, battery module, ribbon wiring, and lower chassis
+              break down for thermal and power diagnostics.
+            </p>
+          </div>
+        </div>
+
+        <!-- Stage 5: Final CTA (0.90–1.00) -->
+        <div class="hw-stage hw-stage--end" id="hw-stage-5">
+          <h2 class="hero-heading" style="font-size:clamp(1.8rem,4vw,2.8rem)">
+            Ready to manage your hardware?
+          </h2>
+          <p class="hero-sub">
+            Log in to track hardware tickets and schedule service updates.
+          </p>
+          <a href="/login" class="btn btn-primary">
+            Sign in to account
+          </a>
+        </div>
+
+      </div><!-- /hw-overlay -->
+    </div><!-- /hw-sticky -->
+  </div><!-- /hw-scroll -->
+
+</section><!-- /#home -->
+
+<!-- ============================================================
+     SKETCHBOOK — Interactive 3D page-curl viewer
+     (moved below the 3D hardware hero; structure unchanged.)
+     sandboxed iframe, sketchbook-doc.js injects 12 pages.
+     ============================================================ -->
+<section id="sketchbook" aria-label="Product sketchbook">
   <div class="sketchbook-host" aria-hidden="true">
 
     <!-- Hint label -->
@@ -864,13 +1143,12 @@ button { font-family: inherit; cursor: pointer; }
       title="Interactive sketchbook — HP OmniBook X &amp; Singapore"
       sandbox="allow-scripts"
       loading="lazy"
-      style="display:block;width:100%;border:0;opacity:0;background:#ece7dc;
+      style="display:block;width:100%;border:0;opacity:0;background:var(--paper, #ece7dc);
              transition:opacity 220ms ease-out;"
       aria-hidden="true"
     ></iframe>
   </div>
-
-</section><!-- /#home -->
+</section><!-- /#sketchbook -->
 
 <!-- ============================================================
      ABOUT  (#about)
@@ -1109,7 +1387,7 @@ button { font-family: inherit; cursor: pointer; }
           <p class="contact-form-note">
             This form sends a message to the ICT team. For urgent issues,
             call ext. 100 directly. If you have a portal account,
-            <a href="/login" style="color:var(--accent)">sign in</a> to raise
+            <a href="/login" style="color:var(--accent-text)">sign in</a> to raise
             a tracked ticket instead.
           </p>
 
@@ -1142,10 +1420,7 @@ button { font-family: inherit; cursor: pointer; }
 <footer role="contentinfo">
   <div class="footer">
     <div class="footer-brand">
-      <svg width="18" height="20" viewBox="0 0 28 32" fill="none" aria-hidden="true">
-        <path d="M2 30V14C2 7.373 7.373 2 14 2C20.627 2 26 7.373 26 14V30"
-              stroke="#b9924a" stroke-width="1.6"/>
-      </svg>
+      <img class="footer-logo" src="/shared/assets/logo/nakuru%20county%20logo.png" alt="">
       ICT Support Portal
     </div>
 
@@ -1246,16 +1521,19 @@ button { font-family: inherit; cursor: pointer; }
   contactForm.addEventListener('submit', function (e) {
     e.preventDefault();
 
+    var showError = function (message) {
+      contactSuccess.style.background = 'var(--danger-bg)';
+      contactSuccess.style.borderColor = 'var(--danger-border)';
+      contactSuccess.style.color = 'var(--danger-ink)';
+      contactSuccess.textContent = message;
+      contactSuccess.style.display = 'block';
+    };
+
     /* Offline: tell the user clearly (OFF7 / O9) */
     if (!navigator.onLine) {
-      contactSuccess.style.display = 'none';
-      contactSuccess.style.background = 'rgba(178,59,46,0.12)';
-      contactSuccess.style.borderColor = 'rgba(178,59,46,0.3)';
-      contactSuccess.style.color = '#f87171';
-      contactSuccess.textContent =
+      showError(
         'You are currently offline. Please try again when connected, ' +
-        'or call ext. 100 directly.';
-      contactSuccess.style.display = 'block';
+        'or call ext. 100 directly.');
       return;
     }
 
@@ -1266,22 +1544,13 @@ button { font-family: inherit; cursor: pointer; }
     var message = document.getElementById('c-message').value.trim();
 
     if (!name || !email || !subject || !message) {
-      contactSuccess.style.display = 'none';
-      contactSuccess.style.background = 'rgba(178,59,46,0.12)';
-      contactSuccess.style.borderColor = 'rgba(178,59,46,0.3)';
-      contactSuccess.style.color = '#f87171';
-      contactSuccess.textContent = 'Please fill in all fields before sending.';
-      contactSuccess.style.display = 'block';
+      showError('Please fill in all fields before sending.');
       return;
     }
 
     var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRe.test(email)) {
-      contactSuccess.style.background = 'rgba(178,59,46,0.12)';
-      contactSuccess.style.borderColor = 'rgba(178,59,46,0.3)';
-      contactSuccess.style.color = '#f87171';
-      contactSuccess.textContent = 'Enter a valid email address.';
-      contactSuccess.style.display = 'block';
+      showError('Enter a valid email address.');
       return;
     }
 
@@ -1311,12 +1580,30 @@ button { font-family: inherit; cursor: pointer; }
   });
 
   /* ------------------------------------------------------------------ */
-  /* 4. OFFLINE BANNER                                                   */
+  /* 4. OFFLINE BANNER + AUTO-SWITCH TO OFFLINE LANDING                  */
   /* ------------------------------------------------------------------ */
   var offlineBanner = document.getElementById('offline-banner');
+  var offlineRedirectTimer = null;
 
   function updateOnlineState() {
     offlineBanner.classList.toggle('visible', !navigator.onLine);
+
+    if (!navigator.onLine) {
+      /* No connection: switch to the offline default landing page
+         (/login — login.html served from the service worker shell,
+         sw.js:50). The online landing relies on online-only features, so
+         we do not keep it visible while offline. Debounced so a dropped
+         connection that returns within a moment does not flicker the page. */
+      var here = window.location.pathname.split(/[?#]/, 1)[0];
+      if (here === '/' || here === '/landing.html') {
+        clearTimeout(offlineRedirectTimer);
+        offlineRedirectTimer = setTimeout(function () {
+          if (!navigator.onLine) { window.location.href = '/login'; }
+        }, 400);
+      }
+    } else {
+      clearTimeout(offlineRedirectTimer);
+    }
   }
 
   window.addEventListener('online',  updateOnlineState);
@@ -1349,6 +1636,247 @@ button { font-family: inherit; cursor: pointer; }
     initSketchbook();
   }
 })();
+</script>
+
+<!-- Login modal runtime: shared local files, no remote assets (O1).
+     api.js is a no-op until called; icons.js/password-field.js wire on
+     DOMContentLoaded with no side effects on the landing page. -->
+<script src="/shared/js/api.js"></script>
+<script src="/shared/js/icons.js"></script>
+<script src="/shared/js/password-field.js"></script>
+<script src="/shared/js/login-modal.js"></script>
+
+<!-- Hardware exploded-view 3D: local vendor libs only (O1).
+     gsap + ScrollTrigger are classic scripts; Three.js is the r160
+     ES-module build imported below. The scene is scroll-pinned inside
+     #hw-scroll and staged by a scrubbed GSAP timeline. If the libs or
+     the canvas fail to load, stage 1 (the hero) stays visible with its
+     static CTA — the page never degrades to a blank hero. -->
+<script src="/vendor/gsap.min.js"></script>
+<script src="/vendor/ScrollTrigger.min.js"></script>
+<script type="module">
+  import * as THREE from '/vendor/three.module.min.js';
+
+  (function () {
+    'use strict';
+
+    var container = document.getElementById('hw-canvas');
+    if (!container || typeof window.gsap === 'undefined' ||
+        typeof window.ScrollTrigger === 'undefined') { return; }
+
+    /* Scene colors derive from the page tokens so the 3D hardware
+       follows the ONLINE rose palette without a rebuild (S2/S7). */
+    function sceneHex(name, fallback) {
+      var v = getComputedStyle(document.body).getPropertyValue(name).trim();
+      return (v && /^#[0-9a-fA-F]{6}$/.test(v)) ? parseInt(v.slice(1), 16) : fallback;
+    }
+
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(sceneHex('--scene-bg', 0x0e0f14));
+
+    var camera = new THREE.PerspectiveCamera(55, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(3.2, 2.2, 4.2);
+    camera.lookAt(0, 0, 0);
+
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    /* Lighting — brass key matches the page accent (#b9924a) */
+    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    var dirLight = new THREE.DirectionalLight(0xffffff, 0.95);
+    dirLight.position.set(5, 9, 6);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+    var pointLight = new THREE.PointLight(sceneHex('--scene-accent', 0xb9924a), 0.65, 12);
+    pointLight.position.set(-3.2, 2.4, 3.2);
+    scene.add(pointLight);
+    var fillLight = new THREE.PointLight(sceneHex('--scene-fill', 0x6b7cff), 0.25, 10);
+    fillLight.position.set(3, 1.5, -2);
+    scene.add(fillLight);
+
+    /* Materials (token-derived hues) */
+    function mat(color, metalness, roughness, emissive, emissiveIntensity) {
+      var options = { color: color, metalness: metalness, roughness: roughness };
+      if (emissive) { options.emissive = emissive; options.emissiveIntensity = emissiveIntensity || 0.1; }
+      return new THREE.MeshStandardMaterial(options);
+    }
+    var mChassis = mat(0x2a2d36, 0.65, 0.35);
+    var mDeck = mat(0x1e2129, 0.55, 0.45);
+    var mKeys = mat(0x12141a, 0.15, 0.85);
+    var accentHue = sceneHex('--scene-accent', 0xb9924a);
+    var mAccent = mat(accentHue, 0.85, 0.2, accentHue, 0.15);
+    var mScreen = mat(0x050508, 0.9, 0.08);
+    var mPcb = mat(sceneHex('--scene-pcb', 0x1b4332), 0.35, 0.55);
+    var mBattery = mat(0x1a1d25, 0.4, 0.6);
+    var mFan = mat(0x2c303a, 0.7, 0.3);
+    var mCable = mat(accentHue, 0.6, 0.4, accentHue, 0.08);
+
+    var laptopGroup = new THREE.Group();
+    scene.add(laptopGroup);
+
+    function part(geo, material) {
+      var mesh = new THREE.Mesh(geo, material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
+
+    /* --- 10 synchronized hardware layers --- */
+    var bottomChassis = part(new THREE.BoxGeometry(2.85, 0.06, 1.85), mChassis);
+    bottomChassis.position.set(0, 0, 0);
+    var ioPorts = part(new THREE.BoxGeometry(2.65, 0.035, 1.65), mAccent);
+    ioPorts.position.set(0, 0.04, 0);
+    var ribbonCables = part(new THREE.BoxGeometry(2.15, 0.015, 1.15), mCable);
+    ribbonCables.position.set(0, 0.07, 0);
+    var batteryPack = part(new THREE.BoxGeometry(2.35, 0.055, 0.85), mBattery);
+    batteryPack.position.set(0, 0.11, 0.35);
+    var coolingFan = part(new THREE.CylinderGeometry(0.32, 0.32, 0.05, 32), mFan);
+    coolingFan.position.set(-0.75, 0.14, -0.35);
+    coolingFan.rotation.x = Math.PI / 2;
+    var motherboard = part(new THREE.BoxGeometry(2.55, 0.04, 1.45), mPcb);
+    motherboard.position.set(0, 0.18, 0);
+    var keyboardLayer = part(new THREE.BoxGeometry(2.35, 0.03, 1.05), mKeys);
+    keyboardLayer.position.set(0, 0.22, -0.15);
+    var keyboardDeck = part(new THREE.BoxGeometry(2.85, 0.06, 1.85), mDeck);
+    keyboardDeck.position.set(0, 0.27, 0);
+    var hinge = part(new THREE.CylinderGeometry(0.045, 0.045, 2.7, 20), mAccent);
+    hinge.rotation.z = Math.PI / 2;
+    hinge.position.set(0, 0.32, -0.92);
+
+    /* Display lid group — opens around the hinge */
+    var lidGroup = new THREE.Group();
+    lidGroup.position.set(0, 0.32, -0.92);
+    var lidBody = part(new THREE.BoxGeometry(2.85, 0.05, 1.85), mChassis);
+    lidBody.position.set(0, 0, 0.925);
+    var screenGlass = part(new THREE.BoxGeometry(2.6, 0.012, 1.6), mScreen);
+    screenGlass.position.set(0, -0.028, 0.925);
+    var bezel = part(new THREE.BoxGeometry(2.7, 0.008, 1.7), mAccent);
+    bezel.position.set(0, -0.022, 0.925);
+    lidGroup.add(lidBody, screenGlass, bezel);
+
+    var layers = [
+      { mesh: bottomChassis, explodedY: -1.45 },
+      { mesh: ioPorts, explodedY: -1.10 },
+      { mesh: ribbonCables, explodedY: -0.75 },
+      { mesh: batteryPack, explodedY: -0.40 },
+      { mesh: coolingFan, explodedY: -0.05 },
+      { mesh: motherboard, explodedY: 0.30 },
+      { mesh: keyboardLayer, explodedY: 0.65 },
+      { mesh: keyboardDeck, explodedY: 1.00 },
+      { mesh: hinge, explodedY: 1.35 },
+      { mesh: lidGroup, explodedY: 1.80 }
+    ];
+    layers.forEach(function (layer) { laptopGroup.add(layer.mesh); layer.restY = layer.mesh.position.y; });
+
+    /* Brass data points */
+    var particleMat = mat(accentHue, 0.8, 0.2, accentHue, 0.4);
+    for (var i = 0; i < 12; i++) {
+      var p = part(new THREE.SphereGeometry(0.025, 8, 8), particleMat);
+      p.position.set(
+        (Math.random() - 0.5) * 3.5,
+        (Math.random() - 0.5) * 1.2,
+        (Math.random() - 0.5) * 2.8
+      );
+      laptopGroup.add(p);
+    }
+
+    /* UI refs */
+    var stages = [
+      document.getElementById('hw-stage-1'),
+      document.getElementById('hw-stage-2'),
+      document.getElementById('hw-stage-3'),
+      document.getElementById('hw-stage-4'),
+      document.getElementById('hw-stage-5')
+    ];
+    var featureCards = [
+      document.getElementById('hw-feature-1'),
+      document.getElementById('hw-feature-2'),
+      document.getElementById('hw-feature-3')
+    ];
+    var progressFill = document.getElementById('hw-progress-fill');
+
+    /* GSAP timeline — scrub drives lid + explosion + overlay sync */
+    var gsap = window.gsap;
+    gsap.registerPlugin(window.ScrollTrigger);
+
+    var tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: '#hw-scroll',
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 0.55
+      }
+    });
+
+    tl.to({}, {
+      duration: 1,
+      onUpdate: function () {
+        var progress = tl.progress();
+        var i;
+
+        progressFill.style.height = (progress * 100) + '%';
+
+        var sectionIndex = Math.min(stages.length - 1, Math.floor(progress * stages.length));
+        for (i = 0; i < stages.length; i++) {
+          stages[i].classList.toggle('active', i === sectionIndex);
+          if (i === sectionIndex) { stages[i].setAttribute('aria-hidden', 'false'); }
+          else { stages[i].setAttribute('aria-hidden', 'true'); }
+        }
+
+        /* Stage 2: lid opening between 0.25 and 0.55 */
+        var openProgress = 0;
+        if (progress > 0.25) { openProgress = Math.min(1, (progress - 0.25) / 0.30); }
+        var easedOpen = openProgress * openProgress * (3 - 2 * openProgress);
+        lidGroup.rotation.x = -easedOpen * 1.92;
+
+        /* Stage 3: layer explosion from 0.55 to 1.00 */
+        var explodeProgress = 0;
+        if (progress > 0.55) { explodeProgress = (progress - 0.55) / 0.45; }
+        var easedExplode = explodeProgress * explodeProgress * (3 - 2 * explodeProgress);
+        for (i = 0; i < layers.length; i++) {
+          layers[i].mesh.position.y = THREE.MathUtils.lerp(layers[i].restY, layers[i].explodedY, easedExplode);
+        }
+
+        /* Feature card reveal per threshold */
+        if (progress >= 0.25 && progress < 0.55) {
+          featureCards[0].classList.add('visible');
+          featureCards[1].classList.remove('visible');
+          featureCards[2].classList.remove('visible');
+        } else if (progress >= 0.55 && progress < 0.78) {
+          featureCards[0].classList.remove('visible');
+          featureCards[1].classList.add('visible');
+          featureCards[2].classList.remove('visible');
+        } else if (progress >= 0.78 && progress < 0.92) {
+          featureCards[0].classList.remove('visible');
+          featureCards[1].classList.remove('visible');
+          featureCards[2].classList.add('visible');
+        } else {
+          for (i = 0; i < featureCards.length; i++) { featureCards[i].classList.remove('visible'); }
+        }
+
+        /* Gentle camera pull-back + elevation */
+        camera.position.x = THREE.MathUtils.lerp(3.2, 4.0, progress);
+        camera.position.y = THREE.MathUtils.lerp(2.2, 3.0, progress);
+        camera.position.z = THREE.MathUtils.lerp(4.2, 5.2, progress);
+        camera.lookAt(0, 0.2 * easedExplode, 0);
+      }
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', function () {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+  })();
 </script>
 
 </body>

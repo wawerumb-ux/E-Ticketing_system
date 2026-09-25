@@ -100,9 +100,7 @@ class TicketingApp {
 
     setupEventListeners() {
         document.addEventListener('notification-prefs:changed', () => {
-            const visible = this.visibleNotifications();
-            const visibleUnread = visible.filter(n => !n.is_read).length;
-            this.renderNotificationBadge(visibleUnread);
+            this.refreshNotificationCounts();
             this.renderNotificationList();
         });
 
@@ -484,14 +482,14 @@ class TicketingApp {
 
         tbody.innerHTML = tickets.map(ticket => `
             <tr>
-                <td><strong>${ticket.ticket_number}</strong></td>
-                <td>${escapeHtml(ticket.title)}</td>
-                <td>${escapeHtml(this.capitalize(ticket.category))}</td>
-                <td><span class="priority-badge ${ticket.priority}">${this.capitalize(ticket.priority)}</span></td>
-                <td><span class="status-badge ${ticket.status}">${this.capitalize(ticket.status.replace('_', ' '))}</span></td>
-                <td>${escapeHtml(ticket.assigned_to || 'Unassigned')}</td>
-                <td>${new Date(ticket.created_at).toLocaleDateString()}</td>
-                <td>
+                <td data-label="Ticket #"><strong>${escapeHtml(ticket.ticket_number)}</strong></td>
+                <td data-label="Title">${escapeHtml(ticket.title)}</td>
+                <td data-label="Category">${escapeHtml(this.capitalize(ticket.category))}</td>
+                <td data-label="Priority"><span class="priority-badge ${ticket.priority}">${this.capitalize(ticket.priority)}</span></td>
+                <td data-label="Status"><span class="status-badge ${ticket.status}">${this.capitalize(ticket.status.replace('_', ' '))}</span></td>
+                <td data-label="Assigned To">${escapeHtml(ticket.assigned_to || 'Unassigned')}</td>
+                <td data-label="Created">${new Date(ticket.created_at).toLocaleDateString()}</td>
+                <td data-label="Actions">
                     <div class="action-buttons">
                         <button class="btn-secondary btn-sm" aria-label="View ticket" onclick="app.openTicketDetail(${ticket.id})">
                             ${Icons.render('eye')}
@@ -953,9 +951,17 @@ openTicketDetail(id) {
             this.notificationsOffline = false;
             this.saveNotificationsCache();
         }
+        this.refreshNotificationCounts();
+        this.renderNotificationList();
+    }
+
+    // Unread counts come from the category-filtered list so a disabled
+    // category disappears from the bell badge/pill too, not just the list.
+    refreshNotificationCounts() {
+        const visible = this.visibleNotifications();
+        this.notificationUnread = visible.filter(n => !n.is_read).length;
         this.renderNotificationBadge(this.notificationUnread);
         this.updateNotificationUnreadUI();
-        this.renderNotificationList();
     }
 
     saveNotificationsCache() {

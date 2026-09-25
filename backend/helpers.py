@@ -33,6 +33,7 @@ from models import (
     ApiToken,
     KnowledgeArticle,
     Notification,
+    NotificationCategory,
     NotificationPreference,
     ProcessedEmail,
     Role,
@@ -147,8 +148,42 @@ CATEGORY_BY_TYPE = {
 }
 
 
+def _db_notification_categories():
+    """Live NotificationCategory rows indexed by cid.
+
+    Returns {} on any failure (e.g. the notifications.categories table has not
+    been migrated yet) so the static registry remains the fallback — the same
+    graceful-degradation contract the prefs helpers already follow.
+    """
+    try:
+        return {
+            c.cid: {
+                'label': c.label,
+                'description': c.description or '',
+                'icon': c.icon or 'bell',
+                'role': c.role or 'shared',
+                'active': bool(c.active),
+            }
+            for c in NotificationCategory.query.all()
+        }
+    except Exception:
+        return {}
+
+
+def get_notification_registry():
+    """Merged category registry: live DB rows win, static rows fill gaps.
+
+    Used by the prefs APIs, the bell/dropdown tab labels, and any admin CRUD.
+    Static built-ins below 4 active rows) stay listed so the UI is never left
+    missing a category the backend can still emit.
+    """
+    merged = {cid: dict(meta) for cid, meta in NOTIFICATION_CATEGORIES.items()}
+    merged.update(_db_notification_categories())
+    return merged
+
+
 def category_role(category):
-    meta = NOTIFICATION_CATEGORIES.get(category)
+    meta = get_notification_registry().get(category)
     return (meta or {}).get('role', 'shared')
 
 
@@ -420,12 +455,12 @@ def notification_category_prefs(user):
     """All category toggles for a user (defaults to enabled where unset)."""
     pref = _ensure_pref(user)
     cats = pref.categories or {}
-    return {cid: bool(cats.get(cid, True)) for cid in NOTIFICATION_CATEGORIES}
+    return {cid: bool(cats.get(cid, True)) for cid in get_notification_registry()}
 
 
 def set_notification_category(user, category, enabled):
     """Persist one category toggle. Returns False for unknown categories."""
-    if user is None or category not in NOTIFICATION_CATEGORIES:
+    if user is None or category not in get_notification_registry():
         return False
     pref = _ensure_pref(user)
     cats = dict(pref.categories or {})
@@ -462,7 +497,19 @@ def log_priority_derived(actor, ticket_id, priority, source, explanation=None):
               json.dumps(record, default=str))
 
 
-def notify_users(usernames, ntype, message, link, email_subject, email_body):
+def notify_users(usernames, ntype, message, link, email_subject, email_body, category=None):
+    """Notify a list of users in-app (and by email when configured).
+
+    ``category`` is the explicit category cid (used for custom/admin categories
+    that have no CATEGORY_BY_TYPE entry); when omitted it is derived from
+    ``ntype``. A category that has been deactivated (``active: False``) stops
+    its triggers from emitting — the same toggle the admin CRUD writes.
+    """
+    cat = category or CATEGORY_BY_TYPE.get(ntype)
+    if cat:
+        meta = get_notification_registry().get(cat)
+        if meta is not None and not meta.get('active', True):
+            return
     seen = set()
     for uname in usernames:
         if not uname or uname in seen:
@@ -471,12 +518,12 @@ def notify_users(usernames, ntype, message, link, email_subject, email_body):
         user = User.query.filter_by(username=uname).first()
         if not user:
             continue
-        category = CATEGORY_BY_TYPE.get(ntype)
-        if category and not notification_category_enabled(user, category):
+        if cat and not notification_category_enabled(user, cat):
             continue
         email_ok, inapp_ok = get_notification_prefs(user)
         if inapp_ok:
-            db.session.add(Notification(user_id=user.id, type=ntype, message=message, link=link))
+            db.session.add(Notification(user_id=user.id, type=ntype, category=cat,
+                                        message=message, link=link))
         if user.email and email_ok and email_global_enabled():
             site = get_setting('site_name', 'ICT E-Ticketing') or 'ICT E-Ticketing'
             send_email(user.email, email_subject, email_body,

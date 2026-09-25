@@ -4,16 +4,19 @@ audit logs, API tokens and webhooks."""
 import csv
 import io
 import json
+import re
 import secrets
 from collections import Counter
 from datetime import datetime, timedelta
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, abort, jsonify, request
 from flask_jwt_extended import get_jwt
 
 from extensions import db, utcnow
 from helpers import (
+    CATEGORY_BY_TYPE,
     DEFAULT_SETTINGS,
+    NOTIFICATION_CATEGORIES,
     PRIORITY_ALLOWED,
     PRIORITY_ALLOWED_FIELDS,
     PRIORITY_ALLOWED_OPS,
@@ -32,7 +35,20 @@ from helpers import (
     role_required,
     validate_priority_rules,
 )
-from models import ApiToken, AuditLog, Category, Department, PriorityRule, Role, SystemSetting, Ticket, TicketComment, User, Webhook
+from models import (
+    ApiToken,
+    AuditLog,
+    Category,
+    Department,
+    NotificationCategory,
+    PriorityRule,
+    Role,
+    SystemSetting,
+    Ticket,
+    TicketComment,
+    User,
+    Webhook,
+)
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -178,6 +194,188 @@ def deactivate_role(role_id):
     log_audit(actor, 'deactivate', 'role', role.id, f"Deactivated role '{role.name}'")
     db.session.commit()
     return jsonify({'message': 'Role deactivated'}), 200
+
+
+# ============ NOTIFICATION CATEGORIES (custom-trigger subsystem) ============
+# Rows are soft-deletable via active=False (never hard-deleted — referenced by
+# cid on notifications.category and in every user's preference JSON).
+# cid is immutable once created (same rule as username). The static built-ins
+# in helpers.NOTIFICATION_CATEGORIES remain the migration seed; live rows win.
+
+_ALLOWED_TRIGGERS = {None, 'broadcast'}  # the only real triggers available today (S2)
+_ICON_RE = re.compile(r'^[a-z0-9-]{1,30}$')
+
+
+def _slug_cid(label):
+    """Derive a unique, stable cid from a label: lowercase ASCII slug."""
+    slug = re.sub(r'[^a-z0-9]+', '-', label.lower()).strip('-')
+    return slug[:40]
+
+
+def _serialize_category_row(c):
+    return {
+        'cid': c.cid,
+        'label': c.label,
+        'description': c.description or '',
+        'icon': c.icon or 'bell',
+        'role': c.role or 'shared',
+        'trigger': c.trigger_type,
+        'active': bool(c.active),
+        'built_in': c.cid in NOTIFICATION_CATEGORIES,
+    }
+
+
+def _category_row_or_404(cid):
+    row = NotificationCategory.query.filter_by(cid=cid).first()
+    if row is None:
+        # Built-in may be missing only if the seed has not run — surface it as
+        # a stable 404 rather than a 500 (registry gaps stay data, not crashes).
+        abort(404, description='Unknown notification category')
+    return row
+
+
+def _validate_category_payload(data, partial=False):
+    """Validate an admin category payload. Returns (error, cleaned) or (None, {})."""
+    cleaned = {}
+    if not partial or 'label' in data:
+        label = (data.get('label') or '').strip()
+        if not label:
+            return 'Label is required', None
+        if len(label) > 80:
+            return 'Label must be 80 characters or fewer', None
+        cleaned['label'] = label
+    if 'description' in data:
+        desc = (data.get('description') or '').strip()
+        if len(desc) > 255:
+            return 'Description must be 255 characters or fewer', None
+        cleaned['description'] = desc
+    if 'icon' in data:
+        icon = (data.get('icon') or 'bell').strip()
+        if not _ICON_RE.match(icon):
+            return 'Icon must be a lowercase slug (a-z, 0-9, -), max 30 chars', None
+        cleaned['icon'] = icon
+    if 'role' in data:
+        role = (data.get('role') or 'shared').strip().lower()
+        if role not in ('shared', 'admin'):
+            return "role must be 'shared' or 'admin'", None
+        cleaned['role'] = role
+    if 'trigger' in data:
+        trigger = data.get('trigger') or None
+        if trigger not in _ALLOWED_TRIGGERS:
+            return "trigger must be 'broadcast' or null (only real triggers today)", None
+        cleaned['trigger'] = trigger
+    if 'active' in data:
+        cleaned['active'] = bool(data.get('active'))
+    return None, cleaned
+
+
+@admin_bp.route('/api/notification-categories', methods=['GET'])
+@role_required('admin')
+def get_notification_categories():
+    rows = NotificationCategory.query.order_by(NotificationCategory.cid.asc()).all()
+    known = {r.cid for r in rows}
+    out = [_serialize_category_row(r) for r in rows]
+    # Surface any static built-in not yet seeded (migration edge) so the admin
+    # list always matches what users can see.
+    for cid, meta in NOTIFICATION_CATEGORIES.items():
+        if cid not in known:
+            trigger = next((v for v, c in CATEGORY_BY_TYPE.items() if c == cid), None)
+            out.append({
+                'cid': cid,
+                'label': meta.get('label', cid),
+                'description': meta.get('description', ''),
+                'icon': meta.get('icon', 'bell'),
+                'role': meta.get('role', 'shared'),
+                'trigger': trigger,
+                'active': bool(meta.get('active', True)),
+                'built_in': True,
+            })
+    out.sort(key=lambda c: c['cid'])
+    return jsonify(out), 200
+
+
+@admin_bp.route('/api/notification-categories', methods=['POST'])
+@role_required('admin')
+def create_notification_category():
+    data = request.json or {}
+    error, cleaned = _validate_category_payload(data)
+    if error:
+        return jsonify({'error': error}), 400
+    actor = get_jwt().get('username', 'admin')
+
+    cid = _slug_cid(cleaned['label'])
+    if not cid:
+        return jsonify({'error': 'Label must contain at least one letter or digit'}), 400
+
+    existing = NotificationCategory.query.filter_by(cid=cid).first()
+    if existing:
+        if existing.active:
+            return jsonify({'error': f"A category with id '{cid}' already exists"}), 400
+        existing.active = True
+        for key in ('label', 'description', 'icon', 'role'):
+            if key in cleaned:
+                setattr(existing, key, cleaned[key])
+        if 'trigger' in cleaned:
+            existing.trigger_type = cleaned['trigger']
+        log_audit(actor, 'reactivate', 'notification_category', existing.cid,
+                  f"Reactivated notification category '{existing.label}'")
+        db.session.commit()
+        return jsonify(_serialize_category_row(existing)), 201
+
+    row = NotificationCategory(
+        cid=cid,
+        label=cleaned['label'],
+        description=cleaned.get('description', ''),
+        icon=cleaned.get('icon', 'bell'),
+        role=cleaned.get('role', 'shared'),
+        trigger_type=cleaned.get('trigger', 'broadcast'),
+        active=cleaned.get('active', True),
+    )
+    db.session.add(row)
+    log_audit(actor, 'create', 'notification_category', cid,
+              f"Created notification category '{row.label}' (trigger={row.trigger_type}, role={row.role})")
+    db.session.commit()
+    return jsonify(_serialize_category_row(row)), 201
+
+
+@admin_bp.route('/api/notification-categories/<cid>', methods=['PUT'])
+@role_required('admin')
+def update_notification_category(cid):
+    row = _category_row_or_404(cid)
+    data = request.json or {}
+    if 'label' in data:
+        new_label = (data.get('label') or '').strip()
+        if not new_label:
+            return jsonify({'error': 'Label is required'}), 400
+        if _slug_cid(new_label) != row.cid:
+            return jsonify({'error': 'Label cannot change the category id (cid is immutable)'}), 400
+    error, cleaned = _validate_category_payload(data, partial=True)
+    if error:
+        return jsonify({'error': error}), 400
+
+    diff = {}
+    for key, value in cleaned.items():
+        current = getattr(row, 'trigger_type' if key == 'trigger' else key)
+        if current != value:
+            diff[key] = {'from': current, 'to': value}
+            setattr(row, 'trigger_type' if key == 'trigger' else key, value)
+    if diff:
+        log_audit(actor := get_jwt().get('username', 'admin'),
+                  'update', 'notification_category', row.cid, json.dumps(diff, default=str))
+        db.session.commit()
+    return jsonify(_serialize_category_row(row)), 200
+
+
+@admin_bp.route('/api/notification-categories/<cid>', methods=['DELETE'])
+@role_required('admin')
+def deactivate_notification_category(cid):
+    row = _category_row_or_404(cid)
+    row.active = False
+    actor = get_jwt().get('username', 'admin')
+    log_audit(actor, 'deactivate', 'notification_category', row.cid,
+              f"Deactivated notification category '{row.label}'")
+    db.session.commit()
+    return jsonify({'message': 'Notification category deactivated'}), 200
 
 
 # ============ SETTINGS ============

@@ -120,7 +120,10 @@ const AuthAPI = {
     logout() {
         this.clearTokens();
         sessionStorage.removeItem('current_user');
-        window.location.href = '/login';
+        // Return to the landing page that matches the current state:
+        // online  -> /        (landing.html with the sign-in popup)
+        // offline -> /login   (the offline default landing page, cached login.html)
+        window.location.href = navigator.onLine ? '/' : '/login';
     },
     // Refresh the access token with the existing refresh-token flow. Stores the
     // new access token and returns it. Throws if the refresh token is unusable.
@@ -1194,6 +1197,48 @@ static async createTicketCommentOffline(ticketId, message, isInternal = false, c
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to update preference');
+        return data;
+    }
+
+    static async getNotificationCategories() {
+        try {
+            const response = await apiFetch(`${API_BASE_URL}/notification-categories`);
+            if (!response.ok) throw new Error('Failed to fetch notification categories');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            return [];
+        }
+    }
+
+    static async createNotificationCategory(payload) {
+        const response = await apiFetch(`${API_BASE_URL}/notification-categories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to create notification category');
+        return data;
+    }
+
+    static async updateNotificationCategory(cid, payload) {
+        const response = await apiFetch(`${API_BASE_URL}/notification-categories/${encodeURIComponent(cid)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to update notification category');
+        return data;
+    }
+
+    static async deactivateNotificationCategory(cid) {
+        const response = await apiFetch(`${API_BASE_URL}/notification-categories/${encodeURIComponent(cid)}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to deactivate notification category');
         return data;
     }
 

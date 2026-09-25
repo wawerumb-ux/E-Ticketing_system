@@ -15,9 +15,9 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from extensions import db, utcnow
 from helpers import (
-    NOTIFICATION_CATEGORIES,
     _as_str,
     category_role,
+    get_notification_registry,
     log_audit,
     notification_category_prefs,
     role_required,
@@ -337,10 +337,11 @@ def get_my_notification_preferences():
     user = User.query.get_or_404(user_id)
     prefs = notification_category_prefs(user)
     permitted = _permitted_categories(user)
+    registry = get_notification_registry()
     db.session.commit()
     return jsonify({
         'categories': {cid: prefs[cid] for cid in permitted},
-        'registry': {cid: NOTIFICATION_CATEGORIES[cid] for cid in permitted},
+        'registry': {cid: registry[cid] for cid in permitted},
     }), 200
 
 
@@ -353,7 +354,7 @@ def update_my_notification_preferences():
     category = data.get('category')
     enabled = data.get('enabled')
 
-    if category not in NOTIFICATION_CATEGORIES:
+    if category not in get_notification_registry():
         return jsonify({'error': 'Unknown notification category'}), 400
     if not isinstance(enabled, bool):
         return jsonify({'error': 'enabled must be a boolean'}), 400
@@ -372,7 +373,8 @@ def update_my_notification_preferences():
 
 def _permitted_categories(user):
     role = (user.role or 'staff').lower()
-    return [cid for cid, meta in NOTIFICATION_CATEGORIES.items()
+    registry = get_notification_registry()
+    return [cid for cid, meta in registry.items()
             if category_role(cid) == 'shared' or role == 'admin']
 
 

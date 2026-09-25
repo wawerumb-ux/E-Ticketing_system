@@ -226,6 +226,15 @@
         return cache && cache.categories ? cache.categories : null;
     }
 
+    // Live category registry (cid -> label/icon/role/active) from the last
+    // server reply, or null when nothing has been cached yet. Callers that
+    // need current labels (bell tabs, admin category manager) refresh via
+    // load() first; getRegistry() itself never networks.
+    function getRegistry() {
+        var cache = readCache();
+        return cache && cache.registry ? cache.registry : null;
+    }
+
     function isCategoryEnabled(category) {
         var categories = getCategories();
         if (!categories) return true;
@@ -238,6 +247,7 @@
         load: load,
         getLastSynced: getLastSynced,
         getCategories: getCategories,
+        getRegistry: getRegistry,
         isCategoryEnabled: isCategoryEnabled
     };
 })();

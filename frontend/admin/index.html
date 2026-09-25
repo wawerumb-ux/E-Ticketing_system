@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ICT E-Ticketing System - Admin Portal</title>
+    <link rel="icon" type="image/jpeg" href="/shared/assets/logo/county%20logo%20dark.jpg">
     <link rel="stylesheet" href="/shared/css/style.css">
     <script>
         /* Pre-paint restore (FOUC guard): theme + sidebar state on <html>.
@@ -39,7 +40,7 @@
     <div class="app-container">
         <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar" tabindex="-1" data-brand="admin">
             <div class="sidebar-header">
-                <h2><button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="false"><i data-icon="ticket-alt" aria-hidden="true"></i></button><button id="sidebarBrandLabel" class="sidebar-brand-label" type="button" aria-controls="sidebar" aria-expanded="false"><span>ICT Admin</span></button></h2>
+                <h2><button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="false"><img class="sidebar-brand-logo" src="/shared/assets/logo/nakuru%20county%20logo.png" alt=""></button><button id="sidebarBrandLabel" class="sidebar-brand-label" type="button" aria-controls="sidebar" aria-expanded="false"><span>ICT Admin</span></button></h2>
             </div>
             <nav class="sidebar-nav">
                 <ul>
@@ -112,11 +113,35 @@
                     <h1 id="pageTitle">Dashboard</h1>
                 </div>
                 <div class="header-right">
+                    <button type="button" class="notification-badge" id="notificationBell" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" data-tooltip="Notifications">
+                        <i data-icon="bell" aria-hidden="true"></i>
+                        <span class="badge" id="notificationBadge" style="display:none;">0</span>
+                    </button>
+                    <span class="visually-hidden" id="notificationA11yAnnounce" aria-live="polite"></span>
                     <button class="btn-secondary btn-sm" id="logoutBtn">
                         <i data-icon="sign-out-alt" aria-hidden="true"></i> Log Out
                     </button>
                 </div>
             </header>
+
+            <div class="notification-dropdown" id="notificationDropdown" style="display:none;" role="dialog" aria-modal="false" aria-labelledby="notificationTitle">
+                <div class="notification-dropdown-header">
+                    <span class="notification-title" id="notificationTitle">
+                        Notifications
+                        <span class="notification-unread-pill" id="notificationUnreadPill" hidden></span>
+                    </span>
+                    <button type="button" class="notification-header-action" id="markAllRead" onclick="app.markAllNotificationsRead()">Mark all read</button>
+                </div>
+                <div class="notification-tabs" aria-label="Filter notifications">
+                    <button type="button" class="notification-tab" id="notificationTabAll" aria-pressed="true" data-filter="all" onclick="app.setNotificationFilter('all')">All</button>
+                    <button type="button" class="notification-tab" id="notificationTabRead" aria-pressed="false" data-filter="read" onclick="app.setNotificationFilter('read')">Read</button>
+                    <span id="notificationStateTabs" style="display:contents;"></span>
+                </div>
+                <div id="notificationList" aria-label="Notifications list"></div>
+                <div class="notification-footer">
+                    <span class="notification-last-synced" id="notificationLastSynced" hidden></span>
+                </div>
+            </div>
 
             <section id="dashboard" class="content-section active">
                 <div class="stats-grid">
@@ -526,6 +551,15 @@
                                 <option value="staff">Staff only</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="broadcastCategory">Notification category</label>
+                            <select id="broadcastCategory">
+                                <option value="">Default (Announcements)</option>
+                            </select>
+                            <p class="form-hint" style="font-size:0.8rem;color:#999;">
+                                Custom categories let you route a broadcast to its own bell tab and let users opt out per category.
+                            </p>
+                        </div>
                         <button type="submit" class="btn-primary">
                             <i data-icon="paper-plane" aria-hidden="true"></i> Send Broadcast
                         </button>
@@ -688,6 +722,19 @@
                 <div class="chart-card" style="margin-bottom:20px;">
                     <h3>Notifications</h3>
                     <div id="notificationPrefs" data-notification-prefs></div>
+                </div>
+                <div class="chart-card" style="margin-bottom:20px;">
+                    <h3>Notification categories</h3>
+                    <p class="form-hint" style="font-size:0.8rem;margin-bottom:15px;">
+                        Categories group notifications into bell tabs and give users a per-category on/off
+                        toggle. Custom categories are delivered via broadcast (the only real trigger today).
+                        Deactivating a category stops its sends and hides it from new prefs.
+                    </p>
+                    <form id="addNotificationCategoryForm" style="display:flex;gap:10px;margin-bottom:15px;">
+                        <input type="text" id="newNotificationCategoryName" placeholder="New category label (e.g. Security advisories)" style="flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px;" required maxlength="80">
+                        <button type="submit" class="btn-primary btn-sm">Add</button>
+                    </form>
+                    <div id="notificationCategoryList"><p style="color:#999;">Loading...</p></div>
                 </div>
                 <div class="personal-panels" style="grid-template-columns: 1fr 1fr;">
                     <div class="chart-card">

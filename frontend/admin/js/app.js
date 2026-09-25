@@ -24,6 +24,40 @@ const SECTION_TITLES = {
     settings: 'Settings',
     audit: 'Audit Log'
 };
+// Fallback display labels per notification category (used when the shared
+// NotificationPrefs registry is unavailable, e.g. offline/uncached). Live
+// labels come from the server registry via NotificationPrefs.getRegistry().
+const NOTIFICATION_CATEGORY_LABELS = {
+    'ticket_updates': 'Ticket updates',
+    'technician_replies': 'Replies',
+    'announcements': 'Announcements',
+    'sla_breaches': 'SLA'
+};
+const NOTIFICATION_CATEGORY_ORDER = ['ticket_updates', 'technician_replies', 'announcements', 'sla_breaches'];
+const NOTIFICATION_STATE_TABS = [
+    { key: 'open', label: 'Open' },
+    { key: 'in_progress', label: 'In Progress' },
+    { key: 'resolved', label: 'Resolved' },
+    { key: 'sla_breached', label: 'SLA' }
+];
+// Disabled notification categories hide their bell state tabs and the
+// matching dashboard stat cards. Notifications of the disabled category are
+// already filtered out of the list; this keeps the tab bar and dashboard
+// honest with them.
+const NOTIFICATION_STATE_TAB_CATEGORY = {
+    open: 'ticket_updates',
+    in_progress: 'ticket_updates',
+    resolved: 'ticket_updates',
+    sla_breached: 'sla_breaches'
+};
+// Only SLA cards are mapped on the dashboard (admin decision): turning off
+// SLA breaches hides both SLA breach stat cards. Ticket-status cards stay.
+const DASHBOARD_CATEGORY_CARDS = {
+    'sla_breaches': [
+        '.stat-card[data-drill="sla_response"]',
+        '.stat-card[data-drill="sla_resolution"]'
+    ]
+};
 class TicketingApp {
     constructor() {
         AuthAPI.requireAuth();
@@ -43,19 +77,23 @@ class TicketingApp {
         this.identityMenuOpen = false;
         this.identityMenuFindActive = false;
         this.syncing = false;
+        this.notifications = [];
+        this.notificationUnread = 0;
+        this.notificationsOffline = false;
+        this.notificationFilter = 'all';
         this.init();
     }
 
     async init() {
         this.applyTheme();
-        this.loadNotificationPrefs();
-        this.renderIdentity();
         this.setupOfflineSync();
         window.showToast = (message, type) => this.showToast(message, type === 'error');
         this.setupIdentityMenu();
         this.setupProfileModal();
         this.setupChangePasswordModal();
         this.setupEventListeners();
+        await this.loadNotificationPrefs();
+        this.renderIdentity();
         await this.loadUsers();
         await this.loadTickets();
         // Dashboard loads through the section router (renderSection), so a
@@ -64,6 +102,7 @@ class TicketingApp {
         this.setupLiveEvents();
         this.initSessionExpiredDialog();
         this.initSectionRouting();
+        this.loadNotifications();
     }
 
     // ============ Offline (shared engine: OfflineDB + origin-wide SW) ============
@@ -280,6 +319,9 @@ class TicketingApp {
         LiveEvents.on('comment.created', reloadTickets);
         LiveEvents.on('attachment.created', reloadTickets);
         LiveEvents.on('announcement', () => this.showToast('New announcement received.'));
+        LiveEvents.on('comment.created', () => this.loadNotifications());
+        LiveEvents.on('ticket.updated', () => this.loadNotifications());
+        LiveEvents.on('announcement', () => this.loadNotifications());
     }
 
     setupEventListeners() {
@@ -441,6 +483,48 @@ class TicketingApp {
 
         document.getElementById('logoutBtn').addEventListener('click', () => AuthAPI.logout());
 
+        document.getElementById('notificationBell').addEventListener('click', () => this.toggleNotificationDropdown());
+
+        window.addEventListener('click', (e) => {
+            const bell = document.getElementById('notificationBell');
+            const dropdown = document.getElementById('notificationDropdown');
+            if (dropdown && dropdown.style.display === 'block' && !bell.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+                bell.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const bell = document.getElementById('notificationBell');
+            const dropdown = document.getElementById('notificationDropdown');
+            if (dropdown && dropdown.style.display === 'block') {
+                dropdown.style.display = 'none';
+                if (bell) {
+                    bell.setAttribute('aria-expanded', 'false');
+                    bell.focus();
+                }
+            }
+        });
+
+        document.addEventListener('notification-prefs:changed', () => {
+            this.refreshNotificationCounts();
+            this.renderNotificationStateTabs();
+            this.renderNotificationList();
+            if (this.currentSection === 'dashboard') this.applyDashboardCategoryVisibility();
+        });
+
+        window.addEventListener('offline', () => {
+            this.notificationsOffline = true;
+            const dropdown = document.getElementById('notificationDropdown');
+            if (dropdown && dropdown.style.display === 'block') this.renderNotificationList();
+        });
+        window.addEventListener('online', async () => {
+            this.notificationsOffline = false;
+            const dropdown = document.getElementById('notificationDropdown');
+            if (dropdown && dropdown.style.display === 'block') await this.loadNotifications();
+        });
+
         document.getElementById('addCategoryForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.handleAddCategory();
@@ -482,6 +566,11 @@ class TicketingApp {
         document.getElementById('broadcastForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.sendBroadcast();
+        });
+
+        document.getElementById('addNotificationCategoryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.handleAddNotificationCategory();
         });
 
         document.getElementById('systemSettingsForm').addEventListener('submit', async (e) => {
@@ -560,12 +649,331 @@ class TicketingApp {
 
     loadNotificationPrefs() {
         const container = document.getElementById('notificationPrefs');
-        if (!container) return;
+        if (!container) return Promise.resolve();
         if (typeof window.NotificationPrefs === 'undefined') {
             container.innerHTML = '<div class="pref-offline"><strong>Not available</strong><p>Notification preferences could not be loaded right now.</p></div>';
+            return Promise.resolve();
+        }
+        return window.NotificationPrefs.render(container);
+    }
+
+    // ============ Notifications ============
+    notificationCategoryVisible(n) {
+        if (!n || !n.category) return true;
+        if (typeof window.NotificationPrefs === 'undefined') return true;
+        return window.NotificationPrefs.isCategoryEnabled(n.category);
+    }
+
+    visibleNotifications() {
+        return this.notifications.filter(n => this.notificationCategoryVisible(n));
+    }
+
+    async loadNotifications() {
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            const cached = await this.loadNotificationsCache();
+            if (cached) {
+                this.notificationsOffline = true;
+                this.notifications = cached.notifications || [];
+                this.notificationUnread = cached.unread_count || 0;
+            } else {
+                this.notifications = [];
+                this.notificationUnread = 0;
+                this.notificationsOffline = true;
+            }
+        } else {
+            const data = await TicketAPI.getNotifications();
+            this.notifications = data.notifications || [];
+            this.notificationUnread = data.unread_count || 0;
+            this.notificationsOffline = false;
+            this.saveNotificationsCache();
+        }
+        await this.warmNotificationRegistry();
+        this.refreshNotificationCounts();
+        this.renderNotificationStateTabs();
+        this.renderNotificationList();
+    }
+
+    // Unread counts come from the category-filtered list so a disabled
+    // category disappears from the bell badge/pill too, not just the list.
+    refreshNotificationCounts() {
+        const visible = this.visibleNotifications();
+        this.notificationUnread = visible.filter(n => !n.is_read).length;
+        this.renderNotificationBadge(this.notificationUnread);
+        this.updateNotificationUnreadUI();
+    }
+
+    async warmNotificationRegistry() {
+        if (typeof window.NotificationPrefs === 'undefined') return;
+        if (navigator.onLine === false) return;
+        if (window.NotificationPrefs.getRegistry()) return;
+        try {
+            await window.NotificationPrefs.load();
+        } catch (e) { /* labels fall back to NOTIFICATION_CATEGORY_LABELS */ }
+    }
+
+    saveNotificationsCache() {
+        try {
+            if (typeof OfflineDB === 'undefined' || !OfflineDB.cachePut) return;
+            OfflineDB.cachePut('ntf_cache', {
+                notifications: this.notifications,
+                unread_count: this.notificationUnread
+            }, this._offlineUser());
+        } catch (e) { /* storage unavailable: offline rendering degrades gracefully */ }
+    }
+
+    async loadNotificationsCache() {
+        try {
+            if (typeof OfflineDB === 'undefined' || !OfflineDB.cacheGet) return null;
+            const record = await OfflineDB.cacheGet('ntf_cache');
+            if (!record || !record.data) return null;
+            const expectedUser = this._offlineUser();
+            if (record.user !== expectedUser) return null;
+            return {
+                notifications: record.data.notifications || [],
+                unread_count: record.data.unread_count || 0,
+                at: record.at || 0
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    renderNotificationBadge(count) {
+        const badge = document.getElementById('notificationBadge');
+        if (!badge) return;
+        if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+        const bell = document.getElementById('notificationBell');
+        if (bell) bell.setAttribute('aria-label', count > 0 ? `Notifications, ${count} unread` : 'Notifications');
+        const live = document.getElementById('notificationA11yAnnounce');
+        if (live) live.textContent = count > 0 ? `${count} unread notifications` : 'No unread notifications';
+    }
+
+    updateNotificationUnreadUI() {
+        const pill = document.getElementById('notificationUnreadPill');
+        if (pill) {
+            if (this.notificationUnread > 0) {
+                pill.textContent = `${this.notificationUnread} unread`;
+                pill.hidden = false;
+            } else {
+                pill.hidden = true;
+            }
+        }
+    }
+
+    toggleNotificationDropdown() {
+        const dropdown = document.getElementById('notificationDropdown');
+        if (!dropdown) return;
+        const isOpen = dropdown.style.display === 'block';
+        dropdown.style.display = isOpen ? 'none' : 'block';
+        const bell = document.getElementById('notificationBell');
+        if (bell) bell.setAttribute('aria-expanded', String(!isOpen));
+        if (!isOpen) this.renderNotificationList();
+    }
+
+    closeNotificationDropdown() {
+        const dropdown = document.getElementById('notificationDropdown');
+        const bell = document.getElementById('notificationBell');
+        if (dropdown) dropdown.style.display = 'none';
+        if (bell) bell.setAttribute('aria-expanded', 'false');
+    }
+
+    setNotificationFilter(filter) {
+        this.notificationFilter = filter;
+        const tabs = document.querySelectorAll('.notification-tab');
+        tabs.forEach(tab => {
+            tab.setAttribute('aria-pressed', String(tab.dataset.filter === filter));
+        });
+        this.renderNotificationList();
+    }
+
+    renderNotificationList() {
+        const container = document.getElementById('notificationList');
+        if (!container) return;
+
+        if (this.notificationsOffline && this.notifications.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state" style="padding:20px;">
+                    ${Icons.render('wifi')}
+                    <p>Requires connection</p>
+                    <p style="font-size:0.75rem;margin-top:5px;">Notifications can't load right now. Check your connection and retry.</p>
+                    <button type="button" class="btn-secondary btn-sm" onclick="app.loadNotifications()" style="margin-top:12px;">Retry</button>
+                </div>
+            `;
+            this.renderLastSynced();
             return;
         }
-        window.NotificationPrefs.render(container);
+
+        const visible = this.visibleNotifications();
+        let filtered;
+        if (this.notificationFilter === 'read') {
+            filtered = visible.filter(n => n.is_read);
+        } else if (this.notificationFilter === 'all') {
+            filtered = visible;
+        } else {
+            filtered = visible.filter(n => n.state === this.notificationFilter);
+        }
+        if (filtered.length === 0) {
+            container.innerHTML = this.renderEmptyState(visible);
+            this.renderLastSynced();
+            return;
+        }
+        container.innerHTML = this.renderNotificationGroups(filtered);
+        this.renderLastSynced();
+    }
+
+    renderEmptyState(visible) {
+        const visibleCount = visible ? visible.length : this.visibleNotifications().length;
+        if (this.notificationFilter === 'all' && visibleCount > 0 && this.notifications.length > 0) {
+            return `
+                <div class="empty-state" style="padding:20px;">
+                    ${Icons.render('check-circle')}
+                    <p>You're all caught up.</p>
+                </div>
+            `;
+        }
+        if (this.notificationFilter !== 'all' && visibleCount > 0) {
+            return `
+                <div class="empty-state" style="padding:20px;">
+                    ${Icons.render('check-circle')}
+                    <p>Nothing here.</p>
+                </div>
+            `;
+        }
+        return `
+            <div class="empty-state" style="padding:20px;">
+                ${Icons.render('bell-slash')}
+                <p>No notifications yet.</p>
+            </div>
+        `;
+    }
+
+    renderNotificationStateTabs() {
+        const host = document.getElementById('notificationStateTabs');
+        if (!host) return;
+        if (typeof window.NotificationPrefs !== 'undefined' && this.notificationFilter in NOTIFICATION_STATE_TAB_CATEGORY &&
+            !window.NotificationPrefs.isCategoryEnabled(NOTIFICATION_STATE_TAB_CATEGORY[this.notificationFilter])) {
+            this.notificationFilter = 'all';
+            this.renderNotificationList();
+        }
+        const visible = this.visibleNotifications();
+        const counts = {};
+        visible.forEach(n => {
+            if (n.state) counts[n.state] = (counts[n.state] || 0) + 1;
+        });
+        const tabs = NOTIFICATION_STATE_TABS.filter(tab => {
+            const cid = NOTIFICATION_STATE_TAB_CATEGORY[tab.key];
+            if (!cid || typeof window.NotificationPrefs === 'undefined') return true;
+            return window.NotificationPrefs.isCategoryEnabled(cid);
+        });
+        host.innerHTML = tabs.map(tab => {
+            const count = counts[tab.key] || 0;
+            return `
+                <button type="button" class="notification-tab" aria-pressed="${String(this.notificationFilter === tab.key)}" data-filter="${tab.key}" onclick="app.setNotificationFilter('${tab.key}')">${this._esc(tab.label)}<span class="notification-tab-count" aria-hidden="true">${count}</span></button>
+            `;
+        }).join('');
+    }
+
+    renderNotificationGroups(list) {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const today = list.filter(n => new Date(n.created_at).getTime() >= startOfToday);
+        const earlier = list.filter(n => new Date(n.created_at).getTime() < startOfToday);
+        let html = '';
+        if (today.length) html += `<div class="notification-group">Today</div>` + this.renderNotificationItems(today);
+        if (earlier.length) html += `<div class="notification-group">Earlier</div>` + this.renderNotificationItems(earlier);
+        return html;
+    }
+
+    renderNotificationItems(items) {
+        return items.map(n => {
+            const msg = this._esc(n.message);
+            const tip = this._esc(n.link ? `${n.message} — view ticket` : n.message);
+            return `
+                <button type="button" class="notification-item ${n.is_read ? '' : 'unread'}" aria-label="${msg}" title="${tip}" onclick="app.onNotificationClick(${n.id})">
+                    <span class="notification-type-icon" aria-hidden="true">${Icons.render(this.notificationIcon(n.type))}</span>
+                    <span class="notification-item-text">
+                        <span class="notification-item-msg">${msg}</span>
+                        <span class="notification-item-time">${this._esc(this.friendlyTime(n.created_at))}</span>
+                    </span>
+                </button>
+            `;
+        }).join('');
+    }
+
+    notificationIcon(type) {
+        switch (type) {
+            case 'ticket_update': return 'ticket';
+            case 'technician_reply': return 'user';
+            case 'announcement': return 'bullhorn';
+            case 'sla_breach': return 'exclamation-triangle';
+            default: return 'bell';
+        }
+    }
+
+    friendlyTime(iso) {
+        const then = new Date(iso).getTime();
+        if (!iso || isNaN(then)) return '';
+        const diffMin = Math.floor((Date.now() - then) / 60000);
+        if (diffMin < 1) return 'just now';
+        if (diffMin < 60) return `${diffMin}m ago`;
+        const diffH = Math.floor(diffMin / 60);
+        if (diffH < 24) return `${diffH}h ago`;
+        const diffD = Math.floor(diffH / 24);
+        if (diffD < 7) return `${diffD}d ago`;
+        return new Date(iso).toLocaleDateString();
+    }
+
+    async renderLastSynced() {
+        const el = document.getElementById('notificationLastSynced');
+        if (!el) return;
+        const cache = await this.loadNotificationsCache();
+        if (this.notificationsOffline && cache && cache.at) {
+            el.textContent = `Last synced ${new Date(cache.at).toLocaleString()}`;
+            el.hidden = false;
+        } else {
+            el.hidden = true;
+        }
+    }
+
+    async onNotificationClick(id) {
+        const n = this.notifications.find(x => x.id === id);
+        if (n && !n.is_read) {
+            if (this.notificationsOffline) {
+                this.showToast('Marking as read requires a connection.', true);
+                return;
+            }
+            n.is_read = true;
+            this.notificationUnread = Math.max(0, (this.notificationUnread || 0) - 1);
+            try {
+                await TicketAPI.markNotificationRead(id);
+            } catch (e) { /* optimistic update only; refetch next sync */ }
+            this.renderNotificationBadge(this.notificationUnread);
+            this.updateNotificationUnreadUI();
+            this.renderNotificationList();
+        }
+        if (n && n.link) {
+            this.closeNotificationDropdown();
+            this.openTicketDetail(parseInt(n.link, 10));
+        }
+    }
+
+    async markNotificationRead(id) {
+        await TicketAPI.markNotificationRead(id);
+        await this.loadNotifications();
+    }
+
+    async markAllNotificationsRead() {
+        if (this.notificationsOffline) {
+            this.showToast('Marking notifications as read requires a connection.', true);
+            return;
+        }
+        await TicketAPI.markAllNotificationsRead();
+        await this.loadNotifications();
     }
 
     initThemePicker() {
@@ -1176,10 +1584,31 @@ class TicketingApp {
                 document.getElementById('slaResponseBreached').textContent = sla.response_breached || 0;
                 document.getElementById('slaResolutionBreached').textContent = sla.resolution_breached || 0;
             }
+            this.applyDashboardCategoryVisibility();
         } catch (error) {
             console.error('Error loading dashboard:', error);
+            this.applyDashboardCategoryVisibility();
         }
         this.renderWorkloadWidget();
+    }
+
+    // Stat cards on the dashboard whose notification category is disabled
+    // (e.g. SLA cards when 'sla_breaches' is off) are hidden — same policy as
+    // the bell state tabs. Never leaves a hole: unhidden again on re-enable.
+    applyDashboardCategoryVisibility() {
+        if (typeof window.NotificationPrefs === 'undefined') return;
+        Object.keys(DASHBOARD_CATEGORY_CARDS).forEach(cid => {
+            const hidden = !window.NotificationPrefs.isCategoryEnabled(cid);
+            DASHBOARD_CATEGORY_CARDS[cid].forEach(selector => {
+                document.querySelectorAll(selector).forEach(card => {
+                    if (hidden) {
+                        card.style.display = 'none';
+                    } else {
+                        card.style.display = '';
+                    }
+                });
+            });
+        });
     }
 
     // ============ Technician Workload ============
@@ -1376,16 +1805,16 @@ class TicketingApp {
 
         tbody.innerHTML = tickets.map(ticket => `
             <tr>
-                <td><label class="ticket-check-wrap"><input type="checkbox" class="ticket-select-checkbox" data-id="${ticket.id}" ${this.selectedTicketIds.has(ticket.id) ? 'checked' : ''}></label></td>
-                <td><strong>${ticket.ticket_number}</strong></td>
-                <td>${this._esc(ticket.title)}</td>
-                <td>${this._esc(this.capitalize(ticket.category))}</td>
-                <td><span class="priority-badge ${ticket.priority}">${this.capitalize(ticket.priority)}</span></td>
-                <td><span class="status-badge ${ticket.status}">${this.capitalize(ticket.status.replace('_', ' '))}</span></td>
-                <td>${this.slaBadge(ticket)}</td>
-                <td>${this._esc(ticket.assigned_to || 'Unassigned')}</td>
-                <td>${new Date(ticket.created_at).toLocaleDateString()}</td>
-                <td>
+                <td data-label="Select"><label class="ticket-check-wrap"><input type="checkbox" class="ticket-select-checkbox" data-id="${ticket.id}" ${this.selectedTicketIds.has(ticket.id) ? 'checked' : ''}></label></td>
+                <td data-label="Ticket #"><strong>${ticket.ticket_number}</strong></td>
+                <td data-label="Title">${this._esc(ticket.title)}</td>
+                <td data-label="Category">${this._esc(this.capitalize(ticket.category))}</td>
+                <td data-label="Priority"><span class="priority-badge ${ticket.priority}">${this.capitalize(ticket.priority)}</span></td>
+                <td data-label="Status"><span class="status-badge ${ticket.status}">${this.capitalize(ticket.status.replace('_', ' '))}</span></td>
+                <td data-label="SLA">${this.slaBadge(ticket)}</td>
+                <td data-label="Assigned To">${this._esc(ticket.assigned_to || 'Unassigned')}</td>
+                <td data-label="Created">${new Date(ticket.created_at).toLocaleDateString()}</td>
+                <td data-label="Actions">
                     <div class="action-buttons">
                         <button class="btn-secondary btn-sm" aria-label="Preview ticket" onclick="app.openTicketDetail(${ticket.id})">
                             ${Icons.render('eye')}
@@ -2253,6 +2682,97 @@ class TicketingApp {
         }
     }
 
+    // ============ Settings: Notification Categories ============
+    // Admin-only manager over the live category registry (custom-trigger
+    // subsystem). Soft deletes only; cid is immutable server-side.
+    async loadNotificationCategories() {
+        const container = document.getElementById('notificationCategoryList');
+        if (!container) return;
+        container.innerHTML = '<p style="color:#999;">Loading...</p>';
+
+        const cats = await TicketAPI.getNotificationCategories();
+        this.renderNotificationCategoryList(cats);
+        await this.populateBroadcastCategories(cats);
+    }
+
+    notificationCategoryIcon(cid, meta) {
+        if (meta && meta.icon) return meta.icon;
+        return 'bell';
+    }
+
+    renderNotificationCategoryList(cats) {
+        const container = document.getElementById('notificationCategoryList');
+        if (!container) return;
+
+        if (!cats || cats.length === 0) {
+            container.innerHTML = '<p style="color:#999;">No notification categories yet.</p>';
+            return;
+        }
+
+        container.innerHTML = cats.map(c => `
+            <div class="nc-row${c.active ? '' : ' is-inactive'}" data-cid="${this._esc(c.cid)}">
+                <span class="nc-icon" aria-hidden="true">${Icons.render(this.notificationCategoryIcon(c.cid, c))}</span>
+                <div class="nc-info">
+                    <strong>${this._esc(c.label)}${c.built_in ? ' <em class="nc-builtin">built-in</em>' : ''}</strong>
+                    <p>${this._esc(c.description || '')}</p>
+                </div>
+                <span class="nc-badge nc-role">${this._esc(c.role)}</span>
+                <span class="nc-badge ${c.active ? 'nc-active' : 'nc-off'}">${c.active ? 'active' : 'off'}</span>
+                <button class="btn-sm btn-danger" aria-label="Deactivate ${this._esc(c.cid)}" onclick="app.deactivateNotificationCategory('${this._esc(c.cid)}')">
+                    ${Icons.render('ban')}
+                </button>
+            </div>
+        `).join('');
+    }
+
+    async handleAddNotificationCategory() {
+        const input = document.getElementById('newNotificationCategoryName');
+        const label = input.value.trim();
+        if (!label) return;
+
+        try {
+            await TicketAPI.createNotificationCategory({ label });
+            this.showToast('Notification category added.');
+            input.value = '';
+            await this.loadNotificationCategories();
+            if (typeof window.NotificationPrefs !== 'undefined') {
+                try { await window.NotificationPrefs.load(); } catch (e) { /* label fallback only */ }
+            }
+        } catch (error) {
+            this.showToast(error.message || 'Failed to add notification category.', true);
+        }
+    }
+
+    async deactivateNotificationCategory(cid) {
+        if (!confirm('Deactivate this notification category? Its bell tab disappears and it stops receiving sends. Existing notifications are kept.')) return;
+        try {
+            await TicketAPI.deactivateNotificationCategory(cid);
+            this.showToast('Notification category deactivated.');
+            await this.loadNotificationCategories();
+            if (typeof window.NotificationPrefs !== 'undefined') {
+                try { await window.NotificationPrefs.load(); } catch (e) { /* label fallback only */ }
+            }
+        } catch (error) {
+            this.showToast(error.message || 'Failed to deactivate notification category.', true);
+        }
+    }
+
+    // Populates the broadcast "category" select with categories that can
+    // actually receive a manual send: custom/broadcast categories plus the
+    // built-in announcements row.
+    async populateBroadcastCategories(cats) {
+        const sel = document.getElementById('broadcastCategory');
+        if (!sel) return;
+        const options = ['<option value="">Default (Announcements)</option>'];
+        (cats || []).forEach(c => {
+            const sendable = c.active && (!c.built_in || c.cid === 'announcements');
+            if (sendable) {
+                options.push(`<option value="${this._esc(c.cid)}">${this._esc(c.label)}</option>`);
+            }
+        });
+        sel.innerHTML = options.join('');
+    }
+
     async loadDepartments() {
         const container = document.getElementById('departmentList');
         container.innerHTML = '<p style="color:#999;">Loading...</p>';
@@ -2634,6 +3154,7 @@ class TicketingApp {
         await this.loadCategories();
         await this.loadDepartments();
         await this.loadRoles();
+        await this.loadNotificationCategories();
         await this.loadSystemSettings();
         await this.loadPriorityRules();
     }
@@ -3168,11 +3689,15 @@ class TicketingApp {
             message: document.getElementById('broadcastMessage').value.trim(),
             role: document.getElementById('broadcastRole').value
         };
+        const catSel = document.getElementById('broadcastCategory');
+        const category = catSel ? catSel.value : '';
+        if (category) payload.category = category;
         if (!payload.message) return;
         try {
             const result = await TicketAPI.broadcastNotification(payload);
             this.showToast(`Broadcast sent to ${result.count} user(s).`);
             document.getElementById('broadcastForm').reset();
+            await this.loadNotificationCategories();
         } catch (error) {
             this.showToast(error.message || 'Failed to send broadcast.', true);
         }

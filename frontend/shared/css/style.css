@@ -538,22 +538,42 @@ a {
 }
 
 /* ---- Full/Half toggle visibility ------------------------------------------
-   UX spec: the brand-glyph toggle is hidden in the Full (Expanded) state and
+   UX spec: the brand-mark toggle is hidden in the Full (Expanded) state and
    visible in the Half (Mini) rail, where it is the only brand mark.
    Desktop-wide only — the mobile drawer and 769-1024px overlay keep the
    toggle for their own overlay/drawer roles (sidebar.js isMobile/isWide).
-   visibility + opacity keep it in the DOM; the box is zeroed so the Full
-   header shows just the brand label. JS removes it from the tab order while
-   hidden (Phase 4). */
+   Since 2026-09 the brand mark is the county logo image: in the Full state
+   the *label button* is the interactive collapse control and the logo reads
+   purely as a static brand mark (pointer-events none, kept out of the tab
+   order by sidebar.js while visible-as-mark), while the rail shows the logo
+   centered as before. */
 @media (min-width: 1025px) {
     html:not(.sidebar-mini) #toggleSidebar {
-        visibility: hidden;
-        opacity: 0;
+        visibility: visible;
+        opacity: 1;
         pointer-events: none;
-        width: 0;
-        height: 0;
-        overflow: hidden;
+        width: auto;
+        height: auto;
+        overflow: visible;
     }
+}
+
+/* Brand logo in the sidebar header. Square county logo, tinted surface-less
+   (it is the actual county logo file, offline-safe, local only). Width tracks
+   the old glyph (1.5rem = 24px was a hair small for a real mark; 34px reads
+   clearly at 320px and fits the 72px rail). */
+.sidebar-brand-logo {
+    width: 34px;
+    height: 34px;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+    flex-shrink: 0;
+}
+
+html.sidebar-mini .sidebar-brand-logo {
+    width: 32px;
+    height: 32px;
 }
 
 /* ---- Brand label (collapse-by-text) ---------------------------------------
@@ -1209,7 +1229,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
 
 .notification-tabs {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
     flex-wrap: wrap;
     padding: 12px 20px;
@@ -1217,36 +1237,59 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
 }
 
 .notification-tab {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     min-height: 40px;
-    padding: 8px 16px;
-    border: 1px solid var(--surface-muted);
-    border-radius: 20px;
-    background: var(--surface);
+    padding: 8px 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
     color: var(--text-secondary);
     font-size: 0.85rem;
     font-weight: 500;
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: color var(--transition), box-shadow var(--transition);
+}
+
+.notification-tab::after {
+    content: '';
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 4px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--primary);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform var(--transition);
+}
+
+.notification-tab:hover,
+.notification-tab:focus-visible {
+    color: var(--link, var(--primary));
+    outline: none;
 }
 
 .notification-tab:hover {
-    border-color: var(--primary);
-    color: var(--link, var(--primary));
+    box-shadow: 0 0 8px var(--focus-ring), 0 0 16px var(--focus-ring), 0 0 24px var(--focus-ring);
 }
 
 .notification-tab:focus-visible {
-    outline: none;
     box-shadow: 0 0 0 4px var(--focus-ring);
 }
 
+.notification-tab:hover::after,
+.notification-tab:focus-visible::after,
+.notification-tab[aria-pressed="true"]::after {
+    transform: scaleX(1);
+}
+
 .notification-tab[aria-pressed="true"] {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #fff;
+    color: var(--link, var(--primary));
 }
 
 .notification-tab-count {
@@ -1256,10 +1299,6 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     padding: 0 6px;
     font-size: 0.75rem;
     font-weight: 600;
-}
-
-.notification-tab[aria-pressed="true"] .notification-tab-count {
-    background: rgba(255, 255, 255, 0.25);
 }
 
 .notification-unread-pill[hidden],
@@ -2502,7 +2541,7 @@ body.wallpaper-active .auth-brand { display: none; }
 }
 body.wallpaper-active #tubes-canvas { display: none; }
 
-.auth-logo { height: 3rem; width: auto; }
+.auth-logo { height: 3rem; width: 3rem; object-fit: cover; border-radius: 50%; }
 .auth-headline {
     font-family: var(--auth-font-display);
     font-size: 2.5rem;
@@ -3297,6 +3336,83 @@ body.wallpaper-active #tubes-canvas { display: none; }
 }
 
 /* ==============================
+   NOTIFICATION CATEGORIES (admin manager rows)
+   ============================== */
+.nc-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+}
+.nc-row:first-child {
+    border-top: none;
+}
+.nc-row.is-inactive .nc-info strong,
+.nc-row.is-inactive .nc-info p {
+    color: var(--text-muted);
+}
+.nc-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--surface-muted);
+    color: var(--text-secondary);
+}
+.nc-icon svg {
+    width: 18px;
+    height: 18px;
+}
+.nc-info {
+    flex: 1;
+    min-width: 0;
+}
+.nc-info strong {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+}
+.nc-info p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+}
+.nc-builtin {
+    font-style: normal;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--info);
+    margin-left: 6px;
+}
+.nc-badge {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+.nc-role {
+    background: var(--surface-muted);
+    color: var(--text-secondary);
+    text-transform: capitalize;
+}
+.nc-active {
+    background: var(--success-light);
+    color: var(--success-dark);
+}
+.nc-off {
+    background: var(--danger-light);
+    color: var(--danger-dark);
+}
+
+/* ==============================
    SETTINGS SECTION (rows, labels, controls)
    ============================== */
 .setting-group {
@@ -3702,5 +3818,91 @@ html.density-compact .chart-card h3 {
    All surfaces (portal and auth sheets) reference these values through the
    --z-* variables declared in :root (--z-header/--z-backdrop/--z-sidebar/
    --z-fab/--z-dropdown/--z-modal/--z-tooltip/--z-toast/--z-identity).
-   login.html / reset-password.html carry no z-index literals.
+login.html / reset-password.html carry no z-index literals.
+    ============================== */
+
+/* ==============================
+   TICKET TABLES ON TOUCH VIEWPORTS (RSP2, RSP4, RSP6, TXT6)
+   At <=768px a ticket row is no longer a wide table you must pan to read:
+   the header row hides and each row becomes a stacked card. Every cell
+   renders its column name from the `data-label` attribute the portals'
+   renderTickets() emit (e.g. "Ticket #", "Title", "Priority"), with the
+   value beside/below it. All eleven-ish columns stay visible — nothing is
+   dropped, nothing is truncated to an ellipsis. The `.table-container`
+   keeps its overflow-x:auto from line 1668, which is harmless now that
+   cards never exceed the viewport width.
    ============================== */
+@media (max-width: 768px) {
+    #tickets .table-container {
+        box-shadow: none;
+        border: none;
+        background: transparent;
+        padding: 0;
+    }
+
+    .ticket-table,
+    .ticket-table tbody,
+    .ticket-table tr,
+    .ticket-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .ticket-table thead {
+        display: none;
+    }
+
+    .ticket-table {
+        font-size: 0.95rem;
+    }
+
+    .ticket-table tr {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        margin-bottom: 12px;
+        padding: 4px 14px;
+        background: var(--surface);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .ticket-table td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border);
+        min-height: 40px;
+        overflow-wrap: anywhere;
+        text-align: right;
+    }
+
+    .ticket-table td:last-child {
+        border-bottom: none;
+    }
+
+    .ticket-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+    }
+
+    .ticket-table td .empty-state {
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    /* density-compact: specificity (0,2,1) beats the plain element rule, so
+       state the card paddings here too or compact mode would win (S6). */
+    html.density-compact .ticket-table td {
+        padding: 9px 0;
+    }
+
+    html.density-compact .ticket-table tr {
+        padding: 2px 12px;
+    }
+}

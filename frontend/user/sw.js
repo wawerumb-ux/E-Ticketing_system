@@ -23,7 +23,7 @@
  */
 'use strict';
 
-const CACHE_NAME = 'e-ticketing-shell-v16';
+const CACHE_NAME = 'e-ticketing-shell-v18';
 
 const SHELL_URLS = [
     '/user/index.html',
@@ -72,6 +72,10 @@ const SHELL_URLS = [
     '/shared/assets/sketchbook/merlion.png',
     '/shared/assets/sketchbook/newsreader.woff2',
     '/shared/assets/sketchbook/singapore-river.png',
+    // Sidebar brand logo (both portals use the same shared asset).
+    '/shared/assets/logo/nakuru%20county%20logo.png',
+    // Favicon (dark logo variant).
+    '/shared/assets/logo/county%20logo%20dark.jpg',
     '/shared/fonts/fraunces-latin.woff2'
 ];
 
