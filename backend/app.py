@@ -158,10 +158,32 @@ def get_database_uri():
 
 
 def get_allowed_origins():
-    """Return explicit CORS origins from env, defaulting to local dev origins."""
+    """Return explicit CORS origins from env, defaulting to local dev origins.
+
+    A browser sends ``Origin`` as ``scheme://host[:port]`` with no trailing
+    slash, and Flask-CORS matches the header exactly. A configured origin that
+    ends in ``/`` therefore never matches anything, which fails as a silent
+    total CORS outage rather than an error: every API call is blocked and
+    nothing in the logs says why. Strip trailing slashes so that typo cannot
+    take the frontend down.
+
+    This cannot widen access. ``https://host/`` is not a value any browser can
+    send, so removing the slash only ever lets a request through that the
+    operator already intended to allow.
+
+    The scheme is NOT corrected. ``http://host`` and ``https://host`` are
+    different origins, and silently upgrading one would hand a mixed-content
+    page an allowlist entry it never asked for.
+    """
     raw = os.getenv('ALLOWED_ORIGINS', '').strip()
     if raw:
-        return [origin.strip() for origin in raw.split(',') if origin.strip()]
+        origins = []
+        for part in raw.split(','):
+            origin = part.strip().rstrip('/')
+            if origin:
+                origins.append(origin)
+        if origins:
+            return origins
     return [
         'http://localhost:5000',
         'http://127.0.0.1:5000',
