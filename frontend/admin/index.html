@@ -77,34 +77,218 @@
                 </ul>
             </nav>
             <div class="sidebar-footer">
-                <div id="identityLauncher" class="identity-launcher" role="button" tabindex="0" aria-haspopup="menu" aria-expanded="false" aria-controls="identityMenu">
+                <div id="identityLauncher" class="identity-launcher" role="button" tabindex="0" aria-controls="accountModal">
                     <div class="sidebar-avatar" id="sidebarAvatar" aria-hidden="true">U</div>
                     <div class="identity-text">
                         <span class="identity-name" id="sidebarUserName">Admin</span>
                         <span class="identity-role" id="sidebarUserRole">Administrator</span>
                     </div>
-                    <i data-icon="chevron-right" aria-hidden="true" class="identity-chevron"></i>
-                </div>
-                <div id="identityMenu" class="identity-menu" role="menu" aria-label="Account" hidden>
-                    <div class="identity-menu-group">
-                        <span class="identity-menu-heading">Self</span>
-                        <button class="identity-menu-item" role="menuitem" id="menuViewProfile">View profile</button>
-                        <button class="identity-menu-item" role="menuitem" id="menuChangePassword">Change password</button>
-                        <button class="identity-menu-item" role="menuitem" id="menuTheme">Appearance &amp; theme</button>
-                    </div>
-                    <div class="identity-menu-group">
-                        <span class="identity-menu-heading">Manage</span>
-                        <button class="identity-menu-item" role="menuitem" id="menuFindUser">Find user</button>
-                        <button class="identity-menu-item" role="menuitem" id="menuAddUser">Add new user</button>
-                        <button class="identity-menu-item" role="menuitem" id="menuBulk">Bulk actions</button>
-                    </div>
-                    <div class="identity-menu-group">
-                        <span class="identity-menu-heading">Session</span>
-                        <button class="identity-menu-item" role="menuitem" id="menuLogout">Sign out</button>
-                    </div>
                 </div>
             </div>
         </aside>
+
+        <!-- Account dialog: replaces the former identity dropdown. One click on
+             the sidebar identity block opens this. It has two bodies -- the
+             Account summary and the View profile form -- and the hero is shared
+             and Account Information replaces it, opened from a named row
+             rather than by cycling. -->
+        <div id="accountModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="accountModalName">
+            <div class="modal-content profile-card">
+                <span class="close" id="closeAccountModal" aria-label="Close account" role="button" tabindex="0">&times;</span>
+
+                <div class="profile-hero account-hero">
+                    <div class="account-hero-body">
+                        <div class="profile-avatar-wrap">
+                            <button type="button" class="account-hero-avatar-btn" id="accountHeroAvatarBtn"
+                                    aria-label="Change profile picture" title="Change profile picture"
+                                    aria-haspopup="dialog" aria-controls="pictureModal">
+                                <span class="user-avatar profile-hero-avatar" id="adminProfileAvatarPreview" aria-hidden="true"></span>
+                                <span class="profile-avatar-overlay" data-icon="camera" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                        <h2 class="profile-name" id="accountModalName">Admin</h2>
+                        <div class="profile-role"><span class="role-badge admin" id="accountModalRole">Administrator</span></div>
+                    </div>
+
+                </div>
+
+                <div class="profile-card-section">
+                    <p class="profile-section-title">Account</p>
+                    <div class="profile-rows" id="accountInfoRows"></div>
+                </div>
+
+                <div class="profile-card-section" id="accountSelfSection">
+                    <p class="profile-section-title">Self</p>
+                    <div class="profile-rows">
+                        <button type="button" class="profile-row is-action" id="acctViewProfile">
+                            <span class="profile-row-main"><span class="profile-row-icon" data-icon="user" aria-hidden="true"></span>View profile</span>
+                            <span class="profile-row-chevron" data-icon="chevron-right" aria-hidden="true"></span>
+                        </button>
+                        <button type="button" class="profile-row is-action" id="acctChangePassword">
+                            <span class="profile-row-main"><span class="profile-row-icon" data-icon="lock" aria-hidden="true"></span>Change password</span>
+                            <span class="profile-row-chevron" data-icon="chevron-right" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="profile-card-section" id="accountSessionSection">
+                    <p class="profile-section-title">Session</p>
+                    <div class="profile-rows">
+                        <button type="button" class="profile-row is-action is-danger" id="acctLogout">
+                            <span class="profile-row-main"><span class="profile-row-icon" data-icon="power" aria-hidden="true"></span>Sign out</span>
+                            <span class="profile-row-chevron" data-icon="chevron-right" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Information card. "View profile" closes the profile card
+             and opens this one, the same way Change password already replaces
+             it, so only one card is ever on screen. The back arrow reopens the
+             profile card. -->
+        <div id="accountInfoModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="adminProfileHeading">
+            <div class="modal-content profile-card account-info-card">
+                <button type="button" class="sheet-back" id="accountInfoBack" aria-label="Back to profile card">
+                    <i data-icon="arrow-left" aria-hidden="true"></i>
+                </button>
+
+                <div class="panel">
+                    <!-- Identity column. Its surface is the app's own sidebar
+                         tokens, so the "In the sidebar" preview below shows the
+                         avatar against the surface it will really sit on. -->
+                    <aside class="side">
+                        <div class="avatar-wrap">
+                            <button type="button" class="avatar-btn" id="adminInfoAvatarBtn" aria-label="Change profile picture"
+                                    aria-haspopup="dialog" aria-controls="pictureModal">
+                                <span class="visual" id="adminInfoAvatarVisual" aria-hidden="true"></span>
+                                <span class="avatar-overlay" aria-hidden="true"><i data-icon="camera"></i></span>
+                            </button>
+                            <button type="button" class="cam-badge" id="adminInfoCamBadge" aria-label="Change profile picture"
+                                    aria-haspopup="dialog" aria-controls="pictureModal">
+                                <i data-icon="camera" aria-hidden="true"></i>
+                            </button>
+                        </div>
+
+                        <div class="id-block">
+                            <div class="name-display" id="adminProfileHeroName">admin</div>
+                            <div class="handle-display" id="adminProfileHandle">@admin</div>
+                            <span class="role-tag" id="adminProfileRole">Administrator</span>
+                        </div>
+
+                        <div class="preview">
+                            <div>
+                                <p class="p-label">In the sidebar</p>
+                                <div class="chip">
+                                    <div class="mini-avatar" id="adminPreviewSidebarAvatar" aria-hidden="true"></div>
+                                    <span class="chip-text" id="adminPreviewSidebarName">admin</span>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="p-label">On a ticket</p>
+                                <div class="chip">
+                                    <div class="mini-avatar" id="adminPreviewTicketAvatar" aria-hidden="true"></div>
+                                    <span class="chip-text" id="adminPreviewTicketName">No assigned tickets</span>
+                                    <span class="chip-sub" id="adminPreviewTicketSub">As a ticket assignee</span>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <div class="form-side">
+                        <h1 id="adminProfileHeading">Account Information</h1>
+                        <p class="sub">Update your display name and contact details. Your picture and emoji are shared with everyone.</p>
+
+                        <div class="frow">
+                            <label for="adminProfileDisplayName">Display Name</label>
+                            <div class="field-wrap">
+                                <input type="text" id="adminProfileDisplayName" autocomplete="name" aria-describedby="adminProfileDisplayNameHelp">
+                                <p class="help" id="adminProfileDisplayNameHelp">Shown in the sidebar and on your tickets</p>
+                            </div>
+                        </div>
+                        <div class="frow">
+                            <label for="adminProfilePhone">Phone</label>
+                            <div class="field-wrap">
+                                <input type="tel" id="adminProfilePhone" placeholder="e.g. +254 7XX XXX XXX" autocomplete="tel">
+                            </div>
+                        </div>
+                        <div class="frow">
+                            <label for="adminProfileDepartment">Department</label>
+                            <div class="field-wrap">
+                                <select id="adminProfileDepartment">
+                                    <option value="">Select department</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="frow">
+                            <label for="adminProfileUsername">Username</label>
+                            <div class="field-wrap">
+                                <input type="text" id="adminProfileUsername" readonly aria-describedby="adminProfileUsernameHelp">
+                                <p class="help" id="adminProfileUsernameHelp">Your permanent sign-in name. It cannot be changed.</p>
+                            </div>
+                        </div>
+                        <div class="frow">
+                            <label for="adminProfileEmail">Email</label>
+                            <div class="field-wrap">
+                                <input type="email" id="adminProfileEmail" autocomplete="email">
+                            </div>
+                        </div>
+                        <div class="frow">
+                            <label for="adminProfileRoleField">Role</label>
+                            <div class="field-wrap">
+                                <input type="text" id="adminProfileRoleField" readonly aria-describedby="adminProfileRoleFieldHelp">
+                                <p class="help" id="adminProfileRoleFieldHelp">Assigned by your administrator</p>
+                            </div>
+                        </div>
+
+                        <div class="footer">
+                            <span class="unsaved" id="adminProfileUnsaved"><span class="dot" aria-hidden="true"></span>Unsaved changes</span>
+                            <span class="profile-save-msg" id="adminProfileSaveMsg" role="status" aria-live="polite"><i data-icon="check-circle" aria-hidden="true"></i> Saved.</span>
+                            <button type="button" class="save-btn" id="adminSaveProfileBtn">Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+<!-- Picture options card. This one does stack, because both the profile
+             card's hero and the Account Information card's own avatar open it.
+             It comes last in the DOM, so at the shared --z-modal it paints above
+             whichever card opened it. The back arrow closes it and hands focus
+             back to the avatar that opened it (MOD2). -->
+        <div id="pictureModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="pictureModalTitle">
+            <div class="modal-content profile-card picture-dialog">
+                <button type="button" class="sheet-back" id="pictureModalBack" aria-label="Back to profile">
+                    <i data-icon="arrow-left" aria-hidden="true"></i>
+                </button>
+
+                <h2 class="sheet-title" id="pictureModalTitle">Profile picture</h2>
+                <p class="sheet-sub">Your picture appears wherever your name is shown.</p>
+
+                <div class="picture-options">
+                    <button type="button" class="picture-option" id="adminUploadAvatarBtn">
+                        <span class="picture-option-icon" data-icon="upload" aria-hidden="true"></span>Upload photo
+                    </button>
+                    <button type="button" class="picture-option" id="adminProfileEmojiBtn" aria-expanded="false" aria-controls="adminProfileEmojiPanel">
+                        <span class="picture-option-icon" data-icon="user" aria-hidden="true"></span>Choose emoji
+                    </button>
+                    <button type="button" class="picture-option" id="adminProfileEmojiClearBtn">
+                        <span class="picture-option-icon" data-icon="user-plus" aria-hidden="true"></span>Use initials
+                    </button>
+                    <button type="button" class="picture-option is-danger" id="adminRemoveAvatarBtn">
+                        <span class="picture-option-icon" data-icon="trash" aria-hidden="true"></span>Remove
+                    </button>
+                </div>
+
+                <div class="emoji-picker-panel picture-emoji" id="adminProfileEmojiPanel" hidden>
+                    <p class="emoji-picker-hint">Pick a character instead. Choosing one replaces any photo on your account.</p>
+                    <div id="adminProfileEmojiChoices" role="group" aria-label="Avatar emoji choices"></div>
+                </div>
+
+                <input type="file" id="adminAvatarFileInput" accept="image/png,image/jpeg,image/gif,image/webp" class="is-visually-hidden" aria-label="Choose a profile picture">
+            </div>
+        </div>
 
         <main class="main-content">
             <header class="top-header">
@@ -1008,37 +1192,88 @@
     </div>
     </div>
 
-    <div id="userDetailModal" class="modal">
-    <div class="modal-content">
+    <div id="userDetailModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="userDetailName">
+    <div class="modal-content profile-card">
         <span class="close" id="closeUserDetailModal">&times;</span>
-        <div class="user-detail-header">
-            <span id="userDetailAvatar" class="user-avatar" aria-hidden="true"></span>
-            <div>
-                <h2 id="userDetailName" style="margin:0;"></h2>
-                <span id="userDetailRole" class="role-badge"></span>
+        <div class="profile-hero">
+            <div class="profile-avatar-wrap">
+                <span id="userDetailAvatar" class="user-avatar profile-hero-avatar" aria-hidden="true"></span>
+                <span class="profile-status-dot" id="userDetailStatusDot"></span>
+            </div>
+            <h2 id="userDetailName" class="profile-name mono"></h2>
+            <div class="profile-role"><span id="userDetailRole" class="role-badge"></span></div>
+            <div class="profile-stats" role="group" aria-label="Ticket counts for this technician">
+                <div class="profile-stat"><b id="userDetailStatTotal">0</b><span>Tickets</span></div>
+                <div class="profile-stat"><b id="userDetailStatResolved">0</b><span>Resolved</span></div>
+                <div class="profile-stat"><b id="userDetailStatActive">0</b><span>Active</span></div>
             </div>
         </div>
-        <dl class="user-detail-list">
-            <dt>Email</dt>
-            <dd id="userDetailEmail"></dd>
-            <dt>Department</dt>
-            <dd id="userDetailDepartment"></dd>
-            <dt>Phone (USSD)</dt>
-            <dd id="userDetailPhone"></dd>
-            <dt>Status</dt>
-            <dd id="userDetailStatus"></dd>
-            <dt>Two-Factor Auth</dt>
-            <dd id="userDetail2fa"></dd>
-            <dt>Account Lock</dt>
-            <dd id="userDetailLock"></dd>
-        </dl>
+        <div class="profile-avatar-actions">
+            <button type="button" class="btn-secondary btn-sm" id="userDetailAvatarBtn">Change photo</button>
+            <button type="button" class="btn-secondary btn-sm" id="userDetailAvatarRemoveBtn">Remove photo</button>
+            <button type="button" class="btn-secondary btn-sm" id="userDetailEmojiBtn" aria-expanded="false" aria-controls="userDetailEmojiPanel">Choose emoji</button>
+            <button type="button" class="btn-secondary btn-sm" id="userDetailEmojiClearBtn">Use initials</button>
+        </div>
+        <div class="emoji-picker-panel" id="userDetailEmojiPanel" hidden>
+            <p class="emoji-picker-hint">No photo? Pick a character instead. Choosing one replaces any photo on this technician.</p>
+            <div id="userDetailEmojiChoices" role="group" aria-label="Avatar emoji choices"></div>
+        </div>
+        <div class="profile-card-section">
+            <p class="profile-section-title" id="userDetailContactHeading">Contact</p>
+            <dl class="profile-rows" aria-labelledby="userDetailContactHeading">
+                <div class="profile-row">
+                    <dt><span class="profile-row-icon" data-icon="mail" aria-hidden="true"></span>Email</dt>
+                    <dd id="userDetailEmail" class="is-strong"></dd>
+                </div>
+                <div class="profile-row">
+                    <dt><span class="profile-row-icon" data-icon="building" aria-hidden="true"></span>Department</dt>
+                    <dd id="userDetailDepartment" class="is-strong"></dd>
+                </div>
+                <div class="profile-row">
+                    <dt><span class="profile-row-icon" data-icon="phone" aria-hidden="true"></span>Phone (USSD)</dt>
+                    <dd id="userDetailPhone"></dd>
+                </div>
+            </dl>
+        </div>
+        <div class="profile-card-section">
+            <p class="profile-section-title" id="userDetailSecurityHeading">Security</p>
+            <dl class="profile-rows" aria-labelledby="userDetailSecurityHeading">
+                <div class="profile-row">
+                    <dt>Account status</dt>
+                    <dd id="userDetailStatus"></dd>
+                </div>
+                <div class="profile-row">
+                    <dt><span class="profile-row-icon" data-icon="shield-alt" aria-hidden="true"></span>Two-factor authentication</dt>
+                    <dd id="userDetail2fa"></dd>
+                </div>
+                <div class="profile-row">
+                    <dt><span class="profile-row-icon" data-icon="lock" aria-hidden="true"></span>Account lock</dt>
+                    <dd id="userDetailLock"></dd>
+                </div>
+            </dl>
+        </div>
+        <div class="profile-card-section">
+            <h3 class="profile-section-title" id="userDetailTicketsHeading">Assigned tickets</h3>
+            <div class="user-detail-tickets" id="userDetailAssignedTickets" role="group" aria-labelledby="userDetailTicketsHeading"></div>
+        </div>
+        <div class="profile-card-section">
+            <div class="profile-rows">
+                <button type="button" class="profile-row is-action" id="userDetailReset2faBtn">
+                    <span class="profile-row-main"><span class="profile-row-icon" data-icon="wrench" aria-hidden="true"></span>Reset two-factor authentication</span>
+                    <span class="profile-row-chevron" data-icon="chevron-right" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="profile-row is-action is-danger" id="userDetailToggleActiveBtn">
+                    <span class="profile-row-main"><span class="profile-row-icon" data-icon="power" aria-hidden="true"></span><span id="userDetailToggleActiveLabel">Deactivate technician</span></span>
+                    <span class="profile-row-chevron" data-icon="chevron-right" aria-hidden="true"></span>
+                </button>
+            </div>
+        </div>
         <div class="modal-actions">
             <button type="button" class="btn-secondary btn-sm" id="userDetailEditBtn">Edit</button>
-            <button type="button" class="btn-secondary btn-sm" id="userDetailReset2faBtn">Reset 2FA</button>
-            <button type="button" class="btn-danger btn-sm" id="userDetailToggleActiveBtn">Deactivate</button>
         </div>
     </div>
     </div>
+    <input type="file" id="userDetailAvatarFile" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;" aria-label="Choose a technician photo">
 
     <div id="kbModal" class="modal">
         <div class="modal-content">
@@ -1069,59 +1304,16 @@
         </div>
     </div>
 
-    <div id="profileModal" class="modal">
-        <div class="modal-content" style="max-width:540px;">
-            <span class="close" id="closeProfileModal">&times;</span>
-            <h2>My Profile</h2>
-            <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin-bottom:16px;">
-                <div style="text-align:center;flex-shrink:0;width:110px;">
-                    <div id="adminProfileAvatarPreview" style="width:72px;height:72px;margin:0 auto 10px;border-radius:50%;background:var(--primary-soft, #eef2ff);border:1px solid var(--border, #eee);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.6rem;overflow:hidden;">A</div>
-                    <button type="button" class="btn-secondary btn-sm" id="adminUploadAvatarBtn" style="width:100%;margin-bottom:6px;"><i data-icon="upload" aria-hidden="true"></i> Upload</button>
-                    <button type="button" class="btn-secondary btn-sm" id="adminRemoveAvatarBtn" style="width:100%;display:none;">Remove</button>
-                    <input type="file" id="adminAvatarFileInput" accept="image/*" style="display:none;" aria-label="Choose a profile picture">
-                </div>
-                <div style="flex:1;min-width:240px;">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                        <div class="form-group">
-                            <label for="adminProfileDisplayName">Display Name</label>
-                            <input type="text" id="adminProfileDisplayName" placeholder="Your display name">
-                        </div>
-                        <div class="form-group">
-                            <label for="adminProfilePhone">Phone</label>
-                            <input type="tel" id="adminProfilePhone" placeholder="e.g. +254 7XX XXX XXX">
-                        </div>
-                        <div class="form-group">
-                            <label for="adminProfileDepartment">Department</label>
-                            <select id="adminProfileDepartment">
-                                <option value="">Select department</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="adminProfileEmail">Email</label>
-                            <input type="email" id="adminProfileEmail">
-                        </div>
-                        <div class="form-group">
-                            <label for="adminProfileUsername">Username</label>
-                            <input type="text" id="adminProfileUsername" readonly style="background:var(--surface-muted, #f3f4f6);cursor:not-allowed;">
-                        </div>
-                        <div class="form-group">
-                            <label for="adminProfileRole">Role</label>
-                            <input type="text" id="adminProfileRole" readonly style="background:var(--surface-muted, #f3f4f6);cursor:not-allowed;">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:12px;">
-                <button type="button" class="btn-primary btn-sm" id="adminSaveProfileBtn">Save Profile</button>
-                <span id="adminProfileSaveMsg" style="display:none;font-size:0.85rem;color:var(--success, #22c55e);align-self:center;">Saved.</span>
-            </div>
-        </div>
-    </div>
-
-    <div id="changePasswordModal" class="modal">
-        <div class="modal-content" style="max-width:420px;">
-            <span class="close" id="closeChangePasswordModal">&times;</span>
-            <h2>Change Password</h2>
+<!-- Change password card. "Change password" closes the profile card and opens
+     this one in its place, the same as View profile, so only one card is ever
+     on screen. The back arrow reopens the profile card. -->
+    <div id="changePasswordModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
+        <div class="modal-content password-dialog">
+            <button type="button" class="sheet-back" id="changePasswordBack" aria-label="Back to account">
+                <i data-icon="arrow-left" aria-hidden="true"></i>
+            </button>
+            <span class="close" id="closeChangePasswordModal" aria-label="Close" role="button" tabindex="0">&times;</span>
+            <h2 class="sheet-title" id="changePasswordTitle">Change Password</h2>
             <form id="changePasswordForm">
                 <div class="form-group password-field" data-password-field data-mode="enter">
                     <label for="adminCurrentPassword">Current Password *</label>
@@ -1246,6 +1438,7 @@
     <script src="/shared/js/api.js"></script>
     <script src="/shared/js/events.js"></script>
     <script src="/shared/js/icons.js"></script>
+    <script src="/shared/js/emoji-picker.js"></script>
     <script src="/shared/js/password-field.js"></script>
     <script src="/shared/js/notification-prefs.js"></script>
     <script src="/shared/js/offline-db.js"></script>
