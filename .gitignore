@@ -33,6 +33,7 @@ backend/instance/
 backend/backups/
 
 # Secrets
+.env
 backend/.env
 *.pem
 *.key

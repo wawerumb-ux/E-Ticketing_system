@@ -80,7 +80,7 @@ services:
   #   docker compose --profile paid up -d monitoring-agent
   monitoring-agent:
     profiles: ["paid"]
-    image: python:3.11-slim
+    image: python:3.13-slim
     command: ["python", "-m", "monitoring_hook"]
     working_dir: /app
     env_file:

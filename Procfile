@@ -1,0 +1,1 @@
+web: cd backend && python -c "from app import app, bootstrap_database; ctx = app.app_context(); ctx.push(); bootstrap_database()" && exec gunicorn --bind 0.0.0.0:${PORT:-8000} --workers ${GUNICORN_WORKERS:-4} --timeout 120 --graceful-timeout 30 --access-logfile - --error-logfile - app:app

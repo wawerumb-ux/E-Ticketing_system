@@ -25,6 +25,8 @@ import select
 import time
 import atexit
 
+from urllib.parse import quote_plus
+
 # ============= RUN-AS-SCRIPT MODULE ALIAS ==================
 # `python app.py` executes this file as __main__, so there is no module object
 # named "app" for ussd.py / routes' `from app import (...)`. Without the alias
@@ -60,15 +62,96 @@ configure_logging()
 
 
 # ============= DATABASE CONFIGURATION =====================
-def get_database_uri():
-    """Get database URI with intelligent fallback options."""
-    supabase_url = os.getenv('SUPABASE_DATABASE_URL')
-    if supabase_url:
-        return supabase_url
+def _as_pymysql_url(url):
+    """Rewrite a bare ``mysql://`` URL to ``mysql+pymysql://``.
 
-    custom_url = os.getenv('DATABASE_URL')
-    if custom_url:
-        return custom_url
+    Railway injects ``MYSQL_URL`` with the bare scheme. That resolves either way
+    because PyMySQL is installed as MySQLdb in the driver block above, but the
+    explicit driver keeps the URL unambiguous in logs and independent of that
+    shim. Non-MySQL URLs (sqlite://, postgresql://) are returned untouched.
+
+    Returns '' for a Railway reference expression that was never interpolated
+    (``mysql://${{ MYSQLUSER }}:...@${{ RAILWAY_PRIVATE_DOMAIN }}/...``). The
+    caller then falls through to the discrete variables, which Railway always
+    expands, instead of connecting to a host literally named ``${{ ... }}``.
+    """
+    url = url.strip()
+    if '${{' in url:
+        return ''
+    if url.startswith('mysql://'):
+        return 'mysql+pymysql://' + url[len('mysql://'):]
+    return url
+
+
+def _env(*names):
+    """Return the first environment variable in ``names`` that is set non-empty.
+
+    Railway spells the same value two ways depending on where it is set: the
+    database service exports ``MYSQLHOST``/``MYSQLUSER``/``MYSQLPASSWORD``, while
+    a hand-written app-service variable is usually typed with underscores as
+    ``MYSQL_HOST``/``MYSQL_USER``/``MYSQL_PASSWORD``. Both must be accepted, and
+    the Railway-native spelling is tried first.
+    """
+    for name in names:
+        value = (os.getenv(name) or '').strip()
+        if value:
+            return value
+    return None
+
+
+def _railway_discrete_url():
+    """Build a PyMySQL URL from Railway's individual MySQL variables.
+
+    Each field is read through :func:`_env`, so the underscored and
+    non-underscored spellings are interchangeable::
+
+        host      MYSQLHOST | RAILWAY_PRIVATE_DOMAIN | MYSQL_HOST
+        port      MYSQLPORT | MYSQL_PORT
+        user      MYSQLUSER | MYSQL_USER             (default: root)
+        password  MYSQLPASSWORD | MYSQL_PASSWORD | MYSQL_ROOT_PASSWORD
+        database  MYSQLDATABASE | MYSQL_DATABASE
+
+    The password is percent-encoded because a literal ``@``, ``/`` or ``#`` in it
+    would otherwise truncate the URL and silently point at the wrong host.
+
+    Returns None when the host or the database name is missing, so the caller
+    falls through to the local default instead of building a broken URL.
+    """
+    host = _env('MYSQLHOST', 'RAILWAY_PRIVATE_DOMAIN', 'MYSQL_HOST')
+    database = _env('MYSQLDATABASE', 'MYSQL_DATABASE')
+    if not host or not database:
+        return None
+
+    user = quote_plus(_env('MYSQLUSER', 'MYSQL_USER') or 'root')
+    password = _env('MYSQLPASSWORD', 'MYSQL_PASSWORD', 'MYSQL_ROOT_PASSWORD') or ''
+    port = _env('MYSQLPORT', 'MYSQL_PORT') or '3306'
+    return (
+        f'mysql+pymysql://{user}:{quote_plus(password)}'
+        f'@{host}:{port}/{database}'
+    )
+
+
+def get_database_uri():
+    """Resolve the SQLAlchemy URI from the first source that is set.
+
+    Order (most explicit wins):
+      1. SUPABASE_DATABASE_URL
+      2. DATABASE_URL
+      3. MYSQL_URL          — Railway injects this on the app service
+      4. MYSQLHOST + MYSQLUSER + MYSQLPASSWORD + MYSQLDATABASE (+ MYSQLPORT)
+      5. local XAMPP default
+
+    A set-but-unusable value (blank, or an uninterpolated Railway reference)
+    is skipped rather than returned, so the next source still gets a chance.
+    """
+    for name in ('SUPABASE_DATABASE_URL', 'DATABASE_URL', 'MYSQL_URL'):
+        resolved = _as_pymysql_url(os.getenv(name, ''))
+        if resolved:
+            return resolved
+
+    discrete = _railway_discrete_url()
+    if discrete:
+        return discrete
 
     return 'mysql+pymysql://root:@127.0.0.1:3306/ict_ticketing'
 # ==========================================================
@@ -126,7 +209,7 @@ from models import User
 @jwt.token_in_blocklist_loader
 def check_token_revoked(jwt_header, jwt_payload):
     """Check if a token has been revoked by comparing token_version.
-    
+        
     If the token's version doesn't match the user's current token_version,
     the token is considered revoked (e.g., user logged out, password changed, etc.)
     """

@@ -1,0 +1,10 @@
+# Root requirements file — exists for Nixpacks / Railway (and pip) only.
+#
+# Railway builds with the repo root as the build root and looks for
+# requirements.txt THERE, not in backend/. Without this file the build installs
+# nothing and `gunicorn: command not found` kills the deploy.
+#
+# The real dependency list lives in backend/requirements.txt and stays there, so
+# local Docker builds and the test suite keep using it unchanged. This file just
+# points pip at it — one source of truth, no duplicated pins to drift.
+-r backend/requirements.txt
