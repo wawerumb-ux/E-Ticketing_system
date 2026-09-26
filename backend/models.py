@@ -50,12 +50,26 @@ class User(db.Model):
     role = db.Column(db.String(20), default='staff')
     department = db.Column(db.String(50))
     phone = db.Column(db.String(20), unique=True, nullable=True)
+    # Name shown next to the username in both portals. Added so a user can
+    # change their own display name (PUT /api/users/me); NULL means "fall back
+    # to the username". Nullable with no default, so existing users are
+    # unaffected. E3: an existing install needs
+    # ALTER TABLE users ADD COLUMN display_name VARCHAR(100);
+    display_name = db.Column(db.String(100))
     is_active = db.Column(db.Boolean, default=True)
     failed_login_attempts = db.Column(db.Integer, default=0)
     locked_until = db.Column(db.DateTime, nullable=True)
     totp_secret = db.Column(db.String(64), nullable=True)
     totp_enabled = db.Column(db.Boolean, default=False)
     token_version = db.Column(db.Integer, default=0)
+    # Stored filename under UPLOAD_FOLDER/avatars, never a URL and never a
+    # data URL. NULL means the user has no photo and the UI falls back to a
+    # monogram built from the username.
+    avatar_filename = db.Column(db.String(255))
+    # Chosen emoji, used when there is no photo. The two are mutually
+    # exclusive: storing one clears the other, so there is never a photo and
+    # an emoji fighting over the same disc.
+    avatar_emoji = db.Column(db.String(16))
     notifications = db.relationship('Notification', backref='user', lazy=True, cascade='all, delete-orphan')
 
 

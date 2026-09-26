@@ -1,19 +1,23 @@
 """User management routes (admin) and self-service profile routes."""
 
 import json
+import os
 import re
+from uuid import uuid4
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
+    decode_token,
     get_jwt,
     get_jwt_identity,
     jwt_required,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
-from extensions import db, utcnow
+from extensions import db, logger, utcnow
 from helpers import (
     _as_str,
     category_role,
@@ -105,9 +109,319 @@ def _public_user(u):
         'department': u.department,
         'is_active': u.is_active,
         'phone': u.phone,
+        'display_name': u.display_name or None,
         'locked_until': u.locked_until.isoformat() if u.locked_until else None,
         'totp_enabled': u.totp_enabled,
+        # null when the user has no photo, which is the signal for the client
+        # to draw an emoji or a monogram instead. The stored filename is never
+        # exposed.
+        'avatar_url': f'/api/users/{u.id}/avatar' if u.avatar_filename else None,
+        # Precedence is photo, then emoji, then the username monogram.
+        'avatar_emoji': u.avatar_emoji or None,
     }
+
+
+AVATAR_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+
+
+def _avatar_dir():
+    return os.path.join(current_app.config['UPLOAD_FOLDER'], 'avatars')
+
+
+def _avatar_access_denied(user_id):
+    """Admins may manage anyone's photo; everyone else only their own."""
+    claims = get_jwt()
+    if claims.get('role') == 'admin':
+        return False
+    try:
+        return int(get_jwt_identity()) != int(user_id)
+    except (TypeError, ValueError):
+        return True
+
+
+def _sniff_image_ext(head):
+    """Canonical extension for a recognised image header, else None.
+
+    The stored extension comes from these bytes rather than from the
+    client-supplied filename, so the Content-Type we later serve always
+    matches the actual file, and a caller that sends no filename at all
+    (e.g. a FormData Blob, which arrives as "blob") still works.
+    """
+    if head.startswith(b'\x89PNG\r\n\x1a\n'):
+        return '.png'
+    if head.startswith(b'\xff\xd8\xff'):
+        return '.jpg'
+    if head.startswith((b'GIF87a', b'GIF89a')):
+        return '.gif'
+    if len(head) >= 12 and head[:4] == b'RIFF' and head[8:12] == b'WEBP':
+        return '.webp'
+    return None
+
+
+def _discard_avatar_file(stored):
+    if not stored:
+        return
+    try:
+        os.remove(os.path.join(_avatar_dir(), stored))
+    except OSError:
+        # A photo file we cannot delete is untidy but not dangerous, and the
+        # database reference is already gone by the time this runs.
+        logger.warning(f'Could not remove old avatar file {stored!r}')
+
+
+# Code point ranges that hold pictographic emoji. This is a whitelist, not a
+# blacklist: anything outside it (ASCII text, markup, control characters,
+# right-to-left overrides) is refused, so the stored value can only ever be
+# an emoji or a short emoji sequence such as a flag or a family.
+_EMOJI_RANGES = (
+    (0x00A9, 0x00A9), (0x00AE, 0x00AE),
+    (0x203C, 0x3299), (0x1F000, 0x1FAFF),
+    (0x1F1E6, 0x1F1FF),                      # regional indicators -> flags
+    (0xFE0F, 0xFE0F),                        # variation selector-16
+    (0x200D, 0x200D),                        # zero-width joiner -> ZWJ sequences
+    (0x1F3FB, 0x1F3FF),                      # skin-tone modifiers
+    (0x20E3, 0x20E3),                        # combining enclosing keycap
+)
+
+
+# Never emoji, and usable to disguise one: the zero-width and bidirectional
+# formatting characters that make a stored string render differently from its
+# stored value. U+200D is deliberately absent from this list, because it is
+# the joiner inside sequences such as the technologist emoji.
+_EMOJI_FORBIDDEN = frozenset(
+    [0x200B, 0x200C, 0x200E, 0x200F, 0xFEFF]
+    + list(range(0x202A, 0x202F))   # bidi embedding, override and pop
+    + list(range(0x2066, 0x206A))   # bidi isolates
+)
+
+# An ASCII digit, hash or star counts as a pictograph only as the head of a
+# keycap sequence, so the enclosing keycap mark has to be present too. A bare
+# digit stays text and is refused.
+_KEYCAP_HEADS = frozenset('0123456789#*')
+
+# Eight code points is the most a real sequence needs (a four-person ZWJ family),
+# and it fits the column with room to spare.
+_EMOJI_MAX_CHARS = 8
+
+
+def _normalise_emoji(value):
+    """Return a safe emoji string, or None if the input is not one.
+
+    Rejects rather than sanitises: a value not made up entirely of emoji code
+    points is refused outright, so nothing downstream has to trust its
+    contents.
+    """
+    text = str(value or '').strip()
+    if not text or len(text) > _EMOJI_MAX_CHARS:
+        return None
+    keycap = '\u20e3' in text
+    for ch in text:
+        cp = ord(ch)
+        if cp in _EMOJI_FORBIDDEN or 0xD800 <= cp <= 0xDFFF:
+            return None
+        if ch in _KEYCAP_HEADS:
+            if not keycap:
+                return None
+            continue
+        if cp < 0x80:
+            return None
+        if not any(lo <= cp <= hi for lo, hi in _EMOJI_RANGES):
+            return None
+    return text
+
+
+def _clear_avatar_artifacts(user, keep_photo):
+    """Apply the photo/emoji exclusivity rule and return the photo file to
+    delete, if any. Clearing a reference never happens before the new one is
+    written, so a failed request cannot leave a user with no avatar at all."""
+    old_photo = user.avatar_filename if not keep_photo else None
+    if not keep_photo:
+        user.avatar_filename = None
+    return old_photo
+
+
+@users_bp.route('/api/users/<int:user_id>/avatar', methods=['POST'])
+@jwt_required()
+def upload_avatar(user_id):
+    if _avatar_access_denied(user_id):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+    if user.is_active is False:
+        return jsonify({'error': 'Cannot set a photo on a deactivated user'}), 400
+
+    asset = request.files.get('file')
+    if not asset or not asset.filename:
+        return jsonify({'error': 'No file provided'}), 400
+
+    # A supplied extension is still checked, so an obviously wrong upload is
+    # rejected with a clear message, but it is not what decides the format.
+    ext = os.path.splitext(secure_filename(asset.filename))[1].lower()
+    if ext and ext not in AVATAR_EXTENSIONS:
+        return jsonify({
+            'error': f'Image type "{ext}" is not allowed. '
+                     'Use PNG, JPEG, GIF or WebP.'
+        }), 400
+
+    head = asset.stream.read(16)
+    asset.stream.seek(0)
+    sniffed = _sniff_image_ext(head or b'')
+    if not sniffed:
+        return jsonify({'error': 'That file is not a PNG, JPEG, GIF or WebP image.'}), 400
+    ext = sniffed
+
+    directory = _avatar_dir()
+    try:
+        os.makedirs(directory, exist_ok=True)
+    except OSError as exc:
+        logger.error(f'Could not create avatar directory {directory!r}: {exc}')
+        return jsonify({
+            'error': 'The server could not prepare its photo storage. '
+                     'This is usually a missing or read-only uploads volume.'
+        }), 507
+
+    stored = f'{user_id}-{uuid4().hex}{ext}'
+    dest = os.path.join(directory, stored)
+    try:
+        asset.save(dest)
+    except OSError as exc:
+        logger.error(f'Avatar upload failed for user {user_id} -> {dest}: {exc}')
+        return jsonify({
+            'error': 'The photo could not be saved. The server may be out of '
+                     'disk space, or the uploads directory is not writable.'
+        }), 507
+
+    previous = user.avatar_filename
+    user.avatar_filename = stored
+    # A photo and an emoji are alternative ways to fill the same disc, so
+    # choosing a photo retires the emoji.
+    user.avatar_emoji = None
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        # Roll the file back too, so a failed write leaves nothing orphaned.
+        _discard_avatar_file(stored)
+        logger.error(f'Could not store avatar reference for user {user_id}: {exc}')
+        return jsonify({'error': 'The photo reference could not be saved.'}), 500
+
+    if previous and previous != stored:
+        _discard_avatar_file(previous)
+    return jsonify(_public_user(user)), 200
+
+
+@users_bp.route('/api/users/<int:user_id>/avatar/emoji', methods=['PUT'])
+@jwt_required()
+def set_avatar_emoji(user_id):
+    """Choose an emoji for the user, for anyone who has no photo to upload."""
+    if _avatar_access_denied(user_id):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+
+    payload = request.get_json(silent=True) or {}
+    emoji = _normalise_emoji(payload.get('emoji'))
+    if not emoji:
+        return jsonify({
+            'error': 'That is not a single emoji. Pick one character, such as '
+                     'a face, an animal or a symbol.'
+        }), 400
+
+    # Choosing an emoji retires any photo, and its file is removed once the new
+    # reference has been committed.
+    old_photo = _clear_avatar_artifacts(user, keep_photo=False)
+    user.avatar_emoji = emoji
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logger.error(f'Could not store avatar emoji for user {user_id}: {exc}')
+        return jsonify({'error': 'The emoji could not be saved.'}), 500
+
+    _discard_avatar_file(old_photo)
+    return jsonify(_public_user(user)), 200
+
+
+@users_bp.route('/api/users/<int:user_id>/avatar/emoji', methods=['DELETE'])
+@jwt_required()
+def clear_avatar_emoji(user_id):
+    """Drop the emoji, leaving the user on their monogram."""
+    if _avatar_access_denied(user_id):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+    if user.avatar_emoji is None:
+        return jsonify(_public_user(user)), 200
+
+    user.avatar_emoji = None
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logger.error(f'Could not clear avatar emoji for user {user_id}: {exc}')
+        return jsonify({'error': 'The emoji could not be cleared.'}), 500
+
+    return jsonify(_public_user(user)), 200
+
+
+@users_bp.route('/api/users/<int:user_id>/avatar', methods=['DELETE'])
+@jwt_required()
+def delete_avatar(user_id):
+    if _avatar_access_denied(user_id):
+        return jsonify({'error': 'Insufficient permissions'}), 403
+
+    user = db.session.get(User, user_id)
+    if user is None:
+        return jsonify({'error': 'User not found'}), 404
+    if not user.avatar_filename:
+        return jsonify(_public_user(user)), 200
+
+    previous = user.avatar_filename
+    user.avatar_filename = None
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logger.error(f'Could not clear avatar reference for user {user_id}: {exc}')
+        return jsonify({'error': 'The photo reference could not be cleared.'}), 500
+
+    _discard_avatar_file(previous)
+    return jsonify(_public_user(user)), 200
+
+
+@users_bp.route('/api/users/<int:user_id>/avatar')
+def get_avatar(user_id):
+    # An <img> tag cannot send an Authorization header, the same limitation
+    # the SSE stream has, so the token may also arrive in the query string.
+    # Without this the endpoint would be publicly enumerable: ids are
+    # sequential, so every staff photo would be readable while signed out.
+    token = None
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header[7:]
+    if not token:
+        token = request.args.get('token')
+    if not token:
+        return jsonify({'error': 'Token required'}), 401
+    try:
+        decode_token(token)
+    except Exception:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    user = db.session.get(User, user_id)
+    if user is None or not user.avatar_filename:
+        return jsonify({'error': 'No photo'}), 404
+    if user.is_active is False:
+        return jsonify({'error': 'No photo'}), 404
+
+    return send_from_directory(
+        _avatar_dir(), user.avatar_filename, max_age=86400)
 
 
 @users_bp.route('/api/users', methods=['GET'])
@@ -260,6 +574,66 @@ def get_my_profile():
     user_id = int(get_jwt_identity())
     user = User.query.get_or_404(user_id)
     return jsonify(_public_user(user)), 200
+
+
+@users_bp.route('/api/users/me', methods=['PUT'])
+@jwt_required()
+def update_my_profile():
+    """Self-service edit of the caller's own contact details.
+
+    Deliberately narrow. role, department and username are NOT writable here:
+    role and department are assigned by an administrator, and a rename already
+    has its own password-gated route. Those keys are ignored rather than
+    rejected, so the ownership and role checks live on the server and not in
+    the UI (S7) - a client that sends them anyway changes nothing.
+    """
+    user_id = int(get_jwt_identity())
+    user = User.query.get_or_404(user_id)
+    data = request.json or {}
+    diff = {}
+
+    if 'display_name' in data:
+        value = (data.get('display_name') or '').strip()
+        if len(value) > 100:
+            return jsonify({'error': 'Display name must be 100 characters or fewer'}), 400
+        if value != (user.display_name or ''):
+            diff['display_name'] = {'from': _as_str(user.display_name),
+                                    'to': _as_str(value)}
+        user.display_name = value or None
+
+    if 'phone' in data:
+        value = (data.get('phone') or '').strip()
+        if value and not re.match(r'^[0-9+()\- ]{6,20}$', value):
+            return jsonify({'error': 'Phone must be 6-20 characters: digits, spaces, +, - or ( )'}), 400
+        if value != (user.phone or ''):
+            # users.phone is UNIQUE, so an empty value is stored as NULL and
+            # never collides; a real value must not already be taken.
+            if value and User.query.filter(User.phone == value, User.id != user.id).first():
+                return jsonify({'error': 'Phone already in use'}), 400
+            diff['phone'] = {'from': _as_str(user.phone), 'to': _as_str(value)}
+        user.phone = value or None
+
+    if 'email' in data:
+        value = (data.get('email') or '').strip()
+        if not value:
+            return jsonify({'error': 'Email is required'}), 400
+        if not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', value):
+            return jsonify({'error': 'Enter a valid email address'}), 400
+        if len(value) > 100:
+            return jsonify({'error': 'Email must be 100 characters or fewer'}), 400
+        if value.lower() != (user.email or '').lower():
+            if User.query.filter(User.email == value, User.id != user.id).first():
+                return jsonify({'error': 'Email already in use'}), 400
+            diff['email'] = {'from': _as_str(user.email), 'to': _as_str(value)}
+        user.email = value
+
+    if not diff:
+        return jsonify({'message': 'No changes to save', 'user': _public_user(user)}), 200
+
+    log_audit(user.username, 'update_self', 'user', user.username, json.dumps(diff))
+    db.session.commit()
+    return jsonify({'message': 'Profile updated successfully',
+                    'user': _public_user(user)}), 200
 
 
 @users_bp.route('/api/users/me/password', methods=['PUT'])

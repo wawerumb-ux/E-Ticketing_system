@@ -1,4 +1,4 @@
- /* ==============================
+/* ==============================
    FONTS (OFFLINE-FIRST)
    No remote @import is allowed here (registry Source 7 — external font/icon/
    image services are forbidden). The system stack below renders identically
@@ -27,8 +27,7 @@
     box-sizing: border-box;
 }
 
-/* The page body never pushes sideways; any wide child (tables, code blocks,
-   images) is responsible for its own overflow inside its own container. */
+/* The page body never pushes sideways; any wide child (tables, code blocks, images) is responsible for its own overflow inside its own container. */
 html {
     scroll-padding-top: var(--header-height); /* STK1 — sticky header never covers scroll targets */
     max-width: 100%;
@@ -40,12 +39,9 @@ body {
     overflow-x: hidden;
 }
 
-/* Design rule: --danger-dark, --success-light/dark, --warning-light/dark,
-   --danger-light, --info, --info-light, --violet, --violet-light, --overlay,
-   --sidebar-bg, --sidebar-text, --sidebar-text-muted, --sidebar-icon,
-   --sidebar-text-strong, --sidebar-hover, --sidebar-border, --danger-mid,
-   --danger-deep, and --focus-ring are intentionally CONSTANT across light and
-   dark. They mirror the non-themed treatment of --primary-light /
+/* Design rule: --danger-dark, --success-light/dark, --warning-light/dark, --danger-light, --info, --info-light, --violet, --violet-light, --overlay, --sidebar-bg, --sidebar-text, --sidebar-text-muted, --sidebar-icon, --sidebar-text-strong, --sidebar-hover, --sidebar-border, --danger-mid, --danger-deep, and --focus-ring are
+   intentionally CONSTANT
+   across light and dark. They mirror the non-themed treatment of --primary-light /
    --primary-dark. Do not theme them without an explicit developer decision. */
 
 :root {
@@ -58,7 +54,13 @@ body {
     --primary-dark: #1d4ed8;
     --primary-light: #dbeafe;
     --link: var(--primary);       /* links/meaningful text accent; dark themes override with a bright value (AA) */
-    --accent: #f97316;            /* warm orange accent */
+    --accent: #f97316;
+  /* Ink for text sitting on an --accent fill (the Account Information save
+     button and role pill). --accent is theme-invariant, so one value is correct
+     in all eleven theme blocks: #14151B on #f97316 is 6.55:1, which clears AA
+     for body text. The reference used a lime fill with near-black ink, the same
+     pairing. */
+  --accent-ink: #14151B;            /* warm orange accent */
     --accent-light: #fff7ed;
     --success: #15803d;           /* AA text-on-surface (was #16a34a) */
     --warning: #b45309;           /* AA text-on-surface (was #ea580c) */
@@ -110,6 +112,13 @@ body {
     --sidebar-text-strong: #ffffff;
     --sidebar-hover: rgba(255, 255, 255, 0.08);
     --sidebar-border: rgba(255, 255, 255, 0.06);
+    /* Danger text ON the rail. --danger-text resolves to #dc2626 in light
+       themes, which is only 3.70:1 on the graphite sidebar, so a rail-scoped
+       value is needed the same way --sidebar-text is. 9.41:1 on #0f172a. */
+    /* Accent ON the rail, for the profile avatar ring and rail focus rings.
+       --primary is a mid blue in the light themes (2.64:1 on the rail, under
+       the 3:1 that BLD3 requires of a boundary), so the rail needs its own
+       value. 7.02:1 on #0f172a. */
 
     /* Shadows */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -136,13 +145,19 @@ body {
     --z-modal: 2000;
     --z-tooltip: 2500;
     --z-toast: 3000;
-    --z-identity: 3200;
 
     /* Fonts (TASK 1 — modified: system stack per Source 2; no remote font).
        Self-hosted fonts may be added later via Source 3; this stack is the
        offline-safe default and renders identically on every OS. */
     --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-heading: var(--font-body);
+    /* System emoji fonts, appended after the text stack so a glyph resolves to
+       a colour emoji instead of falling through to a text face that has no
+       coverage for it and draws a missing-glyph box (O2). These are fonts the
+       reader's own machine already has, so nothing is fetched (O1). Listed
+       explicitly rather than left to `sans-serif`, because on Linux the
+       generic family usually resolves to a face with no emoji coverage at all. */
+    --font-emoji: var(--font-body), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Android Emoji", "EmojiMart", "Twemoji Mozilla", sans-serif;
 
     /* Auth-surface tokens (login.html, reset-password.html).
        These use the same variable names as the auth inline styles they replace.
@@ -172,13 +187,10 @@ body {
    ==============================
    Daylight is the :root default above (no data-theme needed for it).
    Each block below defines the full themed slot set for that theme. The
-   constant tokens (sidebar, overlay, focus-ring, badge tint/ink pairs,
-   info, violet) are defined once in :root and deliberately do NOT recur
+   constant tokens (sidebar, overlay, focus-ring, badge tint/ink pairs, info, violet) are defined once in :root and deliberately do NOT recur
    here. --link and --danger-text are bright text accent variants that
    dark themes override (the base fill values keep white-text AA). */
-html[data-theme="abyss"],
-html.dark-theme,
-.theme-card[data-theme="abyss"] {
+html[data-theme="abyss"], html.dark-theme, .theme-card[data-theme="abyss"] {
     color-scheme: dark;
 
     --bg: #0f1724;
@@ -202,8 +214,7 @@ html.dark-theme,
     --shadow-glow: 0 0 0 1px rgba(37, 99, 235, 0.3), 0 4px 20px rgba(37, 99, 235, 0.25);
 }
 
-html[data-theme="night-owl"],
-.theme-card[data-theme="night-owl"] {
+html[data-theme="night-owl"], .theme-card[data-theme="night-owl"] {
     color-scheme: dark;
 
     --bg: #161310;
@@ -227,8 +238,7 @@ html[data-theme="night-owl"],
     --shadow-glow: 0 0 0 1px rgba(255, 185, 81, 0.25), 0 4px 20px rgba(255, 185, 81, 0.2);
 }
 
-html[data-theme="quiet-light"],
-.theme-card[data-theme="quiet-light"] {
+html[data-theme="quiet-light"], .theme-card[data-theme="quiet-light"] {
     color-scheme: light;
 
     --bg: #f7f4ee;
@@ -251,8 +261,7 @@ html[data-theme="quiet-light"],
     --shadow-glow: 0 0 0 1px rgba(58, 95, 138, 0.16), 0 4px 20px rgba(58, 95, 138, 0.2);
 }
 
-html[data-theme="solarized-light"],
-.theme-card[data-theme="solarized-light"] {
+html[data-theme="solarized-light"], .theme-card[data-theme="solarized-light"] {
     color-scheme: light;
 
     --bg: #fdf6e3;
@@ -275,8 +284,7 @@ html[data-theme="solarized-light"],
     --shadow-glow: 0 0 0 1px rgba(30, 96, 140, 0.16), 0 4px 20px rgba(30, 96, 140, 0.2);
 }
 
-html[data-theme="high-contrast"],
-.theme-card[data-theme="high-contrast"] {
+html[data-theme="high-contrast"], .theme-card[data-theme="high-contrast"] {
     color-scheme: dark;
 
     --bg: #000000;
@@ -300,17 +308,12 @@ html[data-theme="high-contrast"],
     --shadow-glow: none;
 }
 
-/* High Contrast emphasises boundaries with a strong edge where cards,
-   tables and surfaces normally rely on a hairline border. */
-html[data-theme="high-contrast"] .stat-card,
-html[data-theme="high-contrast"] .chart-card,
-html[data-theme="high-contrast"] .table-container,
-html[data-theme="high-contrast"] .modal-content {
+/* High Contrast emphasises boundaries with a strong edge where cards, tables and surfaces normally rely on a hairline border. */
+html[data-theme="high-contrast"] .stat-card, html[data-theme="high-contrast"] .chart-card, html[data-theme="high-contrast"] .table-container, html[data-theme="high-contrast"] .modal-content {
     border: 2px solid currentColor;
 }
 
-html[data-theme="flexoki-light"],
-.theme-card[data-theme="flexoki-light"] {
+html[data-theme="flexoki-light"], .theme-card[data-theme="flexoki-light"] {
     color-scheme: light;
 
     --bg: #fffcf0;
@@ -333,8 +336,7 @@ html[data-theme="flexoki-light"],
     --shadow-glow: 0 0 0 1px rgba(32, 94, 166, 0.16), 0 4px 20px rgba(32, 94, 166, 0.2);
 }
 
-html[data-theme="catppuccin-latte"],
-.theme-card[data-theme="catppuccin-latte"] {
+html[data-theme="catppuccin-latte"], .theme-card[data-theme="catppuccin-latte"] {
     color-scheme: light;
 
     --bg: #eff1f5;
@@ -357,8 +359,7 @@ html[data-theme="catppuccin-latte"],
     --shadow-glow: 0 0 0 1px rgba(15, 91, 243, 0.16), 0 4px 20px rgba(15, 91, 243, 0.2);
 }
 
-html[data-theme="catppuccin-mocha"],
-.theme-card[data-theme="catppuccin-mocha"] {
+html[data-theme="catppuccin-mocha"], .theme-card[data-theme="catppuccin-mocha"] {
     color-scheme: dark;
 
     --bg: #1e1e2e;
@@ -382,8 +383,7 @@ html[data-theme="catppuccin-mocha"],
     --shadow-glow: 0 0 0 1px rgba(137, 180, 250, 0.3), 0 4px 20px rgba(137, 180, 250, 0.25);
 }
 
-html[data-theme="nord"],
-.theme-card[data-theme="nord"] {
+html[data-theme="nord"], .theme-card[data-theme="nord"] {
     color-scheme: dark;
 
     --bg: #2e3440;
@@ -407,8 +407,7 @@ html[data-theme="nord"],
     --shadow-glow: 0 0 0 1px rgba(136, 192, 208, 0.3), 0 4px 20px rgba(136, 192, 208, 0.25);
 }
 
-html[data-theme="gruvbox"],
-.theme-card[data-theme="gruvbox"] {
+html[data-theme="gruvbox"], .theme-card[data-theme="gruvbox"] {
     color-scheme: dark;
 
     --bg: #282828;
@@ -485,8 +484,7 @@ a {
 /* Glassmorphism gate: backdrop-filter is expensive on old hardware.
    Browsers without support keep the solid --sidebar-bg gradient fallback.
    No new tokens — the gradient token IS the fallback surface. */
-@supports not (backdrop-filter: blur(8px)) {
-    .sidebar {
+@supports not (backdrop-filter: blur(8px)) {.sidebar {
         backdrop-filter: none;
     }
 }
@@ -547,8 +545,7 @@ a {
    purely as a static brand mark (pointer-events none, kept out of the tab
    order by sidebar.js while visible-as-mark), while the rail shows the logo
    centered as before. */
-@media (min-width: 1025px) {
-    html:not(.sidebar-mini) #toggleSidebar {
+@media (min-width: 1025px) {html:not(.sidebar-mini) #toggleSidebar {
         visibility: visible;
         opacity: 1;
         pointer-events: none;
@@ -711,8 +708,7 @@ html.sidebar-mini #sidebarBrandLabel {
     transition: background var(--transition);
 }
 
-.identity-launcher:hover,
-.identity-launcher:focus-visible {
+.identity-launcher:hover, .identity-launcher:focus-visible {
     background: var(--sidebar-hover);
     outline: none;
 }
@@ -722,185 +718,10 @@ html.sidebar-mini #sidebarBrandLabel {
     outline-offset: -1px;
 }
 
-.identity-launcher.open .identity-chevron {
-    transform: rotate(90deg);
-}
-
-.identity-chevron {
-    margin-left: auto;
-    color: var(--sidebar-text-muted);
-    font-size: 0.9rem;
-    flex-shrink: 0;
-    transition: transform 200ms ease-out;
-}
-
-.identity-menu {
-    position: fixed;
-    z-index: var(--z-identity);
-    width: 250px;
-    max-width: calc(100% - 16px);
-    max-height: 60vh;
-    overflow-y: auto;
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-lg);
-    padding: 8px;
-}
-
-.identity-menu[hidden] {
-    display: none;
-}
-
-.identity-menu.open {
-    display: block;
-}
-
-.identity-menu-group {
-    padding: 4px 0;
-}
-
-.identity-menu-group + .identity-menu-group {
-    border-top: 1px solid var(--border);
-    margin-top: 4px;
-    padding-top: 6px;
-}
-
-.identity-menu-heading {
-    display: block;
-    padding: 4px 10px 6px;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--sidebar-text-muted);
-}
-
-.identity-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    padding: 9px 10px;
-    background: none;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 0.9rem;
-    color: var(--text);
-    text-align: left;
-    cursor: pointer;
-    transition: background var(--transition);
-}
-
-.identity-menu-item:hover,
-.identity-menu-item:focus-visible {
-    background: var(--border);
-    outline: none;
-}
-
-.identity-menu-item[aria-disabled="true"] {
-    color: var(--text-muted);
-    cursor: not-allowed;
-}
-
-.identity-menu-item .mi-hint {
-    margin-left: auto;
-    font-size: 0.7rem;
-    color: var(--text-muted);
-}
-
-.identity-menu-find {
-    padding: 2px;
-}
-
-.identity-menu-find .identity-menu-find-head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.identity-menu-find .identity-menu-find-head .identity-menu-back {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    padding: 4px;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: background var(--transition);
-}
-
-.identity-menu-find .identity-menu-find-head .identity-menu-back:hover,
-.identity-menu-find .identity-menu-find-head .identity-menu-back:focus-visible {
-    background: var(--border);
-    outline: none;
-}
-
-.identity-menu-find .identity-menu-search {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface-muted);
-    color: var(--text);
-}
-
-.identity-menu-find .identity-menu-search input {
-    border: none;
-    background: transparent;
-    color: inherit;
-    flex: 1;
-    min-width: 0;
-    outline: none;
-}
-
-.identity-menu-results {
-    max-height: 40vh;
-    overflow-y: auto;
-}
-
-.identity-menu-user {
-    gap: 8px;
-    padding: 8px 10px;
-}
-
-.identity-menu-user .mu-name {
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.identity-menu-user .mu-detail {
-    font-size: 0.78rem;
-    color: var(--text-muted);
-}
-
-.identity-menu-hint {
-    padding: 8px 10px;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}
-
 /* ---- Mini-state identity overrides ---- */
 html.sidebar-mini .identity-launcher {
     flex: 0 0 auto;
     justify-content: center;
-}
-
-html.sidebar-mini .identity-chevron {
-    display: none;
-}
-
-html.sidebar-mini .identity-menu.open {
-    max-height: 50vh;
 }
 
 .sidebar-nav li {
@@ -995,9 +816,7 @@ html.sidebar-mini .sidebar-header h2 {
     font-size: 1.5rem;
 }
 
-html.sidebar-mini .sidebar-header h2 span,
-html.sidebar-mini .sidebar-nav span,
-html.sidebar-mini .identity-text {
+html.sidebar-mini .sidebar-header h2 span, html.sidebar-mini .sidebar-nav span, html.sidebar-mini .identity-text {
     display: none;
 }
 
@@ -1060,9 +879,7 @@ html.sidebar-mini .sidebar-nav li::after {
     pointer-events: none;
 }
 
-html.sidebar-mini .sidebar-nav li:hover::after,
-html.sidebar-mini .sidebar-nav li:focus-visible::after,
-html.sidebar-mini .sidebar-nav li:focus-within::after {
+html.sidebar-mini .sidebar-nav li:hover::after, html.sidebar-mini .sidebar-nav li:focus-visible::after, html.sidebar-mini .sidebar-nav li:focus-within::after {
     opacity: 1;
     visibility: visible;
     transform: translateY(-50%) translateX(0);
@@ -1070,13 +887,12 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
 
 /* ---- 769-1024px band: Mini is fixed; the hamburger opens Expanded as an
    overlay (dim backdrop, slides in above the content). ---- */
-@media (min-width: 769px) and (max-width: 1024px) {
-    html.sidebar-expanded-overlay .sidebar {
+@media (min-width: 769px) and (max-width: 1024px) {html.sidebar-expanded-overlay .sidebar {
         width: var(--sidebar-width);
         transform: translateX(0);
     }
 
-    html.sidebar-expanded-overlay .sidebar-backdrop {
+html.sidebar-expanded-overlay .sidebar-backdrop {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
@@ -1155,8 +971,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     display: none;
 }
 
-@media (max-width: 1024px) {
-    .header-menu-toggle {
+@media (max-width: 1024px) {.header-menu-toggle {
         display: inline-flex;
     }
 }
@@ -1221,8 +1036,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     transition: background var(--transition);
 }
 
-.notification-header-action:hover,
-.notification-header-action:focus-visible {
+.notification-header-action:hover, .notification-header-action:focus-visible {
     background: var(--border);
     outline: none;
 }
@@ -1268,8 +1082,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     transition: transform var(--transition);
 }
 
-.notification-tab:hover,
-.notification-tab:focus-visible {
+.notification-tab:hover, .notification-tab:focus-visible {
     color: var(--link, var(--primary));
     outline: none;
 }
@@ -1282,9 +1095,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     box-shadow: 0 0 0 4px var(--focus-ring);
 }
 
-.notification-tab:hover::after,
-.notification-tab:focus-visible::after,
-.notification-tab[aria-pressed="true"]::after {
+.notification-tab:hover::after, .notification-tab:focus-visible::after, .notification-tab[aria-pressed="true"]::after {
     transform: scaleX(1);
 }
 
@@ -1301,9 +1112,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     font-weight: 600;
 }
 
-.notification-unread-pill[hidden],
-.notification-tab-count[hidden],
-.notification-last-synced[hidden] {
+.notification-unread-pill[hidden], .notification-tab-count[hidden], .notification-last-synced[hidden] {
     display: none !important;
 }
 
@@ -1339,8 +1148,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     background: var(--primary-light);
 }
 
-.notification-item.unread:hover,
-.notification-item.unread:focus-visible {
+.notification-item.unread:hover, .notification-item.unread:focus-visible {
     background: var(--primary-light);
 }
 
@@ -1460,9 +1268,9 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     display: block;
 }
 
-@keyframes fadeSlide {
-    0% { opacity: 0; transform: translateY(12px); }
-    100% { opacity: 1; transform: translateY(0); }
+@keyframes fadeSlide {0% { opacity: 0; transform: translateY(12px); }
+
+100% { opacity: 1; transform: translateY(0); }
 }
 
 /* ==============================
@@ -1526,13 +1334,12 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
    cluster visible when hover cannot fire, so D-pad/touch users see what
    exists before pressing. Same selectors, same file, no token invented, no
    new pattern, offline-neutral. */
-@media (hover: none) {
-    .quick-action-btn {
+@media (hover: none) {.quick-action-btn {
         transform: none;
         opacity: 1;
     }
 
-    .quick-action-btn:focus-visible {
+.quick-action-btn:focus-visible {
         outline: 2px solid var(--primary);
         outline-offset: 2px;
     }
@@ -1696,9 +1503,9 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     animation: pulse-dot 2s infinite;
 }
 
-@keyframes pulse-dot {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(1.2); }
+@keyframes pulse-dot {0%, 100% { opacity: 1; transform: scale(1); }
+
+50% { opacity: 0.6; transform: scale(1.2); }
 }
 
 /* ==============================
@@ -1750,13 +1557,11 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     opacity: 0.4;
 }
 
-.ticket-table th.sorted-asc,
-.ticket-table th.sorted-desc {
+.ticket-table th.sorted-asc, .ticket-table th.sorted-desc {
     color: var(--link, var(--primary));
 }
 
-.ticket-table th.sorted-asc i,
-.ticket-table th.sorted-desc i {
+.ticket-table th.sorted-asc i, .ticket-table th.sorted-desc i {
     opacity: 1;
 }
 
@@ -1791,23 +1596,36 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     background: var(--primary-light);
     color: var(--primary-dark);
 }
+
 .status-badge.in_progress {
     background: var(--warning-light);
     color: var(--warning-dark);
 }
+
 .status-badge.resolved {
     background: var(--success-light);
     color: var(--success-dark);
+}
+
+/* Inactive/revoked accounts. This replaces an inline `background:#f5f5f5;
+   color:#999` pair, which was the same grey in every theme and sat at roughly
+   2.1:1, below the 4.5:1 body-text floor. A tint-and-ink pair from the same
+   neutral family follows the pattern of the badges above (BLD2). */
+.status-badge.inactive {
+    background: var(--surface-alt);
+    color: var(--text);
 }
 
 .priority-badge.high {
     background: var(--danger-light);
     color: var(--danger-dark);
 }
+
 .priority-badge.medium {
     background: var(--warning-light);
     color: var(--warning-dark);
 }
+
 .priority-badge.low {
     background: var(--success-light);
     color: var(--success-dark);
@@ -1848,18 +1666,22 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     letter-spacing: 0.02em;
     white-space: nowrap;
 }
+
 .sla-badge.ok {
     background: var(--success-light);
     color: var(--success-dark);
 }
+
 .sla-badge.due_soon {
     background: var(--warning-light);
     color: var(--warning-dark);
 }
+
 .sla-badge.breached {
     background: var(--danger-light);
     color: var(--danger-dark);
 }
+
 .sla-badge.none {
     background: var(--bg);
     color: var(--text-muted);
@@ -1870,6 +1692,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     color: var(--text-muted);
     line-height: 1.6;
 }
+
 .sla-due-wrap .breached {
     color: var(--danger-text, var(--danger));
     font-weight: 600;
@@ -1895,9 +1718,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     font-size: 0.9rem;
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
+.form-group input, .form-group select, .form-group textarea {
     width: 100%;
     padding: 12px 16px;
     border: 1px solid var(--border);
@@ -1909,9 +1730,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     transition: border-color var(--transition), box-shadow var(--transition);
 }
 
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 4px var(--focus-ring);
@@ -2028,8 +1847,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     margin-bottom: 20px;
 }
 
-.filter-controls select,
-.filter-controls input {
+.filter-controls select, .filter-controls input {
     padding: 10px 16px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -2039,8 +1857,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     transition: border-color var(--transition), box-shadow var(--transition);
 }
 
-.filter-controls select:focus,
-.filter-controls input:focus {
+.filter-controls select:focus, .filter-controls input:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 4px var(--focus-ring);
 }
@@ -2083,9 +1900,9 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     transition: background var(--transition);
 }
 
-@keyframes slideDown {
-    from { transform: translateY(-30px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+@keyframes slideDown {from { transform: translateY(-30px); opacity: 0; }
+
+to { transform: translateY(0); opacity: 1; }
 }
 
 .close {
@@ -2127,9 +1944,9 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     color: var(--danger-deep);
 }
 
-@keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+@keyframes slideUp {from { transform: translateY(20px); opacity: 0; }
+
+to { transform: translateY(0); opacity: 1; }
 }
 
 /* ==============================
@@ -2346,8 +2163,11 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
 }
 
 .tc-swatch-surface { background: var(--surface); }
+
 .tc-swatch-text { background: var(--text); }
+
 .tc-swatch-muted { background: var(--text-secondary); }
+
 .tc-swatch-accent { background: var(--link, var(--primary)); }
 
 .tc-name {
@@ -2368,8 +2188,7 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     position: relative;
 }
 
-[data-tooltip]:hover::after,
-[data-tooltip]:focus-visible::after {
+[data-tooltip]:hover::after, [data-tooltip]:focus-visible::after {
     content: attr(data-tooltip);
     position: absolute;
     top: 130%;
@@ -2418,19 +2237,19 @@ body.focus-mode * {
     transition: none !important;
 }
 
-body.focus-mode .quick-actions,
-body.focus-mode .service-status-badge {
+body.focus-mode .quick-actions, body.focus-mode .service-status-badge {
     display: none;
 }
 
-/* SVG loading-spinner rotation (Icons.render('spinner', { state: 'loading' })).
+/* SVG loading-spinner rotation (Icons.render('spinner', { state: 'loading' }
+
+)).
    The global prefers-reduced-motion guard below clamps this animation. */
 .icon-spin {
     animation: icon-rotate 0.8s linear infinite;
     transform-origin: center;
 }
-@keyframes icon-rotate {
-    to {
+@keyframes icon-rotate {to {
         transform: rotate(360deg);
     }
 }
@@ -2443,13 +2262,15 @@ body.focus-mode .service-status-badge {
 
 .font-display { font-family: var(--auth-font-display); }
 
-@keyframes auth-reveal {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+@keyframes auth-reveal {from { opacity: 0; transform: translateY(10px); }
+
+to { opacity: 1; transform: translateY(0); }
 }
+
 .reveal-once { animation: auth-reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-@keyframes auth-spin { to { transform: rotate(360deg); } }
+@keyframes auth-spin {to { transform: rotate(360deg); } }
+
 .spinner-icon {
     display: inline-block;
     width: 16px; height: 16px;
@@ -2460,6 +2281,7 @@ body.focus-mode .service-status-badge {
 }
 
 .auth-brand { background: var(--auth-ink); color: var(--auth-on-ink); }
+
 .auth-fog {
     background: var(--auth-fog);
     color: var(--auth-on-fog);
@@ -2467,6 +2289,7 @@ body.focus-mode .service-status-badge {
     margin: 0;
     max-width: 100%;
 }
+
 /* Login-page wallpaper (frontend/login.html only). Decorative fixed layer
    behind .auth-shell (z-index -1 < base 0 of the LAY2 scale). Single local
    asset, zero JS. If it fails to load, background-color falls back to --bg —
@@ -2483,6 +2306,7 @@ body.login-page::before {
     background-repeat: no-repeat;
     background-color: var(--bg);
 }
+
 .auth-shell {
     display: flex;
     min-height: 100vh;
@@ -2491,6 +2315,7 @@ body.login-page::before {
     position: relative;
     z-index: 1; /* above the wallpaper (-1), below header/toast layers */
 }
+
 .auth-panel {
     position: relative;
     overflow: hidden;
@@ -2500,6 +2325,7 @@ body.login-page::before {
     flex-direction: column;
     justify-content: space-between;
 }
+
 .auth-form-panel {
     flex: 1;
     display: flex;
@@ -2507,6 +2333,7 @@ body.login-page::before {
     justify-content: center;
     padding: 3.5rem 1.5rem;
 }
+
 .auth-card {
     width: 100%;
     max-width: 380px;
@@ -2514,6 +2341,7 @@ body.login-page::before {
     border: 1px solid var(--auth-fog-line);
     border-radius: 1rem;
 }
+
 /* With internet the wallpaper landing replaces the auth brand panel; the login
    card stays centered and the form panel fills the shell. The class is toggled
    by an inline script in login.html from navigator.onLine before first paint.
@@ -2523,8 +2351,7 @@ body.wallpaper-active .auth-brand { display: none; }
 
 /* WebGL tubes canvas (login.html, offline only — Option C).
    Fixed full-viewport layer, z-index -1: below .auth-shell (z-index 1) and
-   above the body.login-page::before wallpaper pseudo-element (z-index -1,
-   same layer — canvas wins via DOM order).
+   above the body.login-page::before wallpaper pseudo-element (z-index -1, same layer — canvas wins via DOM order).
    Hidden when online (wallpaper-active) so the static wallpaper shows instead.
    pointer-events none: all clicks fall through to the form above unless
    the user aims outside the card, in which case the canvas click handler
@@ -2539,9 +2366,11 @@ body.wallpaper-active .auth-brand { display: none; }
     display: block;
     background: var(--auth-ink); /* fallback if WebGL fails */
 }
+
 body.wallpaper-active #tubes-canvas { display: none; }
 
 .auth-logo { height: 3rem; width: 3rem; object-fit: cover; border-radius: 50%; }
+
 .auth-headline {
     font-family: var(--auth-font-display);
     font-size: 2.5rem;
@@ -2550,8 +2379,11 @@ body.wallpaper-active #tubes-canvas { display: none; }
     letter-spacing: 0;
     color: var(--auth-on-ink);
 }
+
 .auth-headline-body { margin-top: 1.25rem; color: var(--auth-on-ink-muted); line-height: 1.625; }
+
 .auth-panel-intro { max-width: 380px; margin: 3.5rem 0; }
+
 .auth-footnote { font-size: 0.75rem; color: var(--auth-on-ink-muted); position: relative; z-index: var(--z-header); }
 
 .auth-graph { position: absolute; bottom: -3rem; right: -3rem; width: 300px; height: 300px; opacity: 0.45; pointer-events: none; }
@@ -2561,6 +2393,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
     width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 0.625rem;
     pointer-events: none;
 }
+
 .auth-toast-item {
     pointer-events: auto;
     background: var(--auth-ink);
@@ -2572,15 +2405,23 @@ body.wallpaper-active #tubes-canvas { display: none; }
     transition: all 0.3s;
     color: var(--auth-on-ink);
 }
-.auth-toast-item[data-type="error"]   { border-left-color: var(--auth-danger); }
+
+.auth-toast-item[data-type="error"] { border-left-color: var(--auth-danger); }
+
 .auth-toast-item[data-type="success"] { border-left-color: var(--auth-success); }
+
 .auth-toast-item[data-type="warning"] { border-left-color: var(--auth-warn); }
-.auth-toast-item[data-type="info"]    { border-left-color: var(--auth-brass); }
+
+.auth-toast-item[data-type="info"] { border-left-color: var(--auth-brass); }
+
 .auth-toast-icon { width: 1rem; height: 1rem; margin-top: 0.125rem; flex-shrink: 0; }
-.auth-toast-msg  { font-size: 0.875rem; line-height: 1.375; flex: 1; }
+
+.auth-toast-msg { font-size: 0.875rem; line-height: 1.375; flex: 1; }
+
 .auth-toast-dismiss {
     color: var(--auth-on-ink-muted); flex-shrink: 0; background: none; border: none; cursor: pointer; padding: 0;
 }
+
 .auth-toast-dismiss:hover { color: var(--auth-on-ink); }
 
 .auth-tab-row {
@@ -2589,6 +2430,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
     border-bottom: 1px solid var(--auth-fog-line);
     margin-bottom: 2.25rem;
 }
+
 .auth-tab {
     padding: 0 0 0.75rem;
     font-size: 0.9375rem;
@@ -2597,9 +2439,13 @@ body.wallpaper-active #tubes-canvas { display: none; }
     font-family: inherit;
     transition: color 0.2s;
 }
-.auth-tab[aria-selected="true"]  { font-weight: 600; color: var(--auth-on-fog); }
+
+.auth-tab[aria-selected="true"] { font-weight: 600; color: var(--auth-on-fog); }
+
 .auth-tab[aria-selected="false"] { font-weight: 500; color: var(--auth-on-fog-muted); }
+
 .auth-tab[aria-selected="false"]:hover { color: var(--auth-on-fog); }
+
 .auth-tab-underline {
     position: absolute; bottom: 0; left: 0;
     height: 2px; background: var(--auth-accent);
@@ -2607,18 +2453,22 @@ body.wallpaper-active #tubes-canvas { display: none; }
 }
 
 .auth-form { display: flex; flex-direction: column; gap: 1.25rem; }
+
 .auth-form[hidden] { display: none; }
 
 .auth-field-label {
     display: block; font-size: 0.75rem; font-weight: 500;
     color: var(--auth-on-fog-muted); margin-bottom: 0.5rem;
 }
+
 .auth-input-wrap { position: relative; }
+
 .auth-input-icon {
     position: absolute; left: 0; top: 50%; transform: translateY(-50%);
     width: 18px; height: 18px; color: var(--auth-on-fog-muted);
     pointer-events: none;
 }
+
 .auth-input {
     width: 100%; background: transparent;
     border: none; border-bottom: 1px solid var(--auth-fog-line);
@@ -2628,10 +2478,15 @@ body.wallpaper-active #tubes-canvas { display: none; }
     transition: border-color 0.2s;
     outline: none;
 }
+
 .auth-input::placeholder { color: rgba(107, 110, 118, 0.7); }
+
 .auth-input:focus { border-bottom-color: var(--auth-accent); }
+
 .auth-input-otp { letter-spacing: 0.35em; }
+
 .auth-error { font-size: 0.75rem; color: var(--auth-danger); margin-top: 0.375rem; }
+
 .auth-error[hidden] { display: none; }
 
 /* Turnstile (login/reset anti-automation) — auth-page surface only.
@@ -2643,6 +2498,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
     max-width: 100%;
     overflow-x: auto;
 }
+
 .cf-turnstile-wrap + .auth-error {
     font-size: 0.75rem;          /* 12px floor (TXT7) */
     color: var(--auth-danger);   /* AA on the auth form panel (TXT1, BLD1) */
@@ -2656,7 +2512,9 @@ body.wallpaper-active #tubes-canvas { display: none; }
    shared/js/password-field.js. Colors are theme tokens only (THM1–THM4).
    ============================== */
 .password-field { position: relative; }
+
 .password-field__row { position: relative; display: block; }
+
 .password-field input[type="password"] { padding-right: 2.5rem; }
 
 .password-field__toggle {
@@ -2667,20 +2525,26 @@ body.wallpaper-active #tubes-canvas { display: none; }
     color: var(--text-muted, #8191a1);
     transition: color var(--transition), background var(--transition);
 }
+
 .password-field__toggle:hover { color: var(--text-secondary, #475569); background: var(--border); }
+
 .password-field__toggle:focus-visible { outline: 3px solid var(--link, var(--primary, #2563eb)); outline-offset: 1px; }
+
 .password-field__toggle svg { width: 18px; height: 18px; }
 
 .password-field__meter { margin-top: 0.625rem; }
+
 .password-field__track {
     height: 3px; width: 100%; border-radius: 9999px;
     background: var(--surface-muted, #e0e0e0); overflow: hidden;
 }
+
 .password-field__bar {
     height: 100%; width: 0; border-radius: 9999px;
     background: var(--text-muted, #8191a1);
     transition: width 0.25s, background-color 0.25s;
 }
+
 .password-field__status {
     margin: 0.375rem 0 0; font-size: 0.75rem; line-height: 1.4;
     color: var(--text-secondary, #475569);
@@ -2690,28 +2554,30 @@ body.wallpaper-active #tubes-canvas { display: none; }
     display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem;
     margin-top: 0.5rem; min-height: 32px;
 }
-.password-field__generate,
-.password-field__copy {
+
+.password-field__generate, .password-field__copy {
     display: inline-flex; align-items: center; gap: 0.375rem;
     padding: 4px 6px; border: none; border-radius: 6px;
     background: none; cursor: pointer;
     font: inherit; font-size: 0.8rem; font-weight: 500;
     color: var(--link, var(--primary, #2563eb));
 }
-.password-field__generate:hover,
-.password-field__copy:hover { color: var(--link, var(--primary, #1d4ed8)); text-decoration: underline; }
-.password-field__generate:focus-visible,
-.password-field__copy:focus-visible { outline: 3px solid var(--link, var(--primary, #2563eb)); outline-offset: 1px; }
-.password-field__generate svg,
-.password-field__copy svg { width: 15px; height: 15px; }
+
+.password-field__generate:hover, .password-field__copy:hover { color: var(--link, var(--primary, #1d4ed8)); text-decoration: underline; }
+
+.password-field__generate:focus-visible, .password-field__copy:focus-visible { outline: 3px solid var(--link, var(--primary, #2563eb)); outline-offset: 1px; }
+
+.password-field__generate svg, .password-field__copy svg { width: 15px; height: 15px; }
+
 .password-field__copy[hidden] { display: none; }
 
-@media (max-width: 768px) {
-    .password-field input[type="password"] { padding-right: 3rem; }
-    .password-field__toggle { width: 40px; height: 40px; right: 0.25rem; }
-    .password-field__generate,
-    .password-field__copy { min-height: 40px; padding: 8px 10px; font-size: 0.875rem; }
-    .password-field__actions { gap: 0.75rem; }
+@media (max-width: 768px) {.password-field input[type="password"] { padding-right: 3rem; }
+
+.password-field__toggle { width: 40px; height: 40px; right: 0.25rem; }
+
+.password-field__generate, .password-field__copy { min-height: 40px; padding: 8px 10px; font-size: 0.875rem; }
+
+.password-field__actions { gap: 0.75rem; }
 }
 
 .auth-submit {
@@ -2727,28 +2593,38 @@ body.wallpaper-active #tubes-canvas { display: none; }
     cursor: pointer;
     transition: background 0.2s;
 }
+
 .auth-submit:hover { background: var(--auth-accent-deep); }
+
 .auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .auth-submit-arrow { width: 1rem; height: 1rem; }
 
 .auth-checkbox-row {
     display: flex; align-items: center; gap: 0.625rem;
     cursor: pointer; padding-top: 0.25rem;
 }
+
 .auth-checkbox-row input[type="checkbox"] {
     width: 1rem; height: 1rem; border-radius: 0.25rem;
     accent-color: var(--auth-accent);
 }
+
 .auth-checkbox-label { font-size: 0.875rem; color: var(--auth-on-fog-muted); }
+
 .auth-checkbox-terms { display: flex; align-items: flex-start; gap: 0.625rem; }
+
 .auth-checkbox-terms input { margin-top: 0.125rem; }
+
 .auth-checkbox-terms-text {
     font-size: 0.875rem; color: var(--auth-on-fog-muted); line-height: 1.625;
 }
+
 .auth-checkbox-terms-text a {
     color: var(--auth-accent); font-weight: 500;
     text-decoration: none;
 }
+
 .auth-checkbox-terms-text a:hover { color: var(--auth-accent-deep); }
 
 .auth-divider {
@@ -2758,23 +2634,27 @@ body.wallpaper-active #tubes-canvas { display: none; }
     align-items: center;
     justify-content: center;
 }
+
 .auth-divider::before {
     content: '';
     position: absolute;
     left: 0; right: 0; top: 50%;
     border-top: 1px solid var(--auth-fog-line);
 }
+
 .auth-divider-label {
     position: relative;
     display: flex;
     justify-content: center;
 }
+
 .auth-divider-text {
     background: var(--auth-fog); padding: 0 0.75rem;
     font-size: 0.875rem; color: var(--auth-on-fog-muted);
 }
 
 .auth-socials { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+
 .auth-social-btn {
     display: flex; align-items: center; justify-content: center; gap: 0.5rem;
     border: 1px solid var(--auth-fog-line); background: transparent;
@@ -2782,21 +2662,23 @@ body.wallpaper-active #tubes-canvas { display: none; }
     border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500;
     cursor: pointer; transition: background 0.2s;
 }
+
 .auth-social-btn:hover { background: rgba(20, 21, 27, 0.05); }
+
 .auth-social-icon { width: 1rem; height: 1rem; }
 
 .auth-back-link {
     font-size: 0.875rem; text-align: center; color: var(--auth-on-fog-muted);
 }
-.auth-back-link a,
-.auth-back-link button {
+
+.auth-back-link a, .auth-back-link button {
     color: var(--auth-accent); font-weight: 500;
     background: none; border: none; cursor: pointer; padding: 0;
     font-size: 0.875rem;
     text-decoration: none;
 }
-.auth-back-link a:hover,
-.auth-back-link button:hover { color: var(--auth-accent-deep); }
+
+.auth-back-link a:hover, .auth-back-link button:hover { color: var(--auth-accent-deep); }
 
 .auth-text-link {
     background: none; border: none; cursor: pointer; padding: 0;
@@ -2804,19 +2686,23 @@ body.wallpaper-active #tubes-canvas { display: none; }
     color: var(--auth-accent); font-weight: 500;
     transition: color 0.2s;
 }
+
 .auth-text-link:hover { color: var(--auth-accent-deep); }
 
 .auth-invalid-icon { font-size: 3rem; margin-bottom: 1.25rem; }
+
 .auth-invalid-heading {
     font-family: var(--auth-font-display);
     font-size: 1.5rem; font-weight: 600;
     letter-spacing: 0;
     color: var(--auth-on-fog);
 }
+
 .auth-invalid-body {
     margin-top: 0.75rem; font-size: 0.875rem;
     color: var(--auth-on-fog-muted); line-height: 1.625;
 }
+
 .auth-invalid-link {
     display: inline-block; margin-top: 1.5rem;
     background: var(--auth-accent); color: var(--auth-fog);
@@ -2824,26 +2710,26 @@ body.wallpaper-active #tubes-canvas { display: none; }
     border-radius: 0.5rem; text-decoration: none;
     transition: background 0.2s;
 }
+
 .auth-invalid-link:hover { background: var(--auth-accent-deep); }
 
-@media (min-width: 1024px) {
-    .auth-shell { flex-direction: row; }
-    .auth-panel { width: 44%; }
-    .auth-panel-intro { margin: 0; }
+@media (min-width: 1024px) {.auth-shell { flex-direction: row; }
+
+.auth-panel { width: 44%; }
+
+.auth-panel-intro { margin: 0; }
 }
-@media (max-width: 639px) {
-    .auth-panel { padding: 3rem 2rem; }
-    .auth-form-panel { padding: 3.5rem 1.5rem; }
-    .auth-headline { font-size: 2.5rem; }
+@media (max-width: 639px) {.auth-panel { padding: 3rem 2rem; }
+
+.auth-form-panel { padding: 3.5rem 1.5rem; }
+
+.auth-headline { font-size: 2.5rem; }
 }
 
 /* ==============================
    REDUCED MOTION
    ============================== */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+@media (prefers-reduced-motion: reduce) {*, *::before, *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
@@ -2854,11 +2740,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
 /* ==============================
    HIGH CONTRAST
    ============================== */
-@media (prefers-contrast: high) {
-    .stat-card,
-    .chart-card,
-    .table-container,
-    .modal-content {
+@media (prefers-contrast: high) {.stat-card, .chart-card, .table-container, .modal-content {
         border: 2px solid currentColor;
     }
 }
@@ -2866,16 +2748,17 @@ body.wallpaper-active #tubes-canvas { display: none; }
 /* ==============================
    RESOLVED CELEBRATION
    ============================== */
-@keyframes checkmarkPop {
-    0% {
+@keyframes checkmarkPop {0% {
         transform: translate(-50%, -50%) scale(0);
         opacity: 0;
     }
-    60% {
+
+60% {
         transform: translate(-50%, -50%) scale(1.4);
         opacity: 1;
     }
-    100% {
+
+100% {
         transform: translate(-50%, -50%) scale(1);
         opacity: 0;
     }
@@ -2895,9 +2778,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
     display: none;
 }
 
-.form-group.invalid input,
-.form-group.invalid textarea,
-.form-group.invalid select {
+.form-group.invalid input, .form-group.invalid textarea, .form-group.invalid select {
     border-color: var(--danger);
 }
 
@@ -2908,13 +2789,12 @@ body.wallpaper-active #tubes-canvas { display: none; }
 /* ==============================
    RESPONSIVE
    ============================== */
-@media (max-width: 768px) {
-    .sidebar {
+@media (max-width: 768px) {.sidebar {
         transform: translateX(-100%);
         width: 280px;
     }
 
-    /* Drawer OPEN on this breakpoint: html.sidebar-mobile-open present =
+/* Drawer OPEN on this breakpoint: html.sidebar-mobile-open present =
        drawer open (not hidden). Underlying Mini/Expanded state is irrelevant
        here; the drawer slides in over the content with a dim backdrop and
        the body scroll is locked while it is open. */
@@ -2922,87 +2802,86 @@ body.wallpaper-active #tubes-canvas { display: none; }
         transform: translateX(0);
     }
 
-    html.sidebar-mobile-open .sidebar-backdrop {
+html.sidebar-mobile-open .sidebar-backdrop {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
     }
 
-    html.sidebar-mobile-open,
-    html.sidebar-mobile-open body {
+html.sidebar-mobile-open, html.sidebar-mobile-open body {
         overflow: hidden;
     }
 
-    .main-content {
+.main-content {
         margin-left: 0;
     }
 
-    .btn-icon {
+.btn-icon {
         display: inline-flex;
     }
 
-    .stats-grid {
+.stats-grid {
         grid-template-columns: 1fr 1fr;
     }
 
-    .personal-panels {
+.personal-panels {
         grid-template-columns: 1fr;
     }
 
-    .chart-container {
+.chart-container {
         grid-template-columns: 1fr;
     }
 
-    .form-row {
+.form-row {
         grid-template-columns: 1fr;
     }
 
-    .filter-controls {
+.filter-controls {
         flex-direction: column;
     }
 
-    .filter-controls input {
+.filter-controls input {
         width: 100%;
     }
 
-    .header-left {
+.header-left {
         min-width: 0;
         gap: 12px;
     }
 
-    .header-left h1 {
+.header-left h1 {
         min-width: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    .header-right {
+.header-right {
         gap: 8px;
     }
 
-    .action-buttons {
+.action-buttons {
         gap: 8px;
     }
 
-    .top-header {
+.top-header {
         padding: 0 16px;
     }
 
-    .content-section {
+.content-section {
         padding: 20px;
     }
 
-    .header-right .btn-secondary:not(.btn-sm) {
+.header-right .btn-secondary:not(.btn-sm) {
         padding: 6px 12px;
         font-size: 0.75rem;
     }
 
-    .quick-actions {
+.quick-actions {
         flex-direction: column;
     }
 
-    .fab {
+.fab {
         bottom: 20px;
         right: 20px;
         width: 52px;
@@ -3010,36 +2889,32 @@ body.wallpaper-active #tubes-canvas { display: none; }
         font-size: 1.4rem;
     }
 
-    .notification-dropdown {
+.notification-dropdown {
         right: 16px;
         width: calc(100% - 32px);
         max-width: 360px;
     }
 
-    /* Touch targets: interactive elements >= 40x40px on touch viewports */
-    button,
-    [role="button"],
-    input,
-    select,
-    textarea {
+/* Touch targets: interactive elements >= 40x40px on touch viewports */
+    button, [role="button"], input, select, textarea {
         min-height: 40px;
     }
 
-    .btn-icon {
+.btn-icon {
         width: 40px;
         height: 40px;
         min-width: 40px;
     }
 
-    .btn-sm {
+.btn-sm {
         padding: 10px 14px;
     }
 
-    .queue-chip {
+.queue-chip {
         padding: 10px 16px;
     }
 
-    .notification-badge {
+.notification-badge {
         min-width: 40px;
         min-height: 40px;
         display: flex;
@@ -3047,7 +2922,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
         justify-content: center;
     }
 
-    .close {
+.close {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -3057,12 +2932,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
         right: 8px;
     }
 
-    .identity-menu-find .identity-menu-find-head .identity-menu-back {
-        min-width: 40px;
-        min-height: 40px;
-    }
-
-    /* Modals fit the viewport even where inline max-width="6xxpx" styles
+/* Modals fit the viewport even where inline max-width="6xxpx" styles
        (ticket detail / workspace) would otherwise overflow a phone. */
     .modal-content {
         max-width: calc(100% - 24px) !important;
@@ -3070,31 +2940,30 @@ body.wallpaper-active #tubes-canvas { display: none; }
         max-height: 90vh;
     }
 
-    /* Inline two/three-column grids in the portals collapse to a single
+/* Inline two/three-column grids in the portals collapse to a single
        column on small screens (inline styles can't be beaten otherwise). */
     .personal-panels {
         grid-template-columns: 1fr !important;
     }
 }
 
-@media (max-width: 480px) {
-    .stats-grid {
+@media (max-width: 480px) {.stats-grid {
         grid-template-columns: 1fr;
     }
 
-    .header-left h1 {
+.header-left h1 {
         font-size: 1.1rem;
     }
 
-    .top-header {
+.top-header {
         padding: 0 12px;
     }
 
-    .content-section {
+.content-section {
         padding: 14px;
     }
 
-    .stat-number {
+.stat-number {
         font-size: 1.5rem;
     }
 }
@@ -3106,8 +2975,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
    drawer to the viewport — same full-bleed slide-in, same backdrop, same
    transform — and collapses the stat grid (already single-column ≤480) into
    the QVGA column. It extends the 480 scaffold; it does not replace it. */
-@media (max-width: 360px) {
-    /* The 768px drawer is width:280px; at ≤360px the viewport (240 px wide)
+@media (max-width: 360px) {/* The 768px drawer is width:280px; at ≤360px the viewport (240 px wide)
        is narrower than the drawer → re-flow width to the viewport. */
     .sidebar {
         width: 100%;
@@ -3120,25 +2988,24 @@ body.wallpaper-active #tubes-canvas { display: none; }
    Content stays full-bleed (this design has no centred max-width shell); the
    extra padding gives readability breathing room without new spacing scales.
    ============================== */
-@media (min-width: 1440px) {
-    .content-section {
+@media (min-width: 1440px) {.content-section {
         padding: 40px 48px;
     }
 
-    .top-header {
+.top-header {
         padding: 0 40px;
     }
 }
 
-@media (min-width: 1920px) {
-    .content-section {
+@media (min-width: 1920px) {.content-section {
         padding: 44px 56px;
     }
 
-    .top-header {
+.top-header {
         padding: 0 48px;
     }
 }
+
 /* ============ Role-distinguished comment thread ============ */
 .role-badge {
     font-size: 0.75rem;
@@ -3148,19 +3015,23 @@ body.wallpaper-active #tubes-canvas { display: none; }
     text-transform: uppercase;
     letter-spacing: 0.3px;
 }
+
 .role-badge.admin {
     background: var(--violet-light);
     color: var(--violet);
 }
+
 .role-badge.staff {
     background: var(--info-light);
     color: var(--info);
 }
+
 .role-badge.internal {
     background: var(--warning-light, #fef3c7);
     color: var(--warning-dark, #b45309);
     border: 1px solid var(--warning, #ea580c);
 }
+
 /* ============ Admin: Queue bar & ticket workspace ============ */
 .queue-bar {
     display: flex;
@@ -3168,6 +3039,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
     flex-wrap: wrap;
     margin-bottom: 20px;
 }
+
 .queue-chip {
     background: var(--surface);
     border: 1px solid var(--surface-muted);
@@ -3181,15 +3053,18 @@ body.wallpaper-active #tubes-canvas { display: none; }
     transition: all 0.2s;
     color: var(--text-secondary);
 }
+
 .queue-chip:hover {
     border-color: var(--primary);
     color: var(--link, var(--primary));
 }
+
 .queue-chip.active {
     background: var(--primary);
     border-color: var(--primary);
     color: white;
 }
+
 .queue-count {
     background: rgba(0,0,0,0.1);
     border-radius: 10px;
@@ -3197,6 +3072,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
     font-size: 0.75rem;
     font-weight: 600;
 }
+
 .queue-chip.active .queue-count {
     background: rgba(255,255,255,0.25);
 }
@@ -3258,6 +3134,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
     outline: 2px solid var(--primary);
     outline-offset: 2px;
 }
+
 .toggle-switch input:disabled {
     cursor: not-allowed;
 }
@@ -3345,13 +3222,15 @@ body.wallpaper-active #tubes-canvas { display: none; }
     padding: 10px 0;
     border-top: 1px solid var(--border);
 }
+
 .nc-row:first-child {
     border-top: none;
 }
-.nc-row.is-inactive .nc-info strong,
-.nc-row.is-inactive .nc-info p {
+
+.nc-row.is-inactive .nc-info strong, .nc-row.is-inactive .nc-info p {
     color: var(--text-muted);
 }
+
 .nc-icon {
     flex-shrink: 0;
     display: flex;
@@ -3363,26 +3242,31 @@ body.wallpaper-active #tubes-canvas { display: none; }
     background: var(--surface-muted);
     color: var(--text-secondary);
 }
+
 .nc-icon svg {
     width: 18px;
     height: 18px;
 }
+
 .nc-info {
     flex: 1;
     min-width: 0;
 }
+
 .nc-info strong {
     display: block;
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text);
 }
+
 .nc-info p {
     font-size: 0.8rem;
     color: var(--text-muted);
     margin-top: 2px;
     overflow-wrap: anywhere;
 }
+
 .nc-builtin {
     font-style: normal;
     font-size: 0.7rem;
@@ -3390,6 +3274,7 @@ body.wallpaper-active #tubes-canvas { display: none; }
     color: var(--info);
     margin-left: 6px;
 }
+
 .nc-badge {
     flex-shrink: 0;
     padding: 2px 8px;
@@ -3398,15 +3283,18 @@ body.wallpaper-active #tubes-canvas { display: none; }
     font-weight: 600;
     line-height: 1.5;
 }
+
 .nc-role {
     background: var(--surface-muted);
     color: var(--text-secondary);
     text-transform: capitalize;
 }
+
 .nc-active {
     background: var(--success-light);
     color: var(--success-dark);
 }
+
 .nc-off {
     background: var(--danger-light);
     color: var(--danger-dark);
@@ -3521,9 +3409,7 @@ html.font-large {
     font-size: 112.5%;
 }
 
-html.reduced-motion *,
-html.reduced-motion *::before,
-html.reduced-motion *::after {
+html.reduced-motion *, html.reduced-motion *::before, html.reduced-motion *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -3534,8 +3420,7 @@ html.density-compact .ticket-table {
     font-size: 0.9rem;
 }
 
-html.density-compact .ticket-table th,
-html.density-compact .ticket-table td {
+html.density-compact .ticket-table th, html.density-compact .ticket-table td {
     padding: 9px 12px;
 }
 
@@ -3555,22 +3440,21 @@ html.density-compact .chart-card h3 {
     margin-bottom: 12px;
 }
 
-@media (max-width: 480px) {
-    .setting-row {
+@media (max-width: 480px) {.setting-row {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
     }
 
-    .setting-control {
+.setting-control {
         width: 100%;
     }
 
-    .setting-control .segmented {
+.setting-control .segmented {
         width: 100%;
     }
 
-    .setting-control .segmented button {
+.setting-control .segmented button {
         flex: 1;
         justify-content: center;
     }
@@ -3582,12 +3466,11 @@ html.density-compact .chart-card h3 {
    full-width segments, this row only tightens the gutter and the button
    padding so labels ("Medium") never truncate. Same selectors, same
    pattern — no new tokens, no new media row convention. */
-@media (max-width: 360px) {
-    .setting-control .segmented {
+@media (max-width: 360px) {.setting-control .segmented {
         gap: 6px;
     }
 
-    .setting-control .segmented button {
+.setting-control .segmented button {
         padding: 10px 6px;
         min-height: 40px;
     }
@@ -3616,8 +3499,31 @@ html.density-compact .chart-card h3 {
     justify-content: center;
     font-weight: 700;
     font-size: 0.85rem;
-    color: var(--primary);
+    /* --primary-dark, not --primary: the monogram letter is text, and
+       --primary on --primary-light only reaches 4.24:1 in abyss. The darker
+       ink clears 5.49:1 in all ten themes (TXT1). */
+    color: var(--primary-dark);
     background: var(--primary-light);
+    overflow: hidden;
+}
+
+/* Inactive users. This replaces an `opacity:0.5` row style, which dropped
+   every cell's text to roughly 2:1 and made the row hard to read. The
+   background and border carry the de-emphasising instead, so the text keeps
+   full contrast (TXT4). */
+tr.is-inactive td {
+    /* --surface-muted cannot carry body text in every theme: --text reaches
+       only 4.44:1 on it in solarized-light and --text-secondary 3.48:1 in
+       flexoki-light. --surface-alt is the adjacent tone that keeps the row
+       visually recessed while the text stays at full contrast (TXT4). */
+    background: var(--surface-alt);
+    color: var(--text);
+}
+
+tr.is-inactive .user-avatar, tr.is-inactive .role-badge {
+    /* The disc and badge keep their own tint/ink pairing, so they are not
+       flattened along with the row text. */
+    opacity: 1;
 }
 
 /* ============ ASSIGNEE AVATARS (ticket table) ============ */
@@ -3625,14 +3531,21 @@ html.density-compact .chart-card h3 {
    reuses the same four tint/ink token families the status and priority
    badges already use, so no new tokens are introduced and every theme block
    inherits a pairing that is already contrast-checked. */
+/* Disc above the username, both centred in the column. The button needs
+   `margin: 0 auto` because a block-level flex item is not centred by
+   `align-items` alone. */
 .assignee-cell {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 6px;
     min-width: 0;
+    text-align: center;
 }
 
 .assignee-avatar {
+    margin: 0 auto;
     width: 28px;
     height: 28px;
     flex-shrink: 0;
@@ -3644,20 +3557,201 @@ html.density-compact .chart-card h3 {
     font-size: 0.75rem;
     line-height: 1;
     user-select: none;
+    position: relative;
+    /* The disc is a <button> now, so the UA's button chrome has to go or it
+       renders as a square badge with a border and default padding. */
+    padding: 0;
+    border: 0;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+/* Hover and focus tint the disc without moving it, so the row does not
+   reflow when the pointer crosses it (OFF2). */
+.assignee-avatar:hover {
+    filter: brightness(0.94);
+}
+
+.assignee-avatar:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .assignee-avatar.av-primary { background: var(--primary-light); color: var(--primary-dark); }
+
 .assignee-avatar.av-success { background: var(--success-light); color: var(--success-dark); }
+
 .assignee-avatar.av-warning { background: var(--warning-light); color: var(--warning-dark); }
-.assignee-avatar.av-danger  { background: var(--danger-light);  color: var(--danger-dark); }
+
+.assignee-avatar.av-danger { background: var(--danger-light);  color: var(--danger-dark); }
+
+/* Fills the disc and keeps the themed av-* background visible as the loading
+   placeholder, so the row does not change size when the photo arrives. */
+.assignee-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
 
 .assignee-name {
     min-width: 0;
+    max-width: 100%;
+    /* Wraps instead of widening the column, so a long username cannot push
+       the table wider than the viewport (RSP3). */
     overflow-wrap: anywhere;
+    text-align: center;
+    line-height: 1.3;
 }
 
 .assignee-unassigned {
     color: var(--text-secondary);
+}
+
+/* ============ EMOJI AVATARS (no-photo fallback) ============
+   The disc is photo, then emoji, then username monogram, so an emoji only
+   reaches this rule when there is no photo. It sits on the same tinted av-*
+   background, which needs no new tokens: the glyph supplies its own colour, and the tint only gives it a surface to sit on. */
+.assignee-avatar-emoji {
+    font-family: var(--font-emoji);
+    /* Sized against the 28px disc so the glyph fills it without the
+       line-height gap that would otherwise push it off-centre. */
+    font-size: 1.05rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.user-avatar-emoji {
+    font-family: var(--font-emoji);
+    font-size: 1.6rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+/* The sidebar and profile discs render the glyph as their own text content, so they need the emoji face on the container rather than a child span. */
+.sidebar-avatar, .profile-avatar-preview {
+    font-family: var(--font-emoji);
+}
+
+/* Moved off an inline style so the disc follows the theme. It reuses the
+   primary tint and ink pair already used by .assignee-avatar.av-primary, so
+   it inherits a contrast-checked pairing in every theme block (BLD2).
+   Sized and ringed to match .profile-hero-avatar on the admin View profile
+   card, so the two portals' account surfaces read as the same component. The
+   ring is --text, not an accent: this sits on the light glass sheet where
+   --primary is 1.89:1 in nord and --primary-light 1.20:1 in the light
+   themes, while --text holds 14.15:1 worst-case (BLD3). */
+.profile-avatar-preview {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    border: 0;
+    box-shadow: 0 0 0 3px var(--text);
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 2.9rem;
+    /* An emoji with a taller box than the disc would otherwise spill out. */
+    line-height: 1;
+    overflow: hidden;
+}
+
+.profile-avatar-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ============ EMOJI PICKER ============
+   Static local markup, so it is hidden by default and toggled by the button
+   that owns it. `hidden` plus an explicit display rule would fight, so the
+   panel is laid out only when it is not hidden. */
+.emoji-picker-panel {
+    margin-top: 14px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-alt);
+}
+
+.emoji-picker-panel[hidden] {
+    display: none;
+}
+
+.emoji-picker-hint {
+    margin: 0 0 12px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    /* --text rather than --text-secondary: the secondary token lands at 3.99:1
+       on --surface-alt in flexoki-light and 4.49:1 in catppuccin-latte, both
+       under the 4.5:1 body-text floor (TXT1/THM4). This is body text, so it
+       has to clear 4.5:1 in all ten theme blocks. */
+    color: var(--text);
+}
+
+.emoji-group + .emoji-group {
+    margin-top: 12px;
+}
+
+.emoji-group-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    /* Never below the 12px legibility floor (TXT7). 12px bold is not "large
+       text", so this still needs 4.5:1, which --text-secondary does not reach
+       in every theme. */
+    color: var(--text);
+}
+
+.emoji-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.emoji-choice {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-emoji);
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: inherit;
+    /* The glyph is a pictograph, so it cannot inherit the theme's ink colour;
+       it is drawn in the reader's own emoji colours. */
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.emoji-choice:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.emoji-choice:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
 }
 
 .filter-result-count {
@@ -3679,6 +3773,26 @@ html.density-compact .chart-card h3 {
     font-size: 1.25rem;
 }
 
+/* The 34px disc in the Users table is smaller than the 56px dialog disc, so the
+   glyph is scaled to suit rather than overflowing it. */
+.user-avatar .user-avatar-emoji {
+    font-size: 1.2rem;
+}
+
+/* The avatar emoji is a colour glyph in its own right: it renders in the
+   emoji font's own colours and ignores `color` entirely. It is a decorative
+   restatement of the account's identity (the username beside it carries the
+   name), so it is marked aria-hidden at the call site rather than being forced
+   into a contrast pair it cannot honour. This note records why no colour is
+   set here, so a later pass does not "fix" it by adding one. */
+.user-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
 .user-detail-list {
     display: grid;
     grid-template-columns: 140px 1fr;
@@ -3694,6 +3808,566 @@ html.density-compact .chart-card h3 {
 .user-detail-list dd {
     margin: 0;
     word-break: break-word;
+}
+
+.user-detail-subhead {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+    margin: 0 0 10px;
+}
+
+.user-detail-tickets {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+    /* The list is bounded so a technician with many tickets scrolls inside the
+       dialog instead of growing it past the viewport (MOD3/MOD4). */
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+/* ============ PROFILE CARD ============
+   The technician profile card, rebuilt from the supplied source design.
+
+   Colour mapping, so nothing here is a new token and the card inherits a
+   contrast-checked pairing in all ten theme blocks (THM2/THM4):
+     design --bg/--card/--line -> --bg / --surface / --border
+     design --ink/--muted/--faint -> --text / --text-secondary / --text-muted
+     design --accent/--accent-dim -> --primary / --primary-light
+     design --green/--amber/--red/--red-dim -> --success / --warning / --danger / --danger-light
+
+   The card is a dialog, so it keeps the dialog's own chrome: the same
+   --surface-glass sheet, blur, radius, border, shadow and slideDown entrance
+   every other modal in the app uses. It does not introduce a second surface
+   language. Only the width is specialised, and it stays bounded by the viewport
+   (MOD3/RSP2).
+
+   The source design separated its sections with a band of page background. That
+   is dropped here: a second grey inside a glass sheet reads as a different kind
+   of window. Sections are divided with a hairline --border instead, which is how
+   the rest of the dialogs separate content. Text on the glass clears AA in all
+   ten themes (--text 5.53:1 worst, solarized-light), so the opaque backing the
+   earlier revision needed is no longer required (TXT3/BLD5). */
+.modal-content.profile-card {
+    padding: 0;
+    /* The design is a phone sheet, so it is narrower than the default dialog. */
+    max-width: min(480px, calc(100vw - 2rem));
+}
+
+.profile-hero {
+    padding: 22px 20px 20px;
+    text-align: center;
+}
+
+.profile-avatar-wrap {
+    position: relative;
+    display: inline-flex;
+}
+
+/* The presence dot reads as active/inactive at a glance. It carries no text, so the account status is also stated in the Security rows underneath rather
+   than relying on colour alone. */
+.profile-status-dot {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--success);
+    /* Matches the sheet the dot sits on. It was --surface while the card had an
+       opaque --bg frame; on the glass sheet the ring has to be the glass. */
+    border: 3px solid var(--surface-glass);
+}
+
+.profile-status-dot.is-off {
+    background: var(--text-muted);
+}
+
+/* The View profile card now carries the same prominent centred picture as the
+   Account Information card, so the two admin surfaces read as one set. Scoped
+   to this card on purpose: .user-avatar is also the 34px sidebar, table and
+   assignee disc, and must not grow.
+
+   The ring is --text rather than an accent because this card sits on the light
+   glass sheet, not the dark rail: --primary is 1.89:1 on glass in nord and
+   --primary-light 1.20:1 in the light themes, while --text holds 14.15:1
+   worst-case (BLD3). */
+.profile-hero-avatar {
+    width: 120px;
+    height: 120px;
+    font-size: 2.9rem;
+    box-shadow: 0 0 0 3px var(--text);
+}
+
+/* The presence dot has to grow with the picture, or it reads as a speck. */
+.profile-hero-avatar ~ .profile-status-dot {
+    width: 24px;
+    height: 24px;
+    right: 5px;
+    bottom: 5px;
+}
+
+.profile-name {
+    margin: 14px 0 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    line-height: 1.3;
+    /* A long username must not widen the card (RSP2/RSP3). */
+    overflow-wrap: anywhere;
+}
+
+.profile-role {
+    margin-top: 4px;
+    line-height: 1.3;
+}
+
+.profile-stats {
+    display: flex;
+    width: 100%;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.profile-stat {
+    flex: 1;
+    text-align: center;
+    border-left: 1px solid var(--border);
+}
+
+.profile-stat:first-child {
+    border-left: none;
+}
+
+.profile-stat b {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.profile-stat span {
+    font-size: 0.75rem;
+    line-height: 1.3;
+    color: var(--text);
+}
+
+.profile-card-section {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+}
+
+.profile-card-section:first-of-type {
+    border-top: 0;
+}
+
+.profile-section-title {
+    margin: 0 0 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+    color: var(--text);
+}
+
+.profile-rows {
+    margin: 0;
+}
+
+.profile-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.profile-row:last-child {
+    border-bottom: none;
+}
+
+.profile-row dt {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9rem;
+    line-height: 1.3;
+}
+
+.profile-row dd {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.3;
+    text-align: right;
+    /* These carry the actual data (email, department, phone). --text-secondary
+       is 4.47:1 on the card in flexoki-light, just under the body-text floor,
+       so the stronger ink is used throughout. */
+    color: var(--text);
+    /* Emails and USSD numbers are long unbroken strings; wrap rather than
+       widen the card (TXT6/RSP3). */
+    overflow-wrap: anywhere;
+}
+
+.profile-row dd.is-strong {
+    color: var(--text);
+    font-weight: 500;
+}
+
+/* Icons sit in the row, vertically centred with the label (ICO6), at one
+   consistent gap (ICO7), and inherit the label's colour (ICO20). */
+.profile-row-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 19px;
+    height: 19px;
+    /* --text-muted sits at exactly 3.00:1 on the card surface in nord, which
+       leaves no margin for the 3:1 non-text floor. --text-secondary clears it
+       with room to spare. */
+    color: var(--text-secondary);
+}
+
+.profile-row-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* A row that performs an action rather than showing a value. It is a real
+   <button>, so the UA's button chrome has to be removed or it renders as a
+   raised grey block inside the card. */
+.profile-row.is-action {
+    cursor: pointer;
+    width: 100%;
+    background: none;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+    border-radius: var(--radius-sm);
+}
+
+.profile-row.is-action:hover {
+    background: var(--surface-muted);
+}
+
+.profile-row.is-action:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+}
+
+/* A <button> cannot hold dt/dd, so the action rows carry the same
+   icon-plus-label arrangement in a span. */
+.profile-row-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    text-align: left;
+}
+
+.profile-row.is-danger .profile-row-main, .profile-row.is-danger .profile-row-icon, .profile-row.is-danger .profile-row-chevron {
+    /* --danger-text, not --danger: the raw token is only 2.20:1 on the card
+       surface in nord, whereas --danger-text is the project's theme-aware
+       "danger as text" value and clears 4.5:1 in all ten themes. */
+    color: var(--danger-text);
+}
+
+.profile-row-chevron {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-secondary);
+}
+
+/* Ticket rows inside the card keep their own bounded scroller, matching the
+   source design's compact rows. */
+.profile-card .user-detail-tickets {
+    max-height: 200px;
+    margin-bottom: 0;
+}
+
+.profile-card .user-detail-ticket {
+    padding: 9px 0;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: none;
+}
+
+.profile-card .user-detail-ticket:last-child {
+    border-bottom: none;
+}
+
+.profile-card .user-detail-ticket:hover {
+    background: var(--surface-muted);
+}
+
+.profile-card .user-detail-subhead {
+    display: none;
+}
+
+/* The avatar controls sit directly under the hero in the source design. */
+/* The role chip needs its own neutral pair. The bare .role-badge carries no
+   colours of its own (those come from the .admin/.staff modifiers, which this
+   value does not know at render time), so without this it would read as loose
+   uppercase text with no chip behind it. */
+.profile-card .profile-role .role-badge {
+    background: var(--surface-alt);
+    color: var(--text);
+}
+
+.user-avatar-xl {
+    width: 72px;
+    height: 72px;
+    font-size: 1.9rem;
+}
+
+/* Read-only identity values (username, role) are stored in inputs because the
+   existing profile loader assigns to .value. They are styled to read as text
+   rather than as an editable field, so the card does not imply they can be
+   changed. */
+.profile-row-field {
+    width: 100%;
+    max-width: 250px;
+    margin-left: auto;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    text-align: right;
+    cursor: default;
+}
+
+.profile-row-field:hover {
+    border-color: var(--border);
+}
+
+/* The outline is currentColor (--text) rather than --primary: nord gives
+   --primary and --surface only 1.79:1, so a --primary ring would be nearly
+   invisible there. The --focus-ring halo is layered behind it as decoration, never as the sole indicator (BLD3). */
+.profile-row-field:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+    box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+.profile-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+/* Card-scoped hint. The shared .form-hint uses --text-secondary, which is
+   4.47:1 on the card in flexoki-light, just under the body-text floor. */
+.profile-card-hint {
+    margin: 10px 0 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--text);
+}
+
+.profile-save-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.profile-save-msg {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    margin-right: auto;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    /* --success clears 4.68:1 on the card in flexoki-light. --success-dark
+       does not: it collapses to 2.01:1 in nord, where it is a dark red. */
+    color: var(--success);
+}
+
+.profile-save-msg.is-visible {
+    display: inline-flex;
+}
+
+/* Scoped to the card so the global .is-hidden helper is not introduced. */
+/* Used by the avatar menu's Remove / Use initials rows and the emoji toggle, which are shown only when that kind of avatar is actually set. */
+.profile-card .is-hidden {
+    display: none;
+}
+
+/* ==============================
+   ACCOUNT DIALOG (replaces the identity dropdown)
+   One dialog, two views. The hero and its arrows are shared; only the body
+   below swaps. Colors are tokens only (THM1); everything here sits on the
+   glass sheet, so the pairs are the ones already verified in every theme
+   block (--text / --text-muted / --surface-muted). No new tokens.
+   ============================== */
+
+/* Arrows flank the hero body. The body takes the middle column and stays
+   centred, so adding the arrows cannot shift the avatar off axis (ICO6/ICO7). */
+.account-hero {
+    /* One centred column. This was a three-cell grid (arrow | body | arrow) to
+       make room for the paging arrows, which no longer exist. */
+    display: flex;
+    justify-content: center;
+}
+
+.account-hero-body {
+    min-width: 0;
+    text-align: center;
+}
+
+/* The hero avatar is the single picture trigger. .profile-hero-avatar already
+   carries the 120px size and the 3px ring, so this only has to make the hit
+   area real and give the camera overlay something to sit on. The overlay is
+   pointer-events: none, so the disc is the only click target (LAY1, RSP9). */
+.account-hero-avatar-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    border-radius: 50%;
+    cursor: pointer;
+    line-height: 0;
+}
+
+.account-hero-avatar-btn:focus-visible {
+    outline: 2px solid var(--primary);
+    /* Clears the disc's own 3px ring so the two never merge (BLD3). */
+    outline-offset: 6px;
+}
+
+/* Names the current body. With the paging arrows gone this is the only cue
+   for which of the two the admin is looking at, so it stays a live region. */
+/* The view-label rule that used to sit here is gone: the profile card has a
+   single body, and each overlay names itself in its own header. */
+
+/* Picture control + the permanent username beside the shared hero. */
+.account-picture-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+}
+
+/* The Account Information card's own avatar. Same trigger as the profile card's
+   hero, smaller {
+    width: 72px;
+    height: 72px;
+    font-size: 1.9rem;
+}
+
+.account-picture-text {
+    min-width: 0;
+}
+
+
+@media (max-width: 520px) {.profile-form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+.profile-row-field {
+        max-width: none;
+        text-align: left;
+    }
+}
+
+/* No background of its own: the card is a single glass sheet, so the controls
+   sit straight on it. The emoji panel below is the one element that gets a
+   raised --surface-alt, because it is a popover-ish layer rather than part of
+   the flat dialog. */
+.profile-avatar-actions {
+    padding: 16px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.profile-avatar-actions .btn-secondary {
+    flex: 1 1 auto;
+    min-width: 130px;
+}
+
+/* Touch viewports: the design is phone-first, so give the avatar controls and
+   action rows a full 40px target (RSP7) and never let them crowd each other
+   (RSP8). */
+@media (max-width: 768px) {.profile-avatar-actions .btn-secondary {
+        min-height: 40px;
+    }
+
+.profile-row.is-action {
+        min-height: 40px;
+    }
+
+.modal-content.profile-card {
+        margin: 0 auto;
+        max-width: 100%;
+    }
+}
+
+.user-detail-ticket {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    text-align: left;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.user-detail-ticket:hover {
+    background: var(--sidebar-hover);
+}
+
+.user-detail-ticket:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -1px;
+}
+
+.user-detail-ticket-id {
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--text);
+}
+
+.user-detail-ticket-title {
+    flex: 1;
+    min-width: 0;
+    /* The title is the flexible column, so it truncates with an ellipsis. The
+       full text stays available via the title attribute and by opening the
+       ticket, which is the affordance TXT5 requires. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+}
+
+.user-detail-empty {
+    margin: 0 0 20px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
 }
 
 .modal-actions {
@@ -3743,15 +4417,11 @@ html.density-compact .chart-card h3 {
 
 /* Admin category / department / role add rows (inline flex, no wrap). The
    input flexes to fill while the button keeps its size. */
-#addCategoryForm,
-#addDepartmentForm,
-#addRoleForm {
+#addCategoryForm, #addDepartmentForm, #addRoleForm {
     flex-wrap: wrap;
 }
 
-#addCategoryForm input,
-#addDepartmentForm input,
-#addRoleForm input {
+#addCategoryForm input, #addDepartmentForm input, #addRoleForm input {
     flex: 1 1 180px;
     min-width: 0;
 }
@@ -3769,32 +4439,20 @@ html.density-compact .chart-card h3 {
 /* Conversation & integration form rows (inline flex, no wrap). Inputs flex
    1 1 180px with min-width:0 so they can shrink under their placeholder
    width; rows wrap rather than overhang the card edge at 320px (RSP5). */
-#commentForm,
-#ticketAttachmentForm,
-#workspaceCommentForm {
+#commentForm, #ticketAttachmentForm, #workspaceCommentForm {
     flex-wrap: wrap;
 }
 
-#commentForm > div,
-#workspaceCommentForm > div,
-#tokenForm > div,
-#webhookForm > div {
+#commentForm > div, #workspaceCommentForm > div, #tokenForm > div, #webhookForm > div {
     flex-wrap: wrap;
 }
 
-#commentForm input,
-#ticketAttachmentForm input,
-#workspaceCommentForm input,
-#tokenForm input,
-#webhookForm input {
+#commentForm input, #ticketAttachmentForm input, #workspaceCommentForm input, #tokenForm input, #webhookForm input {
     flex: 1 1 180px;
     min-width: 0;
 }
 
-#commentForm .btn-sm,
-#ticketAttachmentForm .btn-sm,
-#workspaceCommentForm .btn-sm,
-#workspaceAttachmentForm .btn-sm {
+#commentForm .btn-sm, #ticketAttachmentForm .btn-sm, #workspaceCommentForm .btn-sm, #workspaceAttachmentForm .btn-sm {
     flex-shrink: 0;
 }
 
@@ -3808,23 +4466,19 @@ html.density-compact .chart-card h3 {
     justify-content: center;
 }
 
-@media (max-width: 768px) {
-    .ticket-check-wrap {
+@media (max-width: 768px) {.ticket-check-wrap {
         width: 40px;
         height: 40px;
     }
 
-    .ticket-check-wrap input {
+.ticket-check-wrap input {
         margin: 0;
     }
 }
 
-@media (max-width: 768px) {
-    /* Profile modal: the inline two-column form grid must collapse (RSP6).
-       Inline styles cannot be beaten without !important. */
-    #profileModal .modal-content div[style*="grid-template-columns"] {
-        grid-template-columns: 1fr !important;
-    }
+@media (max-width: 768px) {/* The profile form grid now collapses via .profile-form-grid's own 520px
+       media query, which owns this behaviour without !important. The old
+       inline-style override that used to live here has no target any more. */
 
     /* Bulk bar controls stack full-width instead of squeezing. */
     .bulk-actions-bar select {
@@ -3832,8 +4486,7 @@ html.density-compact .chart-card h3 {
     }
 }
 
-@media (max-width: 480px) {
-    /* Auth social sign-in: three labelled buttons cram to ~88px cells at
+@media (max-width: 480px) {/* Auth social sign-in: three labelled buttons cram to ~88px cells at
        320px; stack them full-width instead (RSP6, TXT7). */
     .auth-socials {
         grid-template-columns: 1fr;
@@ -3854,10 +4507,12 @@ html.density-compact .chart-card h3 {
       modal 2000
       tooltip 2500
       toast 3000
-      identity menu 3200
-   All surfaces (portal and auth sheets) reference these values through the
-   --z-* variables declared in :root (--z-header/--z-backdrop/--z-sidebar/
-   --z-fab/--z-dropdown/--z-modal/--z-tooltip/--z-toast/--z-identity).
+   The identity dropdown was removed in favour of a modal, so the old
+   3200 identity-menu slot is gone with it; the account dialog uses --z-modal
+   like every other sheet. All surfaces (portal and auth sheets) reference
+   these values through the --z-* variables declared in :root
+   (--z-header/--z-backdrop/--z-sidebar/--z-fab/--z-dropdown/--z-modal/
+   --z-tooltip/--z-toast).
 login.html / reset-password.html carry no z-index literals.
     ============================== */
 
@@ -3872,31 +4527,27 @@ login.html / reset-password.html carry no z-index literals.
    keeps its overflow-x:auto from line 1668, which is harmless now that
    cards never exceed the viewport width.
    ============================== */
-@media (max-width: 768px) {
-    #tickets .table-container {
+@media (max-width: 768px) {#tickets .table-container {
         box-shadow: none;
         border: none;
         background: transparent;
         padding: 0;
     }
 
-    .ticket-table,
-    .ticket-table tbody,
-    .ticket-table tr,
-    .ticket-table td {
+.ticket-table, .ticket-table tbody, .ticket-table tr, .ticket-table td {
         display: block;
         width: 100%;
     }
 
-    .ticket-table thead {
+.ticket-table thead {
         display: none;
     }
 
-    .ticket-table {
+.ticket-table {
         font-size: 0.95rem;
     }
 
-    .ticket-table tr {
+.ticket-table tr {
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         margin-bottom: 12px;
@@ -3905,7 +4556,22 @@ login.html / reset-password.html carry no z-index literals.
         box-shadow: var(--shadow-sm);
     }
 
-    .ticket-table td {
+/* Grow the avatar's tap area to 40px on touch without enlarging the disc
+       itself. The 6px bleed stays inside the cell's 8px gap, so it cannot
+       cover the username beside it (LAY1). */
+    .assignee-avatar::after {
+        content: '';
+        position: absolute;
+        inset: -6px;
+    }
+
+/* On mobile the cell becomes a label/value row, so the unassigned label
+       has no disc above it and would sit high. Centre it in the row. */
+    .assignee-unassigned {
+        align-self: center;
+    }
+
+.ticket-table td {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -3917,11 +4583,11 @@ login.html / reset-password.html carry no z-index literals.
         text-align: right;
     }
 
-    .ticket-table td:last-child {
+.ticket-table td:last-child {
         border-bottom: none;
     }
 
-    .ticket-table td::before {
+.ticket-table td::before {
         content: attr(data-label);
         font-weight: 600;
         font-size: 0.72rem;
@@ -3931,18 +4597,695 @@ login.html / reset-password.html carry no z-index literals.
         flex-shrink: 0;
     }
 
-    .ticket-table td .empty-state {
+.ticket-table td .empty-state {
         margin: 0 auto;
         width: 100%;
     }
 
-    /* density-compact: specificity (0,2,1) beats the plain element rule, so
+/* density-compact: specificity (0, 2, 1) beats the plain element rule, so
        state the card paddings here too or compact mode would win (S6). */
     html.density-compact .ticket-table td {
         padding: 9px 0;
     }
 
-    html.density-compact .ticket-table tr {
+html.density-compact .ticket-table tr {
         padding: 2px 12px;
     }
 }
+
+/* ===================================================================
+   ACCOUNT INFORMATION PANEL (admin "My Profile")
+   -------------------------------------------------------------------
+   Two-column card: a dark identity rail on the left, the editable form
+   on the right. The sheet keeps the shared modal chrome (--surface-glass
+   sheet, --radius, --shadow-lg) so it reads as one of the app's dialogs
+   rather than a new surface language.
+
+   Every colour here is a token (THM1). The rail deliberately reuses the
+   --sidebar-* family, which the theme contract pins to :root only, so the
+   rail looks identical in all ten themes and its text pairs are the ones
+   the real sidebar already passes with.
+
+   Palette translation from the source design:
+     --page    -> --bg              --dark   -> --sidebar-bg
+     --cream   -> --surface         --dark-2 -> --sidebar-hover
+     --ink     -> --text            --line   -> --border
+     --muted   -> --text-secondary  --lime   -> --primary (non-text)
+     --red     -> --danger-text     Space Grotesk -> --font-heading
+   =================================================================== */
+
+.profile-panel {
+  display: grid;
+  grid-template-columns: 272px 1fr;
+  /* The sheet supplies the padding the form side needs; the rail supplies
+     its own, so the two edges meet at a hairline instead of a gap. */
+  padding: 0;
+  max-width: min(820px, calc(100vw - 2rem));
+  overflow: hidden;
+  text-align: left;
+}
+
+@media (max-width: 620px) {.profile-panel { grid-template-columns: 1fr; }
+}
+
+/* ---------- hero avatar button ----------
+   The identity rail and its own avatar button are gone. The account dialog's
+   hero avatar is now the single picture trigger, so it is a real button that
+   opens the picture dialog; .profile-hero-avatar already carries the 120px size
+   and the 3px ring, so nothing is re-specified here. */
+
+/* Camera affordance. Sits on hover AND focus-visible (TIP6) and is purely
+   decorative: the button itself is the hit area, so touch gets the same
+   action without a second overlapping target (LAY1, RSP9). */
+.profile-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.profile-avatar-overlay svg { width: 30px; height: 30px; color: var(--sidebar-text-strong); }
+
+.account-hero-avatar-btn:hover .profile-avatar-overlay, .account-hero-avatar-btn:focus-visible .profile-avatar-overlay { opacity: 1; }
+
+/* Role chip: tint and ink from the same rail family (BLD2). --primary text
+   is only 3.45:1 on the rail, so it is used for the ring above, not here. */
+.profile-identity-role {
+  display: inline-block;
+  margin-top: 11px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* ---------- overlay cards ----------
+   Account Information and the picture options are both sibling overlays on the
+   profile card, so they share a header vocabulary: an absolutely positioned
+   back arrow at the top-left, with the title and sub indented clear of it. The
+   picture options used to be a popover anchored to a button; as overlays they
+   need no anchoring, and nothing is clipped by a small parent (MOD2/TIP3).
+   .account-info-card is also the shared style scope for the user portal's
+   profile card, which renders the same panel as a page section rather than a
+   dialog. It keeps the full sheet width, because the form needs it;
+   .picture-dialog is a narrow choices sheet. */
+
+/* ---------- Account Information card ----------
+   Two-column panel. Only colour, border, shadow and accent values are mapped
+   to the app palette; the panel geometry, spacing, radii, font sizes and
+   weights are the reference design's own. Deviations are commented inline. */
+
+/* The admin portal renders this panel as a dialog, so it also needs the
+   dialog frame's own class, and two classes here to outrank the frame's
+   .modal-content.profile-card max-width. The user portal reuses the same
+   descendants without .modal-content, and gets its section frame below. */
+.modal-content.account-info-card {
+    width: min(800px, calc(100vw - 2rem));
+    max-width: min(800px, calc(100vw - 2rem));
+    padding: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+}
+
+/* The back arrow sits on the dark identity column, so it wears the sidebar
+   tokens, not the light-surface ones. */
+.account-info-card .sheet-back {
+    z-index: 2;
+    top: 18px;
+    left: 14px;
+    color: var(--sidebar-text);
+    background: var(--sidebar-hover);
+    border-color: var(--sidebar-border);
+}
+
+.account-info-card .sheet-back:hover { background: var(--sidebar-hover); color: var(--sidebar-text-strong); }
+
+.account-info-card .panel {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    border-radius: var(--radius);
+}
+
+/* ---- identity column ---- */
+
+.account-info-card .side {
+    position: relative;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    padding: 34px 26px;
+    text-align: left;
+    /* The panel cannot use overflow: hidden to clip the columns to its radius
+       — it is also the dialog's scroll container, and clipping would both
+       trap focus rings (LAY4) and hide the focusable overflow (MOD3). Each
+       column carries its own corners instead. */
+    border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.account-info-card .avatar-wrap { position: relative; width: max-content; }
+
+.account-info-card .avatar-btn {
+    position: relative;
+    width: 136px;
+    height: 136px;
+    padding: 0;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    background: var(--sidebar-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.account-info-card .avatar-btn .visual {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.account-info-card .avatar-btn img { width: 100%; height: 100%; object-fit: cover; }
+
+.account-info-card .avatar-btn .user-avatar-emoji { font-size: 58px; line-height: 1; }
+
+.account-info-card .avatar-btn .initials-txt { font-size: 44px; font-weight: 700; color: var(--accent); }
+
+.account-info-card .avatar-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--overlay);
+    color: var(--sidebar-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+.account-info-card .avatar-btn:hover .avatar-overlay, .account-info-card .avatar-btn:focus-visible .avatar-overlay { opacity: 1; }
+
+.account-info-card .avatar-overlay svg { width: 26px; height: 26px; }
+
+.account-info-card .cam-badge {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: 3px solid var(--sidebar-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.account-info-card .cam-badge:hover { background: var(--accent-light); color: var(--accent-ink); }
+
+.account-info-card .cam-badge svg { width: 16px; height: 16px; }
+
+.account-info-card .id-block { margin-top: 16px; }
+
+.account-info-card .name-display {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--sidebar-text);
+    overflow-wrap: anywhere;
+}
+
+.account-info-card .handle-display {
+    font-size: 13px;
+    color: var(--sidebar-text-muted);
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+}
+
+/* 11px in the reference; raised to the 12px legibility floor (TXT7). */
+.account-info-card .role-tag {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    background: var(--violet-light);
+    color: var(--violet);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.account-info-card .preview {
+    margin-top: 30px;
+    padding-top: 22px;
+    border-top: 1px solid var(--sidebar-border);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* 10.5px in the reference; raised to the 12px floor (TXT7). */
+.account-info-card .p-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sidebar-text-muted);
+    margin: 0 0 7px;
+}
+
+.account-info-card .chip { display: flex; align-items: center; gap: 9px; }
+
+.account-info-card .mini-avatar {
+    width: 24px;
+    height: 24px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    line-height: 1;
+}
+
+.account-info-card .mini-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.account-info-card .mini-avatar .user-avatar-emoji { font-size: 13px; }
+
+.account-info-card .mini-avatar .initials-txt { font-size: 12px; font-weight: 700; }
+
+.account-info-card .chip-text { font-size: 12.5px; color: var(--sidebar-text); overflow-wrap: anywhere; }
+
+/* 11px in the reference; raised to the 12px floor (TXT7). */
+.account-info-card .chip-sub { font-size: 12px; color: var(--sidebar-text-muted); overflow-wrap: anywhere; }
+
+/* ---- form column ---- */
+
+/* Opaque rather than the dialog's default glass: body text over a composited
+   --surface-glass / --overlay / --bg stack falls to 4.15:1 in solarized-light
+   and 3.41:1 in flexoki-light (BLD5, TXT3). */
+.account-info-card .form-side {
+    background: var(--surface);
+    padding: 32px 32px 26px;
+    border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.account-info-card .form-side h1 {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    color: var(--text);
+}
+
+.account-info-card .form-side .sub {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text);
+    margin: 0 0 22px;
+    max-width: 52ch;
+}
+
+.account-info-card .frow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    transition: border-color 0.15s ease;
+}
+
+.account-info-card .frow:focus-within { border-color: var(--text); }
+
+.account-info-card .frow label {
+    width: 120px;
+    flex: none;
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--text);
+}
+
+.account-info-card .frow .field-wrap { flex: 1; min-width: 0; text-align: right; }
+
+.account-info-card .frow input, .account-info-card .frow select {
+    width: 100%;
+    padding: 0;
+    background: transparent;
+    border: none;
+    text-align: right;
+    font-family: var(--font-body);
+    font-size: 15.5px;
+    color: var(--text);
+}
+/* The reference removes the outline here, which leaves no visible focus
+   indicator (BLD3). The app's --focus-ring is a 12%-alpha glow and scores
+   1.18:1 on --surface on its own, and --primary drops to 1.79:1 in nord, so
+   neither can carry the ring. --text is the one token guaranteed to separate
+   from --surface in all eleven themes (5.58:1 worst), so it draws the solid
+   ring and --focus-ring stays the soft halo it was built for. The row's
+   :focus-within border is kept as well. */
+.account-info-card .frow input:focus,
+.account-info-card .frow select:focus {
+    outline: 2px solid var(--text);
+    outline-offset: 3px;
+    border-radius: 4px;
+    box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+.account-info-card .frow input[readonly] { color: var(--text); }
+
+.account-info-card .frow input::placeholder { color: var(--text); }
+
+.account-info-card .help {
+    font-size: 12px;
+    text-align: right;
+    color: var(--text);
+    margin: 5px 0 0;
+}
+
+.account-info-card .footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 22px;
+}
+
+.account-info-card .unsaved {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.account-info-card .unsaved.show { opacity: 1; }
+
+.account-info-card .unsaved .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text);
+}
+
+/* The reference's hard offset shadow is kept; only its colour is remapped.
+   --text is the one token guaranteed to separate from --surface in all eleven
+   themes (5.58:1 worst), so the shadow reads as a real edge everywhere. */
+.account-info-card .save-btn {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: none;
+    border-radius: 10px;
+    padding: 12px 22px;
+    font-family: var(--font-heading);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 var(--text);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.account-info-card .save-btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--text); }
+
+.account-info-card .save-btn.saved { background: var(--success-light); color: var(--success-dark); }
+
+/* The existing polite live region is kept alongside the button's own "Saved"
+   state: changing a button's label is not reliably announced. */
+.account-info-card .profile-save-msg {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    background: var(--success-light);
+    color: var(--success-dark);
+    opacity: 0;
+    visibility: hidden;
+    /* This is "Saved." on success but a full sentence on failure, so it has to
+       be allowed to shrink and wrap. A flex item defaults to min-width:auto,
+       which would hold it at its content width and push the footer wider than
+       a 320px viewport (RSP2/RSP3). */
+    min-width: 0;
+    max-width: 100%;
+}
+.account-info-card .profile-save-msg > span { overflow-wrap: anywhere; }
+
+.account-info-card .profile-save-msg.is-visible { opacity: 1; visibility: visible; }
+
+.account-info-card .profile-save-msg svg { width: 14px; height: 14px; }
+
+/* Save failed. Same tint-and-ink construction as the success pill above
+   (BLD2), using the pair this file already uses for danger text on a tint.
+   5.51:1 on --danger-light, so it holds AA as body text. */
+.account-info-card .profile-save-msg.is-error {
+    background: var(--danger-light);
+    color: var(--danger-dark);
+}
+
+/* ---------- username change guard (user portal only) ----------
+   The admin card shows the username readonly, so this appears only in the user
+   portal, and only while the typed username differs from the signed-in one.
+   It is a plain block, not a panel: it sits inside the form column among the
+   other rows, and a bordered box would be both a new shape in this card and
+   near-invisible, because --border on --surface bottoms out at 1.04:1 in
+   solarized-light. What identifies the field is its label plus the app's
+   standard .form-group input box. Two things are upgraded from the version
+   this replaced: the note uses --text rather than a #999 literal, and the
+   focus ring is solid --text, since --primary falls to 1.79:1 in nord and
+   --focus-ring is a 1.18:1 glow, so neither can carry it alone (BLD3). */
+.account-info-card .username-guard { margin-top: 18px; }
+.account-info-card .username-guard .form-group { margin-bottom: 8px; }
+.account-info-card .username-guard .form-group label {
+    color: var(--text);
+    font-size: 13.5px;
+    margin-bottom: 6px;
+}
+.account-info-card .username-guard input:focus {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+    border-color: var(--border);
+    box-shadow: 0 0 0 4px var(--focus-ring);
+}
+.account-info-card .username-guard .profile-note { font-size: 12px; }
+
+/* ---------- stacked layout ---------- */
+
+@media (max-width: 620px) {
+  .account-info-card .panel { grid-template-columns: 1fr; }
+
+.account-info-card .side {
+    border-radius: var(--radius) var(--radius) 0 0;
+    /* Clears the absolutely positioned back arrow, which lands on this column
+       once the card stacks. Without this the arrow would sit on the avatar
+       (LAY1). */
+    padding: 64px 22px 24px;
+  }
+
+.account-info-card .form-side {
+    padding: 24px 22px 22px;
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+
+/* Deviation from the reference, which keeps .frow as a row at this width:
+     a fixed 120px label leaves ~88px for the value at 320px, which breaks the
+     field and its help text (RSP4, RSP5). The row stacks instead. */
+  .account-info-card .frow { flex-direction: column; align-items: flex-start; gap: 7px; }
+
+.account-info-card .frow label { width: auto; }
+
+.account-info-card .frow .field-wrap { text-align: left; width: 100%; }
+
+.account-info-card .frow input, .account-info-card .frow select { text-align: left; }
+
+.account-info-card .help { text-align: left; }
+
+  .account-info-card .footer { flex-wrap: wrap; }
+}
+
+/* ---- user portal ----
+   The same panel, rendered as a page section instead of a dialog. It reuses
+   every descendant rule above; only the frame differs, because a section in
+   the content column is not a modal and must not carry the dialog's own
+   max-width, backdrop or height cap. */
+.account-info-card.user-profile-card {
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+}
+.account-info-card.user-profile-card .panel { overflow: visible; }
+
+/* The section wrapper and its loading / error notes. --text rather than
+   --text-secondary, which bottoms out at 4.47:1 and fails body-text AA. */
+.account-info-holder { grid-column: 1 / -1; }
+.profile-note { color: var(--text); }
+
+/* Standard screen-reader-only utility. Both portals need it: the avatar file
+   input must be reachable by keyboard and by a label, but never drawn. */
+.is-visually-hidden {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* The user portal has no back arrow - the section is reached from the nav, not
+   by replacing a card - so the identity column does not need the arrow's
+   clearance on small screens. */
+@media (max-width: 620px) {
+  .account-info-card.user-profile-card .side { padding: 34px 22px 24px; }
+}
+
+.picture-dialog {
+  position: relative;
+  /* A choices sheet, not a form: narrower, sized to its content. */
+  width: min(384px, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  padding: 26px 22px 22px;
+}
+
+/* Back arrow. Absolute to the sheet's top-left corner, so the title can sit
+   beside it without a flex row that would fight the emoji panel below. */
+.sheet-back {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  /* 40x40 minimum hit area on touch (RSP7). */
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.sheet-back:hover { background: var(--surface-muted); }
+
+.sheet-back:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+.sheet-back svg { width: 20px; height: 20px; }
+
+/* Clear of the 40px arrow at top-left, so it can never sit under it (LAY1). */
+/* The change password card is the narrowest sheet, because it is three
+   single-column fields. Was an inline style on .modal-content. */
+.password-dialog {
+  max-width: 420px;
+}
+
+/* .sheet-title reserves room for the back arrow on the left; this card also
+   keeps the close control clear on the right. */
+.password-dialog .sheet-title {
+  padding-right: 36px;
+  margin-bottom: 20px;
+}
+
+.sheet-title {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text);
+  margin: 0;
+  padding-left: 48px;
+}
+
+.sheet-sub {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  margin: 6px 0 0;
+  padding-left: 48px;
+}
+
+.picture-options {
+  display: flex;
+  flex-direction: column;
+  /* 8px keeps the rows visually grouped while still meeting the minimum
+     spacing between adjacent touch targets (RSP8). */
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.picture-option {
+  display: flex;
+  align-items: center;
+  /* Vertically centres the glyph with the label (ICO6). */
+  gap: 11px;
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 13px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 0.92rem;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.picture-option:hover { background: var(--surface-muted); }
+
+.picture-option:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+.picture-option.is-danger { color: var(--danger); }
+
+.picture-option-icon { display: inline-flex; flex: none; }
+
+.picture-option-icon svg { width: 17px; height: 17px; }
+
+/* The picker is an inline block in the sheet, not a popover, so it needs no
+   positioning and cannot be clipped (MOD2). */
+.picture-emoji { margin-top: 18px; }
+
+.picture-emoji .emoji-picker-hint { color: var(--text-muted); }
+
+/* Label on the left, control on the right {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.15s;
+}
+@media (max-width: 620px) {/* Below the split { flex-direction: column; align-items: stretch; gap: 6px; }}
+
+@media (max-width: 380px) {}

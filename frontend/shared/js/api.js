@@ -176,6 +176,70 @@ function authHeader() {
     return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
+// An <img> cannot send an Authorization header, the same constraint the SSE
+// stream documents, so the avatar URL carries the token as a query parameter
+// and the server verifies it. Returns null when there is no signed-in session
+// or the user has no photo, which is the caller's signal to draw a monogram
+// instead of an <img> that would fail to load.
+function avatarUrl(user) {
+    if (!user || !user.avatar_url) return null;
+    const token = AuthAPI.getAccessToken();
+    if (!token) return null;
+    const raw = String(user.avatar_url);
+    // API_BASE_URL already ends in /api and the rest of this file appends
+    // route paths without it, so drop a leading /api to avoid /api/api/...
+    const base = raw.startsWith('/api/') ? raw.slice(4) : raw;
+    const absolute = /^https?:\/\//i.test(base) ? base : `${API_BASE_URL}${base}`;
+    // Add timestamp to bust image cache on each request so avatar updates
+    // are visible immediately without logout/login (user request).
+    const ts = Date.now();
+    return `${absolute}${absolute.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}&ts=${ts}`;
+}
+
+// Upload a technician photo. Sent as multipart so the browser sets the
+// multipart boundary itself; setting Content-Type by hand would break it.
+// The filename is explicit: a Blob appended without one is sent as "blob",
+// which carries no extension for the server to work with.
+async function uploadAvatar(userId, file, filename) {
+    const form = new FormData();
+    const name = filename || (file && file.name) || 'avatar.jpg';
+    form.append('file', file, name);
+    const response = await apiFetch(`${API_BASE_URL}/users/${userId}/avatar`, {
+        method: 'POST',
+        body: form
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not upload the photo');
+    return data;
+}
+
+async function deleteAvatar(userId) {
+    const response = await apiFetch(`${API_BASE_URL}/users/${userId}/avatar`, { method: 'DELETE' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not remove the photo');
+    return data;
+}
+
+// Choose a single emoji for a user who has no photo to upload. The server
+// revalidates it, so this is a convenience check and not the security boundary.
+async function setAvatarEmoji(userId, emoji) {
+    const response = await apiFetch(`${API_BASE_URL}/users/${userId}/avatar/emoji`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not save the emoji');
+    return data;
+}
+
+async function clearAvatarEmoji(userId) {
+    const response = await apiFetch(`${API_BASE_URL}/users/${userId}/avatar/emoji`, { method: 'DELETE' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not remove the emoji');
+    return data;
+}
+
 function getCsrfToken() {
     const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
     return match ? match[1] : null;
@@ -283,6 +347,21 @@ class TicketAPI {
         return null;
     }
 }
+
+    // Self-service edit of the caller's own contact details. The server
+    // accepts display_name, phone and email only; role, department and
+    // username are ignored there by design, so no client can escalate through
+    // this call. Throws with the server's own message so the card can show why.
+    static async updateMyProfile(patch) {
+        const response = await apiFetch(`${API_BASE_URL}/users/me`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patch || {})
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to update profile');
+        return data.user || null;
+    }
 
     static async changePassword(currentPassword, newPassword) {
         const response = await apiFetch(`${API_BASE_URL}/users/me/password`, {

@@ -231,7 +231,7 @@ from models import User
 @jwt.token_in_blocklist_loader
 def check_token_revoked(jwt_header, jwt_payload):
     """Check if a token has been revoked by comparing token_version.
-        
+
     If the token's version doesn't match the user's current token_version,
     the token is considered revoked (e.g., user logged out, password changed, etc.)
     """
@@ -277,7 +277,7 @@ app.config['CF_TURNSTILE_SECRET_KEY'] = os.getenv('CF_TURNSTILE_SECRET_KEY', '')
 app.config['CF_TURNSTILE_ENABLED'] = os.getenv('CF_TURNSTILE_ENABLED', '').strip().lower() == 'true'
 if app.config['CF_TURNSTILE_ENABLED'] and not app.config['CF_TURNSTILE_SECRET_KEY']:
     logger.warning(
-        'CF_TURNSTILE_ENABLED is true but CF_TURNSTILE_SECRET_KEY is empty — '
+        'CF_TURNSTILE_ENABLED is true but CF_TURNSTILE_SECRET_KEY is empty — '  
         'login/reset Turnstile verification will reject all requests (fail-closed).'
     )
 # ==============================================

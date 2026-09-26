@@ -74,13 +74,14 @@ class TicketingApp {
         this.selectedTicketIds = new Set();
         this.auditShowDetails = false;
         this.activeTicketAttachments = [];
-        this.identityMenuOpen = false;
-        this.identityMenuFindActive = false;
+        // The dialog's two views, in arrow order. Adding a view here is all it
+        // takes: the arrows, the label and the focus handling read from these.
         this.syncing = false;
         this.notifications = [];
         this.notificationUnread = 0;
         this.notificationsOffline = false;
         this.notificationFilter = 'all';
+        this._dialogOpener = null;
         this.init();
     }
 
@@ -88,8 +89,10 @@ class TicketingApp {
         this.applyTheme();
         this.setupOfflineSync();
         window.showToast = (message, type) => this.showToast(message, type === 'error');
-        this.setupIdentityMenu();
+        this.setupAccountDialog();
         this.setupProfileModal();
+        this.setupAccountInfoCard();
+        this.setupPictureDialog();
         this.setupChangePasswordModal();
         this.setupEventListeners();
         await this.loadNotificationPrefs();
@@ -415,11 +418,11 @@ class TicketingApp {
         });
 
         document.getElementById('closeUserDetailModal').addEventListener('click', () => {
-            document.getElementById('userDetailModal').style.display = 'none';
+            this._closeDialog(document.getElementById('userDetailModal'));
         });
 
         document.getElementById('userDetailEditBtn').addEventListener('click', () => {
-            document.getElementById('userDetailModal').style.display = 'none';
+            this._closeDialog(document.getElementById('userDetailModal'));
             this.openEditUserModal(this.activeDetailUserId);
         });
 
@@ -435,7 +438,153 @@ class TicketingApp {
             } else {
                 await this.deleteUser(user.id);
             }
-            document.getElementById('userDetailModal').style.display = 'none';
+            this._closeDialog(document.getElementById('userDetailModal'));
+        });
+
+        // Escape closes the technician dialog, and Tab stays trapped inside it
+        // while it is open (MOD5). Kept separate from the notification
+        // dropdown's own Escape handler so neither can swallow the other.
+        const userDetailModal = document.getElementById('userDetailModal');
+        userDetailModal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                this._closeDialog(userDetailModal);
+                return;
+            }
+            this._trapDialogFocus(e, userDetailModal);
+        });
+
+        // The ticket table is re-rendered on every load, so the assignee
+        // avatar's click is delegated from the table body instead of being
+        // rebound to each row.
+        document.getElementById('ticketTableBody').addEventListener('click', (e) => {
+            const trigger = e.target.closest('[data-assignee]');
+            if (!trigger) return;
+            this.openAssigneeDetail(trigger.dataset.assignee);
+        });
+
+        // A photo can 404 (removed on another device, storage volume lost).
+        // 'error' does not bubble, so this listens in the capture phase, and
+        // the disc degrades to the monogram instead of showing a broken-image
+        // icon (OFF4).
+        document.getElementById('ticketTableBody').addEventListener('error', (e) => {
+            const img = e.target;
+            if (!img.classList || !img.classList.contains('assignee-avatar-img')) return;
+            const initial = img.dataset.initial || '';
+            img.remove();
+            const disc = img.parentElement;
+            if (disc && !disc.textContent.trim()) disc.textContent = initial;
+        }, true);
+
+        // Same degradation for the Users table, which uses a different disc
+        // class, so it needs its own listener.
+        document.getElementById('userTableBody').addEventListener('error', (e) => {
+            const img = e.target;
+            if (!img.classList || !img.classList.contains('user-avatar-img')) return;
+            const initial = img.dataset.initial || '';
+            img.remove();
+            const disc = img.parentElement;
+            if (disc && !disc.textContent.trim()) disc.textContent = initial;
+        }, true);
+
+        // A ticket in the technician dialog opens the ticket, but the
+        // technician dialog is closed first so the two dialogs never stack.
+        document.getElementById('userDetailAssignedTickets')
+            .addEventListener('click', (e) => {
+                const trigger = e.target.closest('[data-ticket-id]');
+                if (!trigger) return;
+                this._closeDialog(document.getElementById('userDetailModal'));
+                this.openTicketDetail(parseInt(trigger.dataset.ticketId, 10));
+            });
+
+        // Technician photo upload. The input is display:none and opened by the
+        // button, which is why it carries its own aria-label.
+        const avatarFile = document.getElementById('userDetailAvatarFile');
+        document.getElementById('userDetailAvatarBtn').addEventListener('click', () => {
+            avatarFile.value = '';
+            avatarFile.click();
+        });
+        avatarFile.addEventListener('change', async () => {
+            const file = avatarFile.files && avatarFile.files[0];
+            if (!file) return;
+            try {
+                const updated = await uploadAvatar(this.activeDetailUserId, file);
+                this.mergeUser(updated);
+                this.renderUserDetailTickets(updated);
+                this.openUserDetail(updated.id);
+                this.renderTickets(this.filteredTickets);
+                this.showToast('Photo updated.');
+            } catch (err) {
+                this.showToast(err.message || 'Could not upload the photo.', true);
+            }
+        });
+        document.getElementById('userDetailAvatarRemoveBtn').addEventListener('click', async () => {
+            try {
+                const updated = await deleteAvatar(this.activeDetailUserId);
+                this.mergeUser(updated);
+                this.openUserDetail(updated.id);
+                this.renderTickets(this.filteredTickets);
+                this.showToast('Photo removed.');
+            } catch (err) {
+                this.showToast(err.message || 'Could not remove the photo.', true);
+            }
+        });
+
+        // Emoji fallback, for a technician with no photo to upload. A photo and
+        // an emoji are mutually exclusive server-side, so picking one and
+        // uploading the other each replace the other cleanly.
+        const emojiPanel = document.getElementById('userDetailEmojiPanel');
+        const emojiToggle = document.getElementById('userDetailEmojiBtn');
+        const closeEmojiPanel = () => {
+            emojiPanel.hidden = true;
+            emojiToggle.setAttribute('aria-expanded', 'false');
+        };
+        emojiToggle.addEventListener('click', () => {
+            const opening = emojiPanel.hidden;
+            emojiPanel.hidden = !opening;
+            emojiToggle.setAttribute('aria-expanded', String(opening));
+        });
+        // Rendered once: the list is static, and rebuilding it on every open
+        // would drop keyboard focus back to the top of the dialog.
+        if (window.EmojiPicker) {
+            window.EmojiPicker.render(
+                document.getElementById('userDetailEmojiChoices'),
+                async (emoji) => {
+                    try {
+                        const updated = await setAvatarEmoji(this.activeDetailUserId, emoji);
+                        this.mergeUser(updated);
+                        this.renderUserDetailTickets(updated);
+                        this.openUserDetail(updated.id);
+                        this.renderTickets(this.filteredTickets);
+                        this.showToast('Emoji avatar set.');
+                    } catch (err) {
+                        this.showToast(err.message || 'Could not set the emoji.', true);
+                    }
+                });
+        } else {
+            // The picker is local markup, so this only happens if the script
+            // failed to load. Hide the button rather than offer a dead control.
+            emojiToggle.style.display = 'none';
+        }
+        document.getElementById('userDetailEmojiClearBtn').addEventListener('click', async () => {
+            try {
+                const updated = await clearAvatarEmoji(this.activeDetailUserId);
+                this.mergeUser(updated);
+                this.openUserDetail(updated.id);
+                this.renderTickets(this.filteredTickets);
+                this.showToast('Emoji cleared.');
+            } catch (err) {
+                this.showToast(err.message || 'Could not clear the emoji.', true);
+            }
+        });
+        // Escape closes the panel before the dialog itself, so one keypress
+        // does not throw away the whole dialog.
+        document.getElementById('userDetailModal').addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !emojiPanel.hidden) {
+                e.stopPropagation();
+                closeEmojiPanel();
+                emojiToggle.focus();
+            }
         });
 
         // Note templates: selecting one prefills the reply box, doesn't send it
@@ -1032,13 +1181,9 @@ class TicketingApp {
             roleEl.textContent = roleLabel;
             roleEl.title = roleLabel;
         }
-        if (avatarEl) {
-            if (eff.avatar) {
-                avatarEl.innerHTML = '<img src="' + eff.avatar + '" alt="" aria-hidden="true">';
-            } else {
-                avatarEl.textContent = name.charAt(0).toUpperCase();
-            }
-        }
+        // Shares the card's renderer, so the sidebar and the profile dialog can
+        // never disagree about which avatar is current.
+        if (avatarEl) this._fillAvatarDisc(avatarEl, eff.avatar, eff.avatarEmoji, name.charAt(0).toUpperCase());
     }
 
     // ============ Admin identity menu (account + user-management launcher) ============
@@ -1046,48 +1191,79 @@ class TicketingApp {
     // extended with inline account + user-management actions. Offline-first: all
     // items are either routes/modals that already exist client-side, or are
     // disabled with a visible TODO (no invented backend endpoints).
-    setupIdentityMenu() {
+    // Every item is either a route/modal that already exists client-side, or is
+    // disabled with a visible TODO (no invented backend endpoints).
+    setupAccountDialog() {
         const launcher = document.getElementById('identityLauncher');
-        const menu = document.getElementById('identityMenu');
-        if (!launcher || !menu) return;
+        const modal = document.getElementById('accountModal');
+        if (!launcher || !modal) return;
 
-        // Snapshot the static markup once; the "Find user" panel swaps the menu
-        // body and the Back button restores this snapshot.
-        this.identityMenuHtml = menu.innerHTML;
-
-        menu.addEventListener('keydown', (e) => this.handleIdentityMenuKeydown(e));
-
-        launcher.addEventListener('click', () => this.toggleIdentityMenu());
+        launcher.addEventListener('click', () => this.openAccountDialog());
         launcher.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                this.toggleIdentityMenu();
+                this.openAccountDialog();
             }
         });
 
-        // Mini-state flyout: reveal on hover, dismiss on leave (keyboard path
-        // still uses click / Enter / Space / Escape).
-        launcher.addEventListener('mouseenter', () => {
-            if (document.documentElement.classList.contains('sidebar-mini')) this.openIdentityMenu();
-        });
-        menu.addEventListener('mouseleave', () => {
-            if (document.documentElement.classList.contains('sidebar-mini') && document.activeElement === launcher) {
-                this.closeIdentityMenu(false);
+        // Escape closes the card and Tab stays trapped inside it (MOD5). The
+        // cards stacked on top of this one are siblings with their own
+        // handlers, so they unwind before it.
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                this._closeDialog(modal);
+                return;
             }
+            this._trapDialogFocus(e, modal);
         });
 
-        this.rebindIdentityMenuItems();
-
-        document.addEventListener('pointerdown', (e) => {
-            if (!this.identityMenuOpen) return;
-            if (launcher.contains(e.target) || menu.contains(e.target)) return;
-            this.closeIdentityMenu(false);
+        // Backdrop click closes. The click is matched on the overlay itself so
+        // it cannot fire from inside the sheet (which would close the dialog
+        // while the user is typing in the find field).
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) this._closeDialog(modal);
         });
+
+        const closeBtn = document.getElementById('closeAccountModal');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this._closeDialog(modal));
+            closeBtn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this._closeDialog(modal);
+                }
+            });
+        }
+
+        // Actions close the dialog first, then open their target, so only one
+        // dialog is ever on screen. That is the order the dropdown used.
+        // The hero avatar is the only picture trigger: it opens the picture
+        // dialog as a sibling overlay, so no popover is anchored to a button.
+        // Both avatars open the same picture card: the profile card's hero, and
+        // the one in the Account Information card (whose hero is behind the
+        // backdrop and cannot be reached).
+        // The camera badge is the reference design's second trigger for the
+        // same action, so both land on the picture options card.
+        ['accountHeroAvatarBtn', 'adminInfoAvatarBtn', 'adminInfoCamBadge'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (btn) btn.addEventListener('click', () => this.openPictureDialog());
+        });
+
+        // Each target card closes this one itself, so only one card is ever on
+        // screen. Both are siblings, never mixed into this card's body.
+        document.getElementById('acctViewProfile').addEventListener('click', () => this.openAccountInfoCard());
+        document.getElementById('acctChangePassword').addEventListener('click', () => this.openChangePasswordModal());
+        document.getElementById('acctLogout').addEventListener('click', () => AuthAPI.logout());
     }
 
     // TODO: "View profile" (own profile route) and "Change password"
     // (password-change modal) have no backend route yet — keep them disabled.
-    // ============ Admin profile helpers (localStorage-backed, separate from user portal) ============
+    // ============ Admin profile helpers ============
+    // The avatar is server-backed (User.avatar_url / User.avatar_emoji), the same
+    // source the Users table and the technician dialog read, so one account can
+    // no longer show two different faces. Only the display name is still local:
+    // there is no display_name column and no route to write one (see S2).
     getLocalProfile() {
         try {
             const raw = localStorage.getItem('admin_profile');
@@ -1117,14 +1293,83 @@ class TicketingApp {
             role: local.role || user.role || '',
             phone: local.phone || '',
             department: local.department || user.department || '',
-            avatar: local.avatar || ''
+            // avatarUrl(), not the raw column: an <img> request cannot carry an
+            // Authorization header, so the access token has to ride in the query
+            // string or the photo 401s and the disc falls back to a monogram.
+            // The legacy local dataUrl is kept only as a fallback so an account
+            // that set a picture before the server-backed avatar existed does not
+            // silently lose it. Any server write clears it (see handleAdminAvatarFile).
+            avatar: avatarUrl(user) || local.avatar || '',
+            avatarEmoji: user.avatar_emoji || ''
         };
+    }
+
+    // Writes an updated user record back into both caches that read it: the
+    // loaded users list and the sessionStorage identity that renderIdentity()
+    // and openAccountInfoCard() depend on.
+    _syncSelfUser(updated) {
+        if (!updated || updated.id == null) return;
+        this.mergeUser(updated);
+        const me = AuthAPI.getCurrentUser();
+        if (me && me.id === updated.id) {
+            try {
+                sessionStorage.setItem('current_user', JSON.stringify(
+                    Object.assign({}, me, updated)));
+            } catch (e) { /* the in-memory users list is still updated */ }
+        }
     }
 
     _esc(value) {
         return String(value == null ? '' : value)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ---- Dialog open/close with focus handling (MOD5) ----
+    // Scoped to the user detail dialog. The remaining dialogs still toggle
+    // display directly; retrofitting all of them at once is a separate change.
+    // focusEl overrides the "first focusable" default, for cards whose first
+    // control is navigation rather than the thing to type into.
+    _openDialog(modal, focusEl) {
+        if (!modal) return;
+        // Remember the trigger so focus can go back to it on close. Without
+        // this a keyboard user is dropped at the top of the document.
+        this._dialogOpener = document.activeElement;
+        modal.style.display = 'block';
+        const first = focusEl || modal.querySelector(
+            'button:not([disabled]), [href], input:not([disabled]), select, textarea');
+        if (first) first.focus();
+    }
+
+    _closeDialog(modal) {
+        if (!modal) return;
+        modal.style.display = 'none';
+        if (this._dialogOpener && typeof this._dialogOpener.focus === 'function') {
+            this._dialogOpener.focus();
+        }
+        this._dialogOpener = null;
+    }
+
+    // Keep Tab inside the dialog. Modal overlays cover the page but do not
+    // inert it, so without this the keyboard walks straight into content
+    // that is visually behind the backdrop.
+    _trapDialogFocus(e, modal) {
+        if (e.key !== 'Tab' || !modal || modal.style.display === 'none') return;
+        const focusable = Array.prototype.filter.call(
+            modal.querySelectorAll(
+                'button:not([disabled]), [href], input:not([disabled]), '
+                + 'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+            el => el.offsetParent !== null);
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
     }
 
     // Pick a stable tint for an assignee from their username, so the same
@@ -1142,214 +1387,438 @@ class TicketingApp {
         if (!name) {
             return '<span class="assignee-name assignee-unassigned">Unassigned</span>';
         }
-        // The name sits next to the disc, so the disc is decorative and is
-        // hidden from assistive tech rather than read out as a stray letter.
+        // The disc opens the technician's detail dialog, so it is a real
+        // control and needs an accessible name. The username sits beside it as
+        // plain text, so it stays out of the button's name to avoid a double
+        // announcement.
+        const user = this.users.find(u => u.username === name);
+        const photo = avatarUrl(user);
+        // Three states, in precedence order: photo, chosen emoji, then the
+        // username monogram. Exactly one is drawn, so the disc is never
+        // showing two identities at once.
+        const emoji = photo ? '' : (user && user.avatar_emoji ? user.avatar_emoji : '');
+        // The image is decorative: the button's aria-label already names the
+        // technician, so an alt text here would be announced twice.
+        let visual;
+        if (photo) {
+            visual = `<img class="assignee-avatar-img" src="${this._esc(photo)}" alt="" data-initial="${this._esc(name.charAt(0).toUpperCase())}">`;
+        } else if (emoji) {
+            visual = `<span class="assignee-avatar-emoji" aria-hidden="true">${this._esc(emoji)}</span>`;
+        } else {
+            visual = this._esc(name.charAt(0).toUpperCase());
+        }
         return `<span class="assignee-cell">`
-             + `<span class="assignee-avatar ${this._assigneeVariant(name)}" aria-hidden="true">`
-             + `${this._esc(name.charAt(0).toUpperCase())}</span>`
+             + `<button type="button" class="assignee-avatar ${this._assigneeVariant(name)}"`
+             + ` data-assignee="${this._esc(name)}"`
+             + ` aria-label="View technician details for ${this._esc(name)}">`
+             + `${visual}</button>`
              + `<span class="assignee-name">${this._esc(name)}</span>`
              + `</span>`;
     }
 
-    toggleIdentityMenu() {
-        if (this.identityMenuOpen) this.closeIdentityMenu(true);
-        else this.openIdentityMenu();
-    }
-
-    openIdentityMenu() {
-        const menu = document.getElementById('identityMenu');
-        const launcher = document.getElementById('identityLauncher');
-        if (!menu || !launcher || this.identityMenuOpen) return;
-        this.identityMenuOpen = true;
-        if (this.identityMenuFindActive) this.restoreIdentityMenu();
-        menu.hidden = false;
-        menu.classList.add('open');
-        this.positionIdentityMenu();
-        launcher.classList.add('open');
-        launcher.setAttribute('aria-expanded', 'true');
-        this.focusFirstIdentityItem();
-    }
-
-    closeIdentityMenu(returnFocus) {
-        const menu = document.getElementById('identityMenu');
-        const launcher = document.getElementById('identityLauncher');
-        if (!menu || !launcher || !this.identityMenuOpen) return;
-        this.identityMenuOpen = false;
-        menu.classList.remove('open');
-        menu.hidden = true;
-        launcher.classList.remove('open');
-        launcher.setAttribute('aria-expanded', 'false');
-        if (this.identityMenuFindActive) this.restoreIdentityMenu();
-        if (returnFocus && typeof launcher.focus === 'function') launcher.focus();
-    }
-
-    positionIdentityMenu() {
-        const menu = document.getElementById('identityMenu');
-        const launcher = document.getElementById('identityLauncher');
-        if (!menu || !launcher) return;
-        const mini = document.documentElement.classList.contains('sidebar-mini');
-        const r = launcher.getBoundingClientRect();
-        const maxLeft = Math.max(8, window.innerWidth - menu.offsetWidth - 8);
-        menu.style.left = '';
-        menu.style.top = '';
-        menu.style.left = Math.min(Math.max(8, mini ? r.right + 10 : r.left), maxLeft) + 'px';
-        let top = r.top - menu.offsetHeight - 8;
-        if (top < 8) top = r.bottom + 8;
-        if (top + menu.offsetHeight > window.innerHeight - 8) top = Math.max(8, r.top + 8);
-        menu.style.top = top + 'px';
-    }
-
-    focusFirstIdentityItem() {
-        const items = this.getFocusableMenuItems();
-        if (items.length > 0) items[0].focus();
-    }
-
-    getFocusableMenuItems() {
-        const menu = document.getElementById('identityMenu');
-        if (!menu) return [];
-        return Array.prototype.slice.call(
-            menu.querySelectorAll('.identity-menu-item:not([aria-disabled="true"])')
-        );
-    }
-
-    handleIdentityMenuKeydown(e) {
-        const items = this.getFocusableMenuItems();
-        if (items.length === 0) return;
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            e.preventDefault();
-            const delta = e.key === 'ArrowDown' ? 1 : -1;
-            const current = items.indexOf(document.activeElement);
-            items[(current + delta + items.length) % items.length].focus();
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            if (this.identityMenuFindActive) this.restoreIdentityMenu(true);
-            else this.closeIdentityMenu(true);
+    // Tickets record assigned_to as a username, while the detail dialog is
+    // keyed by user id, so resolve one to the other before opening it.
+    openAssigneeDetail(username) {
+        const name = String(username == null ? '' : username).trim();
+        if (!name) return;
+        const user = this.users.find(u => u.username === name);
+        if (!user) {
+            this.showToast(`No staff record for @${name}.`, true);
+            return;
         }
+        this.openUserDetail(user.id);
     }
 
-    rebindIdentityMenuItems() {
-        document.getElementById('menuViewProfile').addEventListener('click', () => {
-            this.closeIdentityMenu(false);
-            this.openProfileModal();
-        });
-        document.getElementById('menuChangePassword').addEventListener('click', () => {
-            this.closeIdentityMenu(false);
-            this.openChangePasswordModal();
-        });
-        document.getElementById('menuTheme').addEventListener('click', () => {
-            this.closeIdentityMenu(false);
-            this.switchSection('settings');
-        });
-        document.getElementById('menuFindUser').addEventListener('click', () => this.openFindUserPanel());
-        document.getElementById('menuAddUser').addEventListener('click', () => {
-            this.closeIdentityMenu(false);
-            const btn = document.getElementById('showAddUserModal');
-            if (btn) btn.click();
-        });
-        document.getElementById('menuBulk').addEventListener('click', () => {
-            this.closeIdentityMenu(false);
-            this.switchSection('tickets');
-        });
-        document.getElementById('menuLogout').addEventListener('click', () => AuthAPI.logout());
+    // Tickets in the client-side list that this technician owns, newest first.
+    // assigned_to holds a username, so the match is on that exact string.
+    assignedTicketsFor(username) {
+        const name = String(username == null ? '' : username).trim();
+        if (!name) return [];
+        return this.tickets
+            .filter(t => String(t.assigned_to == null ? '' : t.assigned_to).trim() === name)
+            .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     }
 
-    // "Find user": searches this.users (already cached in memory from the Users
-    // page load). Offline with no cache, it shows an honest message instead of
-    // a broken panel. No backend call is made here.
-    openFindUserPanel() {
-        const menu = document.getElementById('identityMenu');
-        if (!menu) return;
-        this.identityMenuFindActive = true;
-        const hasUsers = Array.isArray(this.users) && this.users.length > 0;
-        menu.innerHTML = `
-            <div class="identity-menu-find">
-                <div class="identity-menu-find-head">
-                    <button type="button" class="identity-menu-back" id="findUserBack" aria-label="Back to account menu">${Icons.render('chevron-left')}</button>
-                    <span>Find user</span>
-                </div>
-                <div class="identity-menu-search">
-                    ${Icons.render('search')}
-                    <input id="findUserInput" type="search" placeholder="Username or email" autocomplete="off">
-                </div>
-                <div id="findUserResults" class="identity-menu-results" role="listbox" aria-label="Matching users">
-                    ${hasUsers ? '' : '<p class="identity-menu-hint">User lookup requires a connection. Users load automatically once you are back online.</p>'}
-                </div>
-            </div>
-        `;
-        this.positionIdentityMenu();
-        const input = document.getElementById('findUserInput');
-        if (input) input.focus();
-        document.getElementById('findUserBack').addEventListener('click', () => this.restoreIdentityMenu(true));
-        input.addEventListener('input', () => this.renderFindUserResults(input.value));
-        this.renderFindUserResults('');
-    }
-
-    restoreIdentityMenu(returnFocusToFind) {
-        const menu = document.getElementById('identityMenu');
-        if (!menu) return;
-        this.identityMenuFindActive = false;
-        menu.innerHTML = this.identityMenuHtml;
-        this.rebindIdentityMenuItems();
-        this.positionIdentityMenu();
-        if (returnFocusToFind) {
-            const find = document.getElementById('menuFindUser');
-            if (find) find.focus();
-        }
-    }
-
-    renderFindUserResults(query) {
-        const container = document.getElementById('findUserResults');
+    renderUserDetailTickets(user) {
+        const container = document.getElementById('userDetailAssignedTickets');
         if (!container) return;
-        const users = Array.isArray(this.users) ? this.users : [];
-        if (users.length === 0) return; // offline hint already rendered
-        const q = (query || '').trim().toLowerCase();
-        const matches = q
-            ? users.filter((u) =>
-                (u.username || '').toLowerCase().includes(q) ||
-                (u.email || '').toLowerCase().includes(q))
-            : users;
-        const list = matches.slice(0, 8);
-        container.innerHTML = list.map((u) => `
-            <button type="button" class="identity-menu-item identity-menu-user" role="option" onclick="app.jumpToUser(${u.id})">
-                <span class="mu-name" title="${this._esc(u.username || '')}">${this._esc(u.username) || '—'}</span>
-                <span class="mu-detail">${this._esc(u.email || '')}${u.department ? ' · ' + this._esc(u.department) : ''}</span>
-            </button>
-        `).join('') || '<p class="identity-menu-hint">No matching users.</p>';
+        const assigned = this.assignedTicketsFor(user.username);
+        if (assigned.length === 0) {
+            container.innerHTML = '<p class="user-detail-empty">No tickets assigned.</p>';
+            return;
+        }
+        container.innerHTML = assigned.map(t => {
+            const status = String(t.status || '');
+            const label = this.capitalize(status.replace('_', ' '));
+            // Left as a plain button: putting role="listitem" on it would
+            // override the button role and stop it being announced as
+            // activatable. The container is the labelled group instead.
+            return '<button type="button" class="user-detail-ticket"'
+                 + ` data-ticket-id="${this._esc(t.id)}"`
+                 + ` title="${this._esc(t.title || '')}">`
+                 + `<span class="user-detail-ticket-id">${this._esc(t.ticket_number || `#${t.id}`)}</span>`
+                 + `<span class="user-detail-ticket-title">${this._esc(t.title || 'Untitled')}</span>`
+                 + `<span class="status-badge ${this._esc(status)}">${this._esc(label)}</span>`
+                 + '</button>';
+        }).join('');
     }
 
-    jumpToUser(id) {
-        this.closeIdentityMenu(false);
-        this.openEditUserModal(id);
+    // ============ Account dialog (replaces the identity dropdown) ============
+    // One click on the sidebar identity block opens a dialog that shows who is
+    // signed in plus every action the dropdown used to carry. The dialog is
+    // populated from already-cached state, so it renders with no network call
+    // (OFF1); the /me refresh that openAccountInfoCard does is not repeated here
+    // because this card is a read-only summary of the same record.
+    openAccountDialog() {
+        const modal = document.getElementById('accountModal');
+        if (!modal) return;
+
+        const eff = this.getEffectiveProfile();
+        const name = eff.displayName || eff.username || 'Admin';
+        const nameEl = document.getElementById('accountModalName');
+        const roleEl = document.getElementById('accountModalRole');
+        if (nameEl) nameEl.textContent = name;
+        if (roleEl) {
+            const label = eff.role
+                ? eff.role.charAt(0).toUpperCase() + eff.role.slice(1)
+                : 'Administrator';
+            roleEl.textContent = label;
+            // Same tint-and-ink family the badge already had, so swapping the
+            // text cannot change its contrast (BLD2).
+            roleEl.className = 'role-badge ' + (eff.role === 'admin' ? 'admin' : 'staff');
+        }
+        // The hero avatar IS the profile preview element, so the two can never
+        // disagree about which picture is current.
+        const avatarEl = document.getElementById('adminProfileAvatarPreview');
+        if (avatarEl) this._fillAvatarDisc(avatarEl, eff.avatar, eff.avatarEmoji, name.charAt(0).toUpperCase());
+
+        this._renderAccountInfoRows(eff);
+        this._openDialog(modal);
+    }
+
+    // Read-only detail rows. Username is shown as the handle because it is the
+    // immutable identifier every other table references (AGENTS 1.3).
+    _renderAccountInfoRows(eff) {
+        const box = document.getElementById('accountInfoRows');
+        if (!box) return;
+        const dash = '<span class="profile-card-hint">Not set</span>';
+        const rows = [
+            ['Username', eff.username || dash],
+            ['Email', eff.email || dash],
+            ['Department', eff.department || dash],
+            ['Phone', eff.phone || dash]
+        ];
+        box.innerHTML = rows.map(([label, value]) => `
+            <div class="profile-row">
+                <dt>${this._esc(label)}</dt>
+                <dd class="${value === dash ? '' : 'is-strong'}">${value}</dd>
+            </div>
+        `).join('');
+    }
+
+
+    // The reference's syncIdentity(): the name in the identity column is the
+    // same string the form is being edited for, so the two can never disagree
+    // while it is being typed into.
+    _syncProfileIdentity() {
+        const nameField = document.getElementById('adminProfileDisplayName');
+        const userField = document.getElementById('adminProfileUsername');
+        const fallback = (AuthAPI.getCurrentUser() || {}).username || 'admin';
+        if (nameField) {
+            const shown = nameField.value.trim() || 'Your name';
+            const hero = document.getElementById('adminProfileHeroName');
+            if (hero) hero.textContent = shown;
+            const chip = document.getElementById('adminPreviewSidebarName');
+            if (chip) chip.textContent = shown;
+        }
+        if (userField) {
+            const handle = document.getElementById('adminProfileHandle');
+            if (handle) handle.textContent = '@' + (userField.value.trim() || fallback);
+        }
     }
 
     // ============ Admin profile modal (View profile) ============
-    async openProfileModal() {
-        const modal = document.getElementById('profileModal');
-        if (!modal) return;
-
-        const serverProfile = await TicketAPI.getMyProfile();
+    // Paint the profile body from a given identity. Deliberately synchronous:
+    // every value it needs is already in hand, so the form has real content on
+    // the first frame instead of a blank sheet.
+    _renderProfileBody(eff) {
         const user = AuthAPI.getCurrentUser() || {};
-        const eff = this.getEffectiveProfile(serverProfile || user);
         const initial = (eff.displayName || eff.username || 'A').charAt(0).toUpperCase();
 
         document.getElementById('adminProfileDisplayName').value = eff.displayName || '';
         document.getElementById('adminProfilePhone').value = eff.phone || '';
         document.getElementById('adminProfileEmail').value = eff.email || '';
         document.getElementById('adminProfileUsername').value = eff.username || user.username || '';
-        document.getElementById('adminProfileRole').value = (eff.role || user.role || 'admin').charAt(0).toUpperCase() + (eff.role || user.role || 'admin').slice(1);
+        // The role appears twice, as the reference has it: as the tag in the
+        // identity column and as a readonly row in the form.
+        const roleValue = eff.role || user.role || 'admin';
+        const roleText = roleValue.charAt(0).toUpperCase() + roleValue.slice(1);
+        const roleTag = document.getElementById('adminProfileRole');
+        if (roleTag) roleTag.textContent = roleText;
+        const roleField = document.getElementById('adminProfileRoleField');
+        if (roleField) roleField.value = roleText;
 
-        const preview = document.getElementById('adminProfileAvatarPreview');
-        if (preview) preview.innerHTML = eff.avatar
-            ? '<img src="' + eff.avatar + '" alt="" style="width:100%;height:100%;object-fit:cover;">'
-            : initial;
-        document.getElementById('adminRemoveAvatarBtn').style.display = eff.avatar ? 'block' : 'none';
+        // The identity column mirrors the live form, as the reference's
+        // syncIdentity() does: the name it shows is the name being edited, so
+        // the two cannot drift apart mid-typing.
+        this._syncProfileIdentity();
+        const heroRole = document.getElementById('accountModalRole');
+        if (heroRole) {
+            heroRole.textContent = roleText;
+        }
+
+        this._renderAdminAvatarPreview(eff.avatar, eff.avatarEmoji, initial);
+        this._syncAdminAvatarButtons(eff.avatar, eff.avatarEmoji);
+        this._renderAdminPreview(eff, initial);
+        this._setProfileUnsaved(false);
 
         this.populateDepartmentSelects().then(() => {
             const sel = document.getElementById('adminProfileDepartment');
             if (sel && eff.department) sel.value = eff.department;
         });
 
-        modal.style.display = 'block';
+    }
+
+    // The rail previews the three surfaces the signed-in admin's avatar really
+    // appears on. Every one of them is rendered from the same precedence as the
+    // live surface (photo, then emoji, then initials), so the preview cannot
+    // drift from what the user will actually see.
+    _renderAdminPreview(eff, initial) {
+        const name = eff.displayName || eff.username || 'admin';
+        const sidebarName = document.getElementById('adminPreviewSidebarName');
+        if (sidebarName) sidebarName.textContent = name;
+
+        const sidebarDisc = document.getElementById('adminPreviewSidebarAvatar');
+        if (sidebarDisc) this._fillAvatarDisc(sidebarDisc, eff.avatar, eff.avatarEmoji, initial);
+
+        // The ticket row only exists if the admin is genuinely an assignee on a
+        // ticket. When they are not, say so rather than inventing a ticket
+        // number (S2).
+        const ticket = this.tickets.find(t => t.assigned_to === eff.username);
+        const ticketName = document.getElementById('adminPreviewTicketName');
+        const ticketSub = document.getElementById('adminPreviewTicketSub');
+        const ticketDisc = document.getElementById('adminPreviewTicketAvatar');
+        if (ticketName) ticketName.textContent = ticket ? (ticket.ticket_number || name) : 'No assigned tickets';
+        if (ticketSub) ticketSub.textContent = ticket ? 'As a ticket assignee' : 'As a ticket assignee';
+        if (ticketDisc) {
+            if (ticket) {
+                this._fillAvatarDisc(ticketDisc, eff.avatar, eff.avatarEmoji, initial);
+            } else {
+                ticketDisc.textContent = '';
+                ticketDisc.classList.remove('has-emoji');
+            }
+        }
+    }
+
+    // ============ Cards layered over the page ============
+    // The picture options are the one card that opens *on top of* another card
+    // (the Account Information card), so they need the opener bookkeeping below.
+    // The Account Information card instead replaces the profile card, so it uses
+    // the plain _openDialog/_closeDialog pair.
+    //
+    // _openDialog keeps its trigger in one shared slot, which a stacked overlay
+    // would otherwise overwrite and cost the card underneath its focus return.
+    // The overlay parks that slot here and hands it back on close (MOD5).
+    _openStackedCard(modalId, slot) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return null;
+        this[slot] = this._dialogOpener || document.activeElement;
+        this._openDialog(modal);
+        return modal;
+    }
+
+    // fallbackId is only used if the trigger has gone from the document.
+    _closeStackedCard(modalId, slot, fallbackId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        const opener = this[slot];
+        this._closeDialog(modal);
+        this._dialogOpener = opener || null;
+        this[slot] = null;
+        if (!opener || !opener.isConnected) {
+            const fallback = document.getElementById(fallbackId);
+            if (fallback) fallback.focus();
+        }
+    }
+
+    // Back arrow, backdrop and Escape -- the wiring every card on top of the
+    // page needs. onEscape gets first refusal so a card with something nested
+    // (the emoji picker) can unwind that first (MOD5).
+    _setupOverlayCard(modalId, backId, onClose, onEscape) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        const back = document.getElementById(backId);
+        if (back) back.addEventListener('click', onClose);
+        // Matched on the overlay itself, so a click inside the sheet cannot
+        // close it while the admin is typing in a field.
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) onClose();
+        });
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // The card is a sibling, not a descendant, so this must not let
+                // the press reach the profile card's own handler as well.
+                e.stopPropagation();
+                if (onEscape && onEscape()) return;
+                onClose();
+                return;
+            }
+            this._trapDialogFocus(e, modal);
+        });
+    }
+
+    // ---- Account Information card ----
+    // "View profile" swaps cards rather than stacking on one, exactly as Change
+    // password already does: only one card is ever on screen. The profile card
+    // closes, so the back arrow is the only way back and it reopens the profile
+    // card.
+    openAccountInfoCard() {
+        const accountModal = document.getElementById('accountModal');
+        if (accountModal && accountModal.style.display !== 'none') this._closeDialog(accountModal);
+
+        // Re-rendering would silently throw away anything typed but not saved,
+        // and the back arrow is now the main way out of this card. So a dirty
+        // form is left exactly as the admin left it.
+        if (this.profileDirty) {
+            this._openDialog(document.getElementById('accountInfoModal'));
+            return;
+        }
+
+        // Otherwise render from cache first: the server round trip must not gate
+        // the card appearing, or a slow connection makes the click look dead
+        // (OFF1/OFF4).
+        this._renderProfileBody(this.getEffectiveProfile(AuthAPI.getCurrentUser() || {}));
+        this._openDialog(document.getElementById('accountInfoModal'));
+
+        // Then reconcile with the server.
+        TicketAPI.getMyProfile().then((serverProfile) => {
+            // getMyProfile resolves null on failure and has already logged it,
+            // so the cached render stands and this is a no-op (OFF4).
+            if (!serverProfile || this.profileDirty) return;
+            this._renderProfileBody(this.getEffectiveProfile(serverProfile));
+        });
+    }
+
+    // The back arrow, Escape and the backdrop all land here: back to the profile
+    // card, focused on the row that opened this one (MOD5).
+    closeAccountInfoCard() {
+        this._closeDialog(document.getElementById('accountInfoModal'));
+        this.openAccountDialog();
+        const row = document.getElementById('acctViewProfile');
+        if (row) row.focus();
+    }
+
+    setupAccountInfoCard() {
+        this._setupOverlayCard('accountInfoModal', 'accountInfoBack',
+            () => this.closeAccountInfoCard());
+    }
+
+    // ---- picture options card ----
+    // Opened by an avatar: the profile card's hero, or the one in the Account
+    // Information card. Same four controls the old popover carried, promoted to
+    // a real overlay (MOD1/MOD6).
+    openPictureDialog() {
+        this._openStackedCard('pictureModal', '_pictureOpener');
+    }
+
+    closePictureDialog() {
+        // The picker is nested, so it must not survive the card closing.
+        if (this._profileEmojiPanel) {
+            this._profileEmojiPanel.hidden = true;
+            if (this._profileEmojiToggle) {
+                this._profileEmojiToggle.setAttribute('aria-expanded', 'false');
+            }
+        }
+        this._closeStackedCard('pictureModal', '_pictureOpener', 'accountHeroAvatarBtn');
+    }
+
+    setupPictureDialog() {
+        this._setupOverlayCard('pictureModal', 'pictureModalBack',
+            () => this.closePictureDialog(),
+            // Escape unwinds the emoji picker before the card (MOD5).
+            () => {
+                if (!this._profileEmojiPanel || this._profileEmojiPanel.hidden) return false;
+                this._profileEmojiPanel.hidden = true;
+                if (this._profileEmojiToggle) {
+                    this._profileEmojiToggle.setAttribute('aria-expanded', 'false');
+                    this._profileEmojiToggle.focus();
+                }
+                return true;
+            });
+    }
+
+    // The "Unsaved changes" dot. A plain indicator, deliberately not a live
+    // region: adminProfileSaveMsg is the single announcement on save, and two
+    // competing live regions would talk over each other.
+    _setProfileUnsaved(dirty) {
+        const el = document.getElementById('adminProfileUnsaved');
+        if (el) el.classList.toggle('show', !!dirty);
+        // Kept as real state, not just a class: the profile body uses it to
+        // decide whether a late /users/me response may still write to the form.
+        this.profileDirty = !!dirty;
+    }
+
+    // One renderer for every surface that shows the signed-in admin's avatar --
+    // the profile card's hero, the Account Information card, and the sidebar
+    // identity block -- so the precedence is identical everywhere and to the
+    // Users table: photo, then emoji, then initials.
+    _renderAdminAvatarPreview(src, emoji, initial) {
+        ['adminProfileAvatarPreview', 'adminInfoAvatarVisual', 'sidebarAvatar']
+            .forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) this._fillAvatarDisc(el, src, emoji, initial);
+            });
+    }
+
+    _fillAvatarDisc(el, src, emoji, initial) {
+        const useEmoji = !src && emoji;
+        el.classList.toggle('has-emoji', !!useEmoji);
+        if (src) {
+            const img = document.createElement('img');
+            // The sidebar already styles any descendant img (.sidebar-avatar img),
+            // so only the profile disc needs a class.
+            if (el.id !== 'sidebarAvatar') img.className = 'user-avatar-img';
+            img.src = src;
+            img.alt = '';
+            img.setAttribute('aria-hidden', 'true');
+            // A dead URL must fall back to the monogram rather than leaving an
+            // empty disc, which would read as "no avatar" instead of "broken".
+            img.addEventListener('error', () => this._fillAvatarDisc(el, '', emoji, initial));
+            el.textContent = '';
+            el.appendChild(img);
+        } else if (useEmoji) {
+            const span = document.createElement('span');
+            // .user-avatar-emoji is the only class that carries an emoji size
+            // here: the card sets it to 58px in .avatar-btn and 13px in
+            // .mini-avatar. A second class name would need its own rule in
+            // every one of the eleven theme blocks to mean anything.
+            span.className = 'user-avatar-emoji';
+            span.setAttribute('aria-hidden', 'true');
+            span.textContent = emoji;
+            el.textContent = '';
+            el.appendChild(span);
+        } else if (el.classList.contains('visual') || el.classList.contains('mini-avatar')) {
+            // The reference wraps initials in a span so it can size them
+            // independently of the host. Only the new card wraps; the sidebar
+            // and the profile card's own hero keep their bare text node.
+            const span = document.createElement('span');
+            span.className = 'initials-txt';
+            span.setAttribute('aria-hidden', 'true');
+            span.textContent = initial;
+            el.textContent = '';
+            el.appendChild(span);
+        } else {
+            el.textContent = initial;
+        }
+    }
+
+    // The remove/clear controls only make sense for whichever kind of avatar is
+    // actually set, so each is shown in response to the server state.
+    _syncAdminAvatarButtons(photo, emoji) {
+        const removeBtn = document.getElementById('adminRemoveAvatarBtn');
+        if (removeBtn) removeBtn.classList.toggle('is-hidden', !photo);
+        const clearEmojiBtn = document.getElementById('adminProfileEmojiClearBtn');
+        if (clearEmojiBtn) clearEmojiBtn.classList.toggle('is-hidden', !emoji);
     }
 
     setupProfileModal() {
@@ -1362,69 +1831,138 @@ class TicketingApp {
         });
         document.getElementById('adminRemoveAvatarBtn').addEventListener('click', () => this.removeAdminAvatar());
         document.getElementById('adminSaveProfileBtn').addEventListener('click', () => this.saveAdminProfile());
-        document.getElementById('closeProfileModal').addEventListener('click', () => {
-            document.getElementById('profileModal').style.display = 'none';
+
+        // Emoji avatar, mirroring the technician dialog so both behave
+        // identically. Rendered once: the list is static, and rebuilding it on
+        // every open would drop keyboard focus back to the top of the dialog.
+        const emojiPanel = document.getElementById('adminProfileEmojiPanel');
+        const emojiToggle = document.getElementById('adminProfileEmojiBtn');
+        // The picture dialog's Escape ladder needs to reach the picker.
+        this._profileEmojiPanel = emojiPanel;
+        this._profileEmojiToggle = emojiToggle;
+
+        // The picker lives inside the picture dialog, so it is a plain inline
+        // block there -- no anchoring, no outside-click dismissal (MOD2/MOD3).
+        emojiToggle.addEventListener('click', () => {
+            const opening = emojiPanel.hidden;
+            emojiPanel.hidden = !opening;
+            emojiToggle.setAttribute('aria-expanded', String(opening));
+        });
+        if (window.EmojiPicker) {
+            window.EmojiPicker.render(
+                document.getElementById('adminProfileEmojiChoices'),
+                (emoji) => this.setAdminAvatarEmoji(emoji));
+        } else {
+            // The picker is local markup, so this only happens if the script
+            // failed to load. Hide the button rather than offer a dead control.
+            emojiToggle.classList.add('is-hidden');
+        }
+        document.getElementById('adminProfileEmojiClearBtn')
+            .addEventListener('click', () => this.clearAdminAvatarEmoji());
+        // The dialog's own Escape ladder and focus trap live in
+        // setupAccountDialog, because the profile view is now inside that
+        // dialog: two keydown handlers on one element would double-fire.
+
+        // The design's setDirty() on every field in a row. Readonly rows
+        // (username, role) are skipped explicitly: they can never emit input
+        // or change, so this matches the reference without a stray dirty dot.
+        const rowFields = document.querySelectorAll('#accountInfoModal .frow input, #accountInfoModal .frow select');
+        Array.prototype.forEach.call(rowFields, (field) => {
+            if (field.readOnly || field.disabled) return;
+            field.addEventListener('input', () => this._setProfileUnsaved(true));
+            field.addEventListener('change', () => this._setProfileUnsaved(true));
+        });
+        // The design's syncIdentity(): the two fields the identity column
+        // mirrors update it live.
+        ['adminProfileDisplayName', 'adminProfileUsername'].forEach((id) => {
+            const field = document.getElementById(id);
+            if (field) field.addEventListener('input', () => this._syncProfileIdentity());
         });
     }
 
-    handleAdminAvatarFile(file) {
+    async handleAdminAvatarFile(file) {
         if (!file) return;
         if (!/^image\//.test(file.type)) {
             this.showToast('Please choose an image file.', true);
             return;
         }
-        this.resizeImage(file, 256).then((dataUrl) => {
-            if (!dataUrl) {
-                this.showToast('Could not read that image.', true);
-                return;
-            }
-            this.saveLocalProfile({ avatar: dataUrl });
+        const me = AuthAPI.getCurrentUser() || {};
+        if (me.id == null) {
+            this.showToast('Could not identify your account.', true);
+            return;
+        }
+        try {
+            const updated = await uploadAvatar(me.id, file);
+            // A server-side photo supersedes any legacy local copy, so drop it
+            // rather than letting the two disagree on the next load.
+            this.saveLocalProfile({ avatar: '' });
+            this._syncSelfUser(updated);
             this.refreshAdminAvatarUI();
             this.renderIdentity();
-            this.showToast('Profile picture updated.');
-        });
-    }
-
-    resizeImage(file, max) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onerror = () => resolve(null);
-            reader.onload = () => {
-                const img = new Image();
-                img.onerror = () => resolve(null);
-                img.onload = () => {
-                    const scale = Math.min(1, max / Math.max(img.width, img.height));
-                    const canvas = document.createElement('canvas');
-                    canvas.width = Math.max(1, Math.round(img.width * scale));
-                    canvas.height = Math.max(1, Math.round(img.height * scale));
-                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.85));
-                };
-                img.src = reader.result;
-            };
-            reader.readAsDataURL(file);
-        });
+            this.showToast('Profile photo updated.');
+        } catch (err) {
+            this.showToast(err.message || 'Could not upload the photo.', true);
+        }
     }
 
     refreshAdminAvatarUI() {
-        const local = this.getLocalProfile();
-        const preview = document.getElementById('adminProfileAvatarPreview');
-        const removeBtn = document.getElementById('adminRemoveAvatarBtn');
+        const eff = this.getEffectiveProfile();
         const user = AuthAPI.getCurrentUser() || {};
-        const name = local.displayName || user.username || 'Admin';
-        if (preview) {
-            preview.innerHTML = local.avatar
-                ? '<img src="' + local.avatar + '" alt="" style="width:100%;height:100%;object-fit:cover;">'
-                : name.charAt(0).toUpperCase();
-        }
-        if (removeBtn) removeBtn.style.display = local.avatar ? 'block' : 'none';
+        const name = eff.displayName || user.username || 'Admin';
+        const initial = name.charAt(0).toUpperCase();
+        this._renderAdminAvatarPreview(eff.avatar, eff.avatarEmoji, initial);
+        this._syncAdminAvatarButtons(eff.avatar, eff.avatarEmoji);
+        // The rail previews track the same source, so an upload, emoji pick or
+        // removal is reflected on all three chips without reopening the dialog.
+        this._renderAdminPreview(eff, initial);
     }
 
-    removeAdminAvatar() {
-        this.saveLocalProfile({ avatar: '' });
-        this.refreshAdminAvatarUI();
-        this.renderIdentity();
-        this.showToast('Profile picture removed.');
+    async removeAdminAvatar() {
+        const me = AuthAPI.getCurrentUser() || {};
+        if (me.id == null) {
+            this.showToast('Could not identify your account.', true);
+            return;
+        }
+        try {
+            const updated = await deleteAvatar(me.id);
+            this._syncSelfUser(updated);
+            this.refreshAdminAvatarUI();
+            this.renderIdentity();
+            this.showToast('Profile photo removed.');
+        } catch (err) {
+            this.showToast(err.message || 'Could not remove the photo.', true);
+        }
+    }
+
+    async setAdminAvatarEmoji(emoji) {
+        const me = AuthAPI.getCurrentUser() || {};
+        if (me.id == null) {
+            this.showToast('Could not identify your account.', true);
+            return;
+        }
+        try {
+            const updated = await setAvatarEmoji(me.id, emoji);
+            this._syncSelfUser(updated);
+            this.refreshAdminAvatarUI();
+            this.renderIdentity();
+            this.showToast('Emoji avatar set.');
+        } catch (err) {
+            this.showToast(err.message || 'Could not set the emoji.', true);
+        }
+    }
+
+    async clearAdminAvatarEmoji() {
+        const me = AuthAPI.getCurrentUser() || {};
+        if (me.id == null) return;
+        try {
+            const updated = await clearAvatarEmoji(me.id);
+            this._syncSelfUser(updated);
+            this.refreshAdminAvatarUI();
+            this.renderIdentity();
+            this.showToast('Emoji cleared.');
+        } catch (err) {
+            this.showToast(err.message || 'Could not clear the emoji.', true);
+        }
     }
 
     saveAdminProfile() {
@@ -1435,19 +1973,51 @@ class TicketingApp {
             email: document.getElementById('adminProfileEmail').value.trim()
         });
         this.renderIdentity();
+        // Everything typed is now persisted, so the dirty dot has nothing left
+        // to point at. The saved names in the rail are refreshed with it.
+        this._setProfileUnsaved(false);
+        this._syncProfileIdentity();
         const msg = document.getElementById('adminProfileSaveMsg');
         if (msg) {
-            msg.style.display = 'inline';
-            setTimeout(() => { msg.style.display = 'none'; }, 2500);
+            msg.classList.add('is-visible');
+            setTimeout(() => { msg.classList.remove('is-visible'); }, 2500);
+        }
+        // The design's save-btn.saved state: the button itself confirms for a
+        // moment. The live region above stays because a button changing its own
+        // label is not reliably announced.
+        const saveBtn = document.getElementById('adminSaveProfileBtn');
+        if (saveBtn) {
+            saveBtn.classList.add('saved');
+            saveBtn.textContent = 'Saved';
+            setTimeout(() => {
+                saveBtn.classList.remove('saved');
+                saveBtn.textContent = 'Save Changes';
+            }, 1800);
         }
     }
 
     // ============ Change password modal ============
+    // Same technique as View profile: the profile card closes and this card
+    // takes its place, so only one card is ever on screen and the back arrow is
+    // the only way back.
     openChangePasswordModal() {
         const modal = document.getElementById('changePasswordModal');
         if (!modal) return;
+        const accountModal = document.getElementById('accountModal');
+        if (accountModal && accountModal.style.display !== 'none') this._closeDialog(accountModal);
         document.getElementById('changePasswordForm').reset();
-        modal.style.display = 'block';
+        // The first control is the back arrow, which is navigation. Land on the
+        // current password field instead, so a keyboard user can start typing.
+        this._openDialog(modal, document.getElementById('adminCurrentPassword'));
+    }
+
+    // Back arrow, close control, Escape and the backdrop all land here: back to
+    // the profile card, focused on the row that opened this one (MOD5).
+    closeChangePasswordModal() {
+        this._closeDialog(document.getElementById('changePasswordModal'));
+        this.openAccountDialog();
+        const row = document.getElementById('acctChangePassword');
+        if (row) row.focus();
     }
 
     setupChangePasswordModal() {
@@ -1455,9 +2025,22 @@ class TicketingApp {
             e.preventDefault();
             this.handleChangePassword();
         });
-        document.getElementById('closeChangePasswordModal').addEventListener('click', () => {
-            document.getElementById('changePasswordModal').style.display = 'none';
-        });
+        this._setupOverlayCard('changePasswordModal', 'changePasswordBack',
+            () => this.closeChangePasswordModal());
+
+        // The close control sits in the card's top-right corner, so this card has
+        // two exits; both go back to the profile card rather than dropping the
+        // admin on an empty page.
+        const closeBtn = document.getElementById('closeChangePasswordModal');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeChangePasswordModal());
+            closeBtn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.closeChangePasswordModal();
+                }
+            });
+        }
     }
 
     async handleChangePassword() {
@@ -1481,8 +2064,10 @@ class TicketingApp {
         try {
             await TicketAPI.changePassword(current, pw);
             this.showToast('Password updated successfully!');
-            document.getElementById('changePasswordModal').style.display = 'none';
             document.getElementById('changePasswordForm').reset();
+            // Same exit as backing out, so a successful change lands the admin
+            // back on the profile card instead of an empty page.
+            this.closeChangePasswordModal();
         } catch (error) {
             this.showToast(error.message, true);
         }
@@ -2370,6 +2955,15 @@ class TicketingApp {
         }
     }
 
+    // Replace one user in the cached list from a server response, so changing
+    // one field (a photo) does not require refetching every user.
+    mergeUser(user) {
+        if (!user || user.id == null) return;
+        const i = this.users.findIndex(u => u.id === user.id);
+        if (i === -1) this.users.push(user);
+        else this.users[i] = user;
+    }
+
     applyUserFilters() {
         const role = document.getElementById('userRoleFilter').value;
         const status = document.getElementById('userStatusFilter').value;
@@ -2387,6 +2981,27 @@ class TicketingApp {
             }
             return true;
         });
+    }
+
+    // Avatar for a user row in the Users table. Same precedence as the ticket
+    // table and the profile card: photo, then chosen emoji, then the username
+    // monogram. Decorative, because the username sits beside it as real text.
+    userCellAvatar(user) {
+        const name = String(user.username || '?');
+        const initial = this._esc(name.charAt(0).toUpperCase() || '?');
+        const photo = avatarUrl(user);
+        if (photo) {
+            return '<span class="user-avatar" aria-hidden="true">'
+                 + `<img class="user-avatar-img" src="${this._esc(photo)}" alt="" `
+                 + `data-initial="${initial}">`
+                 + '</span>';
+        }
+        if (user.avatar_emoji) {
+            return '<span class="user-avatar has-emoji" aria-hidden="true">'
+                 + `<span class="user-avatar-emoji">${this._esc(user.avatar_emoji)}</span>`
+                 + '</span>';
+        }
+        return `<span class="user-avatar" aria-hidden="true">${initial}</span>`;
     }
 
     renderUsers() {
@@ -2429,17 +3044,17 @@ class TicketingApp {
         }
 
         tbody.innerHTML = this.filteredUsers.map(user => `
-            <tr style="${user.is_active === false ? 'opacity:0.5;' : ''}">
+            <tr${user.is_active === false ? ' class="is-inactive"' : ''}>
                 <td>
                     <div class="user-cell">
-                        <span class="user-avatar" aria-hidden="true">${this._esc((user.username || '?').charAt(0) || '?')}</span>
+                        ${this.userCellAvatar(user)}
                         <strong>${this._esc(user.username)}</strong>
                     </div>
                 </td>
                 <td>${this._esc(user.email)}</td>
                 <td><span class="role-badge ${this._roleBadgeClass(user.role)}">${this.capitalize(user.role || 'staff')}</span></td>
                 <td>${user.department ? this._esc(user.department) : 'N/A'}</td>
-                <td>${user.is_active === false ? '<span class="status-badge resolved" style="background:#f5f5f5;color:#999;">Inactive</span>' : '<span class="status-badge open">Active</span>'}</td>
+                <td>${user.is_active === false ? '<span class="status-badge inactive">Inactive</span>' : '<span class="status-badge open">Active</span>'}</td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn-secondary btn-sm" aria-label="View user details" onclick="app.openUserDetail(${user.id})">
@@ -2487,6 +3102,18 @@ class TicketingApp {
         }
     }
 
+    // Refresh the open technician card in place, without reopening it. The
+    // card now shows derived state (status dot, counts, row label) that a
+    // table re-render alone will not update, so a mutation has to push the
+    // new values into the dialog the admin is still looking at.
+    refreshOpenUserDetail(id) {
+        const modal = document.getElementById('userDetailModal');
+        if (!modal || modal.style.display === 'none') return;
+        if (this.activeDetailUserId !== id) return;
+        const user = this.users.find(u => u.id === id);
+        if (user) this.openUserDetail(user.id);
+    }
+
     async deleteUser(id) {
         if (!confirm('Deactivate this user? They will no longer be able to log in, but their ticket history is preserved.')) return;
 
@@ -2495,6 +3122,7 @@ class TicketingApp {
             this.showToast('User deactivated successfully!');
             await this.loadUsers();
             this.renderUsers();
+            this.refreshOpenUserDetail(id);
         } catch (error) {
             this.showToast('Failed to deactivate user.', true);
             console.error(error);
@@ -2521,6 +3149,7 @@ class TicketingApp {
             this.showToast('User reactivated successfully!');
             await this.loadUsers();
             this.renderUsers();
+            this.refreshOpenUserDetail(id);
         } catch (error) {
             this.showToast('Failed to reactivate user.', true);
             console.error(error);
@@ -2605,7 +3234,41 @@ class TicketingApp {
         this.activeDetailUserId = id;
 
         const initial = (user.username || '?').charAt(0).toUpperCase();
-        document.getElementById('userDetailAvatar').textContent = initial;
+        const detailAvatar = document.getElementById('userDetailAvatar');
+        const detailPhoto = avatarUrl(user);
+        const detailEmoji = detailPhoto ? '' : (user.avatar_emoji || '');
+        detailAvatar.textContent = detailPhoto || detailEmoji ? '' : initial;
+        detailAvatar.classList.toggle('has-emoji', !detailPhoto && !!detailEmoji);
+        if (detailEmoji) {
+            // Validated server-side as emoji-only, and escaped again here.
+            const face = document.createElement('span');
+            face.className = 'user-avatar-emoji';
+            face.setAttribute('aria-hidden', 'true');
+            face.textContent = detailEmoji;
+            detailAvatar.appendChild(face);
+        }
+        if (detailPhoto) {
+            const img = document.createElement('img');
+            img.className = 'user-avatar-img';
+            img.alt = '';
+            img.src = detailPhoto;
+            // Same degradation as the table disc: fall back to the emoji if
+            // there is one, otherwise the monogram.
+            img.addEventListener('error', () => {
+                img.remove();
+                if (detailEmoji) {
+                    detailAvatar.classList.add('has-emoji');
+                    const face = document.createElement('span');
+                    face.className = 'user-avatar-emoji';
+                    face.setAttribute('aria-hidden', 'true');
+                    face.textContent = detailEmoji;
+                    detailAvatar.appendChild(face);
+                } else {
+                    detailAvatar.textContent = initial;
+                }
+            });
+            detailAvatar.appendChild(img);
+        }
         document.getElementById('userDetailName').textContent = `@${user.username}`;
         document.getElementById('userDetailRole').textContent = this.capitalize(user.role || 'staff');
         document.getElementById('userDetailRole').className = `role-badge ${this._roleBadgeClass(user.role)}`;
@@ -2616,7 +3279,10 @@ class TicketingApp {
         const active = user.is_active !== false;
         document.getElementById('userDetailStatus').innerHTML = active
             ? '<span class="status-badge open">Active</span>'
-            : '<span class="status-badge resolved" style="background:#f5f5f5;color:#999;">Inactive</span>';
+            : '<span class="status-badge inactive">Inactive</span>';
+        // The dot is a glanceable duplicate of the status row, so it is
+        // aria-hidden rather than announced twice.
+        document.getElementById('userDetailStatusDot').classList.toggle('is-off', !active);
 
         document.getElementById('userDetail2fa').textContent = user.totp_enabled ? 'Enabled' : 'Not enabled';
 
@@ -2625,11 +3291,41 @@ class TicketingApp {
             ? `Locked until ${new Date(lockedUntil).toLocaleString()}`
             : 'Not locked';
 
-        const toggleBtn = document.getElementById('userDetailToggleActiveBtn');
-        toggleBtn.textContent = active ? 'Deactivate' : 'Reactivate';
-        toggleBtn.className = active ? 'btn-danger btn-sm' : 'btn-primary btn-sm';
+        // Counts come from the already-loaded ticket set, so they are exact
+        // rather than sampled. Admins load every ticket, so nothing is missing.
+        const assigned = this.assignedTicketsFor(user.username);
+        const resolved = assigned.filter(t => t.status === 'resolved').length;
+        document.getElementById('userDetailStatTotal').textContent = assigned.length;
+        document.getElementById('userDetailStatResolved').textContent = resolved;
+        document.getElementById('userDetailStatActive').textContent = assigned.length - resolved;
 
-        document.getElementById('userDetailModal').style.display = 'block';
+        // These are now card rows rather than buttons, so the class list is left
+        // alone: overwriting it here would strip the row styling. Only the
+        // label and the danger emphasis change.
+        const toggleBtn = document.getElementById('userDetailToggleActiveBtn');
+        document.getElementById('userDetailToggleActiveLabel').textContent =
+            active ? 'Deactivate technician' : 'Reactivate technician';
+        toggleBtn.classList.toggle('is-danger', active);
+        toggleBtn.setAttribute('aria-label',
+            active ? `Deactivate ${user.username}` : `Reactivate ${user.username}`);
+
+        // Only offer "Remove photo" when there is one to remove, and "Use
+        // initials" only when an emoji is actually set. The emoji panel starts
+        // closed for each technician so it never shows the previous user's
+        // state.
+        document.getElementById('userDetailAvatarRemoveBtn').style.display =
+            user.avatar_url ? 'inline-block' : 'none';
+        document.getElementById('userDetailEmojiClearBtn').style.display =
+            user.avatar_emoji ? 'inline-block' : 'none';
+        const emojiPanel = document.getElementById('userDetailEmojiPanel');
+        const emojiToggle = document.getElementById('userDetailEmojiBtn');
+        if (emojiPanel) {
+            emojiPanel.hidden = true;
+            emojiToggle.setAttribute('aria-expanded', 'false');
+        }
+
+        this.renderUserDetailTickets(user);
+        this._openDialog(document.getElementById('userDetailModal'));
     }
 
     async resetUser2fa() {

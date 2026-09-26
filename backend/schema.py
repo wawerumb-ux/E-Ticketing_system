@@ -61,6 +61,22 @@ def ensure_user_schema():
             if 'token_version' not in columns:
                 connection.execute(sqla_text('ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0'))
                 logger.info('Added missing users.token_version column to existing schema')
+            if 'avatar_filename' not in columns:
+                # E3: db.create_all() never alters an existing table, so the
+                # column has to be added explicitly for installs that predate
+                # it. Nullable with no default, so existing users simply have
+                # no photo and the UI falls back to a monogram.
+                connection.execute(sqla_text('ALTER TABLE users ADD COLUMN avatar_filename VARCHAR(255)'))
+                logger.info('Added missing users.avatar_filename column to existing schema')
+            if 'avatar_emoji' not in columns:
+                connection.execute(sqla_text('ALTER TABLE users ADD COLUMN avatar_emoji VARCHAR(16)'))
+                logger.info('Added missing users.avatar_emoji column to existing schema')
+            if 'display_name' not in columns:
+                # E3: db.create_all() never alters an existing table. Nullable
+                # with no default, so existing users have no display name and
+                # both portals fall back to the username.
+                connection.execute(sqla_text('ALTER TABLE users ADD COLUMN display_name VARCHAR(100)'))
+                logger.info('Added missing users.display_name column to existing schema')
     except Exception as exc:
         logger.warning(f'Could not ensure users schema compatibility: {exc}')
 
@@ -391,7 +407,7 @@ def bootstrap_database():
     """Single entry point that creates tables, runs schema backfills and
     seeds starter data.  Called from docker-entrypoint and app.py __main__."""
     db.create_all()
-    ensure_user_schema()
+    ensure_user_schema()          # includes the users.avatar_filename column
     ensure_phase3_schema()
     ensure_phase4_schema()
     ensure_offline_comments_schema()
