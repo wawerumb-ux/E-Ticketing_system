@@ -3620,6 +3620,46 @@ html.density-compact .chart-card h3 {
     background: var(--primary-light);
 }
 
+/* ============ ASSIGNEE AVATARS (ticket table) ============ */
+/* Monogram disc shown to the left of the assignee name. Deliberately
+   reuses the same four tint/ink token families the status and priority
+   badges already use, so no new tokens are introduced and every theme block
+   inherits a pairing that is already contrast-checked. */
+.assignee-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.assignee-avatar {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.75rem;
+    line-height: 1;
+    user-select: none;
+}
+
+.assignee-avatar.av-primary { background: var(--primary-light); color: var(--primary-dark); }
+.assignee-avatar.av-success { background: var(--success-light); color: var(--success-dark); }
+.assignee-avatar.av-warning { background: var(--warning-light); color: var(--warning-dark); }
+.assignee-avatar.av-danger  { background: var(--danger-light);  color: var(--danger-dark); }
+
+.assignee-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.assignee-unassigned {
+    color: var(--text-secondary);
+}
+
 .filter-result-count {
     margin-top: 12px;
     font-size: 0.8rem;

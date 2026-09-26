@@ -1127,6 +1127,30 @@ class TicketingApp {
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    // Pick a stable tint for an assignee from their username, so the same
+    // technician is always the same colour without storing anything. The four
+    // families mirror the badge tokens, which keeps the palette on-theme.
+    _assigneeVariant(username) {
+        const s = String(username || '');
+        let h = 0;
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+        return ['av-primary', 'av-success', 'av-warning', 'av-danger'][h % 4];
+    }
+
+    assigneeCell(username) {
+        const name = String(username == null ? '' : username).trim();
+        if (!name) {
+            return '<span class="assignee-name assignee-unassigned">Unassigned</span>';
+        }
+        // The name sits next to the disc, so the disc is decorative and is
+        // hidden from assistive tech rather than read out as a stray letter.
+        return `<span class="assignee-cell">`
+             + `<span class="assignee-avatar ${this._assigneeVariant(name)}" aria-hidden="true">`
+             + `${this._esc(name.charAt(0).toUpperCase())}</span>`
+             + `<span class="assignee-name">${this._esc(name)}</span>`
+             + `</span>`;
+    }
+
     toggleIdentityMenu() {
         if (this.identityMenuOpen) this.closeIdentityMenu(true);
         else this.openIdentityMenu();
@@ -1812,7 +1836,7 @@ class TicketingApp {
                 <td data-label="Priority"><span class="priority-badge ${ticket.priority}">${this.capitalize(ticket.priority)}</span></td>
                 <td data-label="Status"><span class="status-badge ${ticket.status}">${this.capitalize(ticket.status.replace('_', ' '))}</span></td>
                 <td data-label="SLA">${this.slaBadge(ticket)}</td>
-                <td data-label="Assigned To">${this._esc(ticket.assigned_to || 'Unassigned')}</td>
+                <td data-label="Assigned To">${this.assigneeCell(ticket.assigned_to)}</td>
                 <td data-label="Created">${new Date(ticket.created_at).toLocaleDateString()}</td>
                 <td data-label="Actions">
                     <div class="action-buttons">
