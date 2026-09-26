@@ -386,6 +386,18 @@ def render_email_html(title, content_html, footer_hint=''):
 </body></html>"""
 
 
+def smtp_is_configured():
+    """True when enough SMTP settings exist to actually send mail.
+
+    Mirrors the exact condition :func:`send_email` uses to decide whether to
+    attempt delivery, so the two can never disagree. Callers that need to tell
+    a user "your reset email could not be sent" must use this rather than
+    re-deriving the condition, otherwise a future change to send_email leaves
+    them quietly lying.
+    """
+    return bool(os.getenv('SMTP_HOST') and os.getenv('SMTP_USER'))
+
+
 def send_email(to_email, subject, body, html_body=None):
     smtp_host = os.getenv('SMTP_HOST')
     smtp_port = int(os.getenv('SMTP_PORT', '587'))
@@ -394,7 +406,11 @@ def send_email(to_email, subject, body, html_body=None):
     smtp_tls = os.getenv('SMTP_TLS', 'true').lower() == 'true'
     from_email = os.getenv('SMTP_FROM', smtp_user or 'no-reply@ict.local')
 
-    if not smtp_host or not smtp_user:
+    if not smtp_is_configured():
+        # The body is deliberately NOT logged. It carries live password-reset
+        # tokens, and this log is readable by anyone with access to the server
+        # or its deploy logs. Only the fact that delivery was skipped is
+        # recorded; the caller is responsible for telling the user.
         logger.info(f"[SMTP not configured — email NOT sent] to={to_email} subject={subject}")
         metric_incr('email_skipped_total')
         return False

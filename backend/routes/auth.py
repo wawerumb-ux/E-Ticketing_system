@@ -20,7 +20,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from extensions import db, limiter, oauth, utcnow
 from models import PasswordResetToken, SocialAccount, User
-from helpers import log_audit, render_email_html, send_email, get_setting, verify_turnstile
+from helpers import log_audit, render_email_html, send_email, get_setting, verify_turnstile, smtp_is_configured
 from totp import generate_secret as totp_generate_secret, verify as totp_verify, otpauth_uri as totp_uri
 
 auth_bp = Blueprint('auth', __name__)
@@ -345,8 +345,16 @@ def forgot_password():
         log_audit(email, 'password_reset_requested', 'auth', None, 'no matching account')
         db.session.commit()
 
+    # The reply varies only with server configuration, never with whether the
+    # account exists — both branches below fall through to this single return,
+    # so the wording cannot be used to discover which emails are registered.
+    # Saying "has been sent" when SMTP is unset would be a lie the requester
+    # cannot detect, so state the delivery status instead.
+    delivery = ('' if smtp_is_configured() else
+                ' Email delivery is not configured on this server, so no link was sent.')
     return jsonify({
-        'message': 'If an account exists with that email, a password reset link has been sent.'
+        'message': 'If an account exists with that email, a password reset link '
+                   f'has been sent to it.{delivery}'
     }), 200
 
 
