@@ -327,7 +327,11 @@ def forgot_password():
         log_audit('system', 'password_reset_requested', 'user', user.username)
         db.session.commit()
 
-        base = os.getenv('PUBLIC_URL', 'http://localhost:5000').rstrip('/')
+        # Strip spaces and slashes together from both ends. Doing it in two
+        # passes (strip whitespace, then rstrip slashes) leaves a trailing
+        # space behind when the value is "https://host /", which yields a
+        # malformed link that silently fails to open.
+        base = os.getenv('PUBLIC_URL', 'http://localhost:5000').strip(' /')
         link = f"{base}/reset-password?token={token}"
         send_email(
             user.email,
