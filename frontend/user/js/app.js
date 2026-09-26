@@ -47,6 +47,7 @@ class TicketingApp {
         this.notificationUnread = 0;
         this.notificationsOffline = false;
         this.notificationFilter = 'all';
+        this._dialogOpener = null;
         this.init();
     }
 
@@ -65,6 +66,9 @@ class TicketingApp {
         this.setupLiveEvents();
         this.setupOfflineSync();
         this.initSessionExpiredDialog();
+        // Fetch the account's server-side photo, then re-render so a device
+        // that has never chosen a picture here still shows the stored one.
+        this.loadServerAvatar().then(() => this.renderIdentity());
         // Section routing: honor a hash on load (reload/bookmark) or land on
         // the default section. The landing hash is installed with
         // replaceState so the browser keeps a single in-app entry at the
@@ -195,6 +199,10 @@ class TicketingApp {
             if (dropdown && dropdown.style.display === 'block') await this.loadNotifications();
         });
         this.setupSettingsControls();
+        // The picture card is static markup in the document, so its listeners
+        // are attached once here rather than on every profile render.
+        this.setupPictureDialog();
+        this.setupAccountDialog();
     }
 
     // ============ Section navigation (hash routing) ============
@@ -1509,14 +1517,32 @@ openTicketDetail(id) {
     getEffectiveProfile(api) {
         const user = api || AuthAPI.getCurrentUser() || {};
         const local = this.getLocalProfile();
+        // The server is now the source of truth for the three fields
+        // PUT /api/users/me owns (display name, email, phone). The local copy
+        // is only a cache for a device that has fetched once and is now
+        // offline, so it is the fallback rather than the winner. The backend
+        // sends display_name in snake_case.
+        const serverName = user.display_name || user.displayName || '';
+        const serverEmail = user.email || '';
+        const serverPhone = user.phone || '';
         return {
-            displayName: local.displayName || user.username || user.email || '',
+            displayName: serverName || local.displayName || user.username || user.email || '',
             username: user.username || local.username || '',
-            email: local.email || user.email || '',
+            email: serverEmail || local.email || '',
             role: user.role || local.role || '',
-            phone: local.phone || '',
-            department: local.department || user.department || '',
-            avatar: local.avatar || ''
+            phone: serverPhone || local.phone || '',
+            department: user.department || local.department || '',
+            // The locally-saved data URL wins, because it renders with the
+            // network off (O8). The server copy is the fallback for a device
+            // that has never had a picture chosen here. The path is stored
+            // rather than the full URL so the current token is re-applied on
+            // every render instead of going stale.
+            // Also check the server's avatar_url from the API response.
+            avatar: local.avatar || avatarUrl(user) || avatarUrl({ avatar_url: local.avatarPath }) || '',
+            // Emoji avatar, cached locally for the same reason the picture is:
+            // it must render with the network off (O8). Precedence is decided
+            // by the caller as photo, then emoji, then monogram.
+            avatarEmoji: local.avatarEmoji || user.avatar_emoji || ''
         };
     }
 
@@ -1546,6 +1572,9 @@ openTicketDetail(id) {
         if (avatarEl) {
             if (eff.avatar) {
                 avatarEl.innerHTML = '<img src="' + eff.avatar + '" alt="" aria-hidden="true">';
+            } else if (eff.avatarEmoji) {
+                // The glyph is decorative: the name sits right beside it.
+                avatarEl.textContent = eff.avatarEmoji;
             } else {
                 avatarEl.textContent = name.charAt(0).toUpperCase();
             }
@@ -1656,92 +1685,572 @@ openTicketDetail(id) {
         }
     }
 
+    // The user portal's Account Information card. Same panel, same field set
+    // and same behaviour as the admin portal's, so the two read identically.
+    // Differences that are real, not cosmetic:
+    //   - Username stays editable, because a user can genuinely rename
+    //     themselves through PUT /api/users/me/username with a password
+    //     check. The admin card shows it readonly.
+    //   - Department is readonly here: the server assigns it, and
+    //     PUT /api/users/me ignores the key.
     async loadProfile() {
         const container = document.getElementById('accountInfo');
-        container.innerHTML = '<p style="color:#999;">Loading...</p>';
+        if (!container) return;
 
         const profile = await TicketAPI.getMyProfile();
         if (!profile) {
-            container.innerHTML = '<p style="color:#999;">Could not load profile.</p>';
+            // OFF4: an honest state, not a blank and not a spinner that never
+            // resolves. The card cannot render without knowing who you are.
+            container.innerHTML = '<p class="profile-note">Your profile could not be loaded. It needs a connection to the server the first time you open it.</p>';
             return;
         }
 
         const eff = this.getEffectiveProfile(profile);
         const initial = (eff.displayName || eff.username || 'U').charAt(0).toUpperCase();
+        const esc = (v) => this._esc(v == null ? '' : v);
 
         container.innerHTML = `
-            <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;">
-                <div style="text-align:center;flex-shrink:0;width:110px;">
-                    <div id="profileAvatarPreview" style="width:72px;height:72px;margin:0 auto 10px;border-radius:50%;background:#eef2ff;border:1px solid #eee;color:#2563eb;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.6rem;overflow:hidden;">${initial}</div>
-                    <button type="button" class="btn-secondary btn-sm" id="uploadAvatarBtn" style="width:100%;margin-bottom:6px;">${Icons.render('upload')} Upload</button>
-                    <button type="button" class="btn-secondary btn-sm" id="removeAvatarBtn" style="width:100%;display:${eff.avatar ? 'block' : 'none'};">Remove</button>
-                    <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" aria-label="Choose a profile picture">
-                </div>
-                <div style="flex:1;min-width:280px;">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                        <div class="form-group">
+            <div class="account-info-card user-profile-card">
+                <div class="panel">
+                    <aside class="side">
+                        <div class="avatar-wrap">
+                            <button type="button" class="avatar-btn" id="userInfoAvatarBtn" aria-label="Change profile picture"
+                                    aria-haspopup="dialog" aria-controls="pictureModal">
+                                <span class="visual" id="userInfoAvatarVisual" aria-hidden="true"></span>
+                                <span class="avatar-overlay" aria-hidden="true"><i data-icon="camera"></i></span>
+                            </button>
+                            <button type="button" class="cam-badge" id="userInfoCamBadge" aria-label="Change profile picture"
+                                    aria-haspopup="dialog" aria-controls="pictureModal">
+                                <i data-icon="camera" aria-hidden="true"></i>
+                            </button>
+                        </div>
+
+                        <div class="id-block">
+                            <div class="name-display" id="userProfileName">${esc(eff.displayName)}</div>
+                            <div class="handle-display" id="userProfileHandle">@${esc(eff.username)}</div>
+                            <span class="role-tag" id="userProfileRole">${esc(this._titleise(eff.role))}</span>
+                        </div>
+
+                        <div class="preview">
+                            <div>
+                                <p class="p-label">In the sidebar</p>
+                                <div class="chip">
+                                    <div class="mini-avatar" id="userPreviewSidebarAvatar" aria-hidden="true"></div>
+                                    <span class="chip-text" id="userPreviewSidebarName">${esc(eff.displayName)}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="p-label">On a ticket</p>
+                                <div class="chip">
+                                    <div class="mini-avatar" id="userPreviewTicketAvatar" aria-hidden="true"></div>
+                                    <span class="chip-text" id="userPreviewTicketName">No tickets yet</span>
+                                    <span class="chip-sub" id="userPreviewTicketSub">As the person who raised it</span>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <div class="form-side">
+                        <h1 id="userProfileHeading">Account Information</h1>
+                        <p class="sub">Update your display name and contact details. Your picture and emoji are shared with everyone.</p>
+
+                        <div class="frow">
                             <label for="infoDisplayName">Display Name</label>
-                            <input type="text" id="infoDisplayName" value="${this._esc(eff.displayName || '')}" placeholder="${this._esc(profile.username || '')}">
+                            <div class="field-wrap">
+                                <input type="text" id="infoDisplayName" value="${esc(eff.displayName)}" autocomplete="name" aria-describedby="infoDisplayNameHelp">
+                                <p class="help" id="infoDisplayNameHelp">Shown in the sidebar and on your tickets</p>
+                            </div>
                         </div>
-                        <div class="form-group">
+                        <div class="frow">
                             <label for="infoPhone">Phone</label>
-                            <input type="tel" id="infoPhone" value="${this._esc(eff.phone || '')}" placeholder="e.g. +254 7XX XXX XXX">
+                            <div class="field-wrap">
+                                <input type="tel" id="infoPhone" value="${esc(eff.phone)}" placeholder="e.g. +254 7XX XXX XXX" autocomplete="tel" aria-describedby="infoPhoneHelp">
+                                <p class="help" id="infoPhoneHelp">Used to reach you about a ticket. Leave empty to remove it.</p>
+                            </div>
                         </div>
-                        <div class="form-group">
+                        <div class="frow">
                             <label for="infoDepartment">Department</label>
-                            <input type="text" id="infoDepartment" value="${this._esc(eff.department || '')}" placeholder="Optional">
+                            <div class="field-wrap">
+                                <input type="text" id="infoDepartment" value="${esc(eff.department)}" readonly aria-describedby="infoDepartmentHelp">
+                                <p class="help" id="infoDepartmentHelp">Assigned by your administrator</p>
+                            </div>
                         </div>
-                        <div class="form-group">
+                        <div class="frow">
                             <label for="infoUsername">Username</label>
-                            <input type="text" id="infoUsername" value="${this._esc(eff.username || '')}" maxlength="50" minlength="2" title="Your sign-in name, used to log in">
-                            <div class="form-hint">Your sign-in name. Changing it updates your login and ticket history.</div>
+                            <div class="field-wrap">
+                                <input type="text" id="infoUsername" value="${esc(eff.username)}" maxlength="50" minlength="2" autocomplete="username" aria-describedby="infoUsernameHelp">
+                                <p class="help" id="infoUsernameHelp">Your sign-in name. Changing it needs your password.</p>
+                            </div>
                         </div>
-                        <div class="form-group">
+                        <div class="frow">
                             <label for="infoEmail">Email</label>
-                            <input type="email" id="infoEmail" value="${this._esc(eff.email || '')}">
+                            <div class="field-wrap">
+                                <input type="email" id="infoEmail" value="${esc(eff.email)}" autocomplete="email" aria-describedby="infoEmailHelp">
+                                <p class="help" id="infoEmailHelp">Where ticket updates are sent. Leave empty to remove it.</p>
+                            </div>
                         </div>
-                        <div class="form-group">
+                        <div class="frow">
                             <label for="infoRole">Role</label>
-                            <input type="text" id="infoRole" value="${this._esc(eff.role || 'User')}" readonly title="Assigned by your administrator">
-                            <div class="form-hint">Assigned by your administrator</div>
+                            <div class="field-wrap">
+                                <input type="text" id="infoRole" value="${esc(this._titleise(eff.role))}" readonly aria-describedby="infoRoleHelp">
+                                <p class="help" id="infoRoleHelp">Assigned by your administrator</p>
+                            </div>
                         </div>
-                    </div>
-                    <div id="usernameChangeGuard" style="display:none;margin-top:2px;">
-                        <div class="form-group password-field" data-password-field data-mode="enter">
-                            <label for="profileCurrentPassword">Current Password</label>
-                            <input type="password" id="profileCurrentPassword" autocomplete="current-password">
+
+                        <div id="usernameChangeGuard" class="username-guard" hidden>
+                            <div class="form-group password-field" data-password-field data-mode="enter">
+                                <label for="profileCurrentPassword">Current Password</label>
+                                <input type="password" id="profileCurrentPassword" autocomplete="current-password">
+                            </div>
+                            <p class="profile-note">Required when you change your username.</p>
                         </div>
-                        <div class="form-hint" style="margin-top:-8px;">Required when you change your username.</div>
-                    </div>
-                    <div style="margin-top:14px;text-align:right;">
-                        <button type="button" class="btn-primary btn-sm" id="saveProfileBtn">Save Changes</button>
-                        <span id="profileSaveMsg" style="display:none;font-size:0.85rem;color:#22c55e;margin-left:10px;">Profile saved.</span>
+
+                        <div class="footer">
+                            <span class="unsaved" id="userProfileUnsaved"><span class="dot" aria-hidden="true"></span>Unsaved changes</span>
+                            <span class="profile-save-msg" id="profileSaveMsg" role="status" aria-live="polite"><span id="profileSaveMsgText">Saved.</span></span>
+                            <button type="button" class="save-btn" id="saveProfileBtn">Save Changes</button>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
 
-        const preview = document.getElementById('profileAvatarPreview');
-        if (eff.avatar && preview) {
-            preview.innerHTML = '<img src="' + eff.avatar + '" alt="" style="width:100%;height:100%;object-fit:cover;">';
-        }
+        this._renderUserAvatarDiscs(eff, initial);
+        this._renderUserTicketPreview(eff, initial);
+        this._wireUserProfileCard();
 
         if (window.PasswordField) PasswordField.refresh(container);
-
-        document.getElementById('uploadAvatarBtn').addEventListener('click', () => {
-            document.getElementById('avatarFileInput').click();
-        });
-        document.getElementById('avatarFileInput').addEventListener('change', (e) => {
-            this.handleAvatarFile(e.target.files && e.target.files[0]);
-            e.target.value = '';
-        });
-        document.getElementById('removeAvatarBtn').addEventListener('click', () => this.removeAvatar());
-        document.getElementById('saveProfileBtn').addEventListener('click', () => this.saveProfile());
-        this.refreshUsernameGuard();
 
         this.loadPreferences();
         this.load2FA();
         this.loadNotificationPrefs();
+    }
+
+    _titleise(value) {
+        const v = (value || '').toString();
+        return v ? v.charAt(0).toUpperCase() + v.slice(1) : '';
+    }
+
+    // Photo, then emoji, then monogram - the same precedence as the admin
+    // card, drawn into the same three hosts.
+    _fillUserAvatarDisc(el, src, emoji, initial) {
+        const useEmoji = !src && emoji;
+        el.textContent = '';
+        if (src) {
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = '';
+            img.setAttribute('aria-hidden', 'true');
+            img.addEventListener('error', () => this._fillUserAvatarDisc(el, '', emoji, initial));
+            el.appendChild(img);
+        } else if (useEmoji) {
+            const span = document.createElement('span');
+            span.className = 'user-avatar-emoji';
+            span.setAttribute('aria-hidden', 'true');
+            span.textContent = emoji;
+            el.appendChild(span);
+        } else {
+            const span = document.createElement('span');
+            span.className = 'initials-txt';
+            span.setAttribute('aria-hidden', 'true');
+            span.textContent = initial;
+            el.appendChild(span);
+        }
+    }
+
+    _renderUserAvatarDiscs(eff, initial) {
+        const src = eff.avatar;
+        const emoji = eff.avatarEmoji;
+        ['userInfoAvatarVisual', 'userPreviewSidebarAvatar', 'userPreviewTicketAvatar']
+            .forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) this._fillUserAvatarDisc(el, src, emoji, initial);
+            });
+        this._syncUserPictureButtons();
+    }
+
+    // The ticket row only appears if the signed-in user really did raise one.
+    // Otherwise it says so rather than inventing a ticket number (S2).
+    _renderUserTicketPreview(eff, initial) {
+        const me = (this.currentUser && this.currentUser.username) || eff.username;
+        const ticket = (this.tickets || []).find(t => t.created_by === me);
+        const name = document.getElementById('userPreviewTicketName');
+        const sub = document.getElementById('userPreviewTicketSub');
+        const disc = document.getElementById('userPreviewTicketAvatar');
+        if (name) name.textContent = ticket ? (ticket.ticket_number || 'A ticket') : 'No tickets yet';
+        if (sub) sub.textContent = ticket ? 'As the person who raised it' : 'As the person who raised it';
+        if (disc) {
+            if (ticket) {
+                this._fillUserAvatarDisc(disc, eff.avatar, eff.avatarEmoji, initial);
+            } else {
+                disc.textContent = '';
+            }
+        }
+    }
+
+    // The identity column mirrors the live form, so the two can never drift
+    // apart while the name is being typed.
+    _syncUserProfileIdentity() {
+        const nameField = document.getElementById('infoDisplayName');
+        const userField = document.getElementById('infoUsername');
+        const fallback = (this.currentUser && this.currentUser.username) || '';
+        if (nameField) {
+            const shown = nameField.value.trim() || 'Your name';
+            const hero = document.getElementById('userProfileName');
+            if (hero) hero.textContent = shown;
+            const chip = document.getElementById('userPreviewSidebarName');
+            if (chip) chip.textContent = shown;
+        }
+        if (userField) {
+            const handle = document.getElementById('userProfileHandle');
+            if (handle) handle.textContent = '@' + (userField.value.trim() || fallback);
+        }
+    }
+
+    _setUserProfileUnsaved(dirty) {
+        const el = document.getElementById('userProfileUnsaved');
+        if (el) el.classList.toggle('show', !!dirty);
+    }
+
+    _wireUserProfileCard() {
+        const card = document.getElementById('accountInfo');
+        if (!card) return;
+
+        // Avatar and camera badge both open the picture options card.
+        ['userInfoAvatarBtn', 'userInfoCamBadge'].forEach((id) => {
+            const btn = document.getElementById(id);
+            if (btn) btn.addEventListener('click', () => this.openPictureDialog(id));
+        });
+
+        // setDirty on every editable row. Department and Role are readonly, so
+        // they can never emit input or change and are skipped.
+        card.querySelectorAll('.frow input').forEach((field) => {
+            if (field.readOnly || field.disabled) return;
+            field.addEventListener('input', () => this._setUserProfileUnsaved(true));
+            field.addEventListener('change', () => this._setUserProfileUnsaved(true));
+        });
+        ['infoDisplayName', 'infoUsername'].forEach((id) => {
+            const field = document.getElementById(id);
+            if (field) field.addEventListener('input', () => this._syncUserProfileIdentity());
+        });
+        this._syncUserProfileIdentity();
+        this.refreshUsernameGuard();
+        this._setUserProfileUnsaved(false);
+
+        const saveBtn = document.getElementById('saveProfileBtn');
+        if (saveBtn) saveBtn.addEventListener('click', () => this.saveProfile());
+    }
+
+    // ============ Picture options ============
+    // Same card as the admin portal's: a sibling overlay with a back arrow,
+    // opened from the avatar or the camera badge.
+
+
+
+
+    _syncUserPictureButtons() {
+        const local = this.getLocalProfile();
+        const removeBtn = document.getElementById('userRemoveAvatarBtn');
+        const clearEmojiBtn = document.getElementById('userEmojiClearBtn');
+        if (removeBtn) removeBtn.classList.toggle('is-hidden', !local.avatar);
+        if (clearEmojiBtn) clearEmojiBtn.classList.toggle('is-hidden', !local.avatarEmoji);
+    }
+
+
+
+    // Saves through PUT /api/users/me. The local copy is still written, but
+    // only as a cache for offline rendering - it is no longer the save.
+
+
+    // ============ Picture options ============
+    // The picture card is a plain overlay on the page: the Account Information
+    // card is a page section here, not a dialog, so unlike the admin portal
+    // there is no second dialog underneath to stack on. The behaviour is the
+    // same card otherwise: back arrow, backdrop, Escape, focus return, trap.
+    _trapPictureFocus(e, modal) {
+        if (e.key !== 'Tab' || !modal || modal.style.display === 'none') return;
+        const focusable = Array.prototype.filter.call(
+            modal.querySelectorAll(
+                'button:not([disabled]), [href], input:not([disabled]), '
+                + 'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+            el => el.offsetParent !== null);
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
+    // openerId is the control that opened the card, so focus can return to it
+    // on close rather than dropping the user at the top of the document.
+    openPictureDialog(openerId) {
+        const modal = document.getElementById('pictureModal');
+        if (!modal) return;
+        this._pictureOpener = openerId
+            ? document.getElementById(openerId)
+            : document.activeElement;
+        modal.style.display = 'block';
+        this._syncUserPictureButtons();
+        const back = document.getElementById('pictureModalBack');
+        if (back) back.focus();
+    }
+
+    closePictureDialog() {
+        const modal = document.getElementById('pictureModal');
+        if (!modal || modal.style.display === 'none') return;
+        // The emoji panel is nested inside the card, so it must not survive it.
+        const panel = document.getElementById('userEmojiPanel');
+        const toggle = document.getElementById('userEmojiAvatarBtn');
+        if (panel) panel.hidden = true;
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        modal.style.display = 'none';
+        const opener = this._pictureOpener;
+        this._pictureOpener = null;
+        if (opener && opener.isConnected && typeof opener.focus === 'function') {
+            opener.focus();
+        } else {
+            const fallback = document.getElementById('userInfoAvatarBtn');
+            if (fallback) fallback.focus();
+        }
+    }
+
+    setupPictureDialog() {
+        const modal = document.getElementById('pictureModal');
+        if (!modal) return;
+
+        const back = document.getElementById('pictureModalBack');
+        if (back) back.addEventListener('click', () => this.closePictureDialog());
+        // Matched on the overlay itself, so a click inside the card cannot
+        // close it.
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) this.closePictureDialog();
+        });
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // The card is a sibling of the page content, so stop the press
+                // here rather than let it reach a handler behind the card.
+                e.stopPropagation();
+                // Escape unwinds the emoji picker before the card (MOD5).
+                const panel = document.getElementById('userEmojiPanel');
+                const toggle = document.getElementById('userEmojiAvatarBtn');
+                if (panel && !panel.hidden) {
+                    panel.hidden = true;
+                    if (toggle) {
+                        toggle.setAttribute('aria-expanded', 'false');
+                        toggle.focus();
+                    }
+                    return;
+                }
+                this.closePictureDialog();
+                return;
+            }
+            this._trapPictureFocus(e, modal);
+        });
+
+        const upload = document.getElementById('userUploadAvatarBtn');
+        if (upload) {
+            upload.addEventListener('click', () => {
+                const input = document.getElementById('userAvatarFileInput');
+                if (input) input.click();
+            });
+        }
+        const input = document.getElementById('userAvatarFileInput');
+        if (input) {
+            input.addEventListener('change', (e) => {
+                this.handleAvatarFile(e.target.files && e.target.files[0]);
+                e.target.value = '';
+                this.closePictureDialog();
+            });
+        }
+        const remove = document.getElementById('userRemoveAvatarBtn');
+        if (remove) {
+            remove.addEventListener('click', () => {
+                this.removeAvatar();
+                this.closePictureDialog();
+            });
+        }
+        const clearEmoji = document.getElementById('userEmojiClearBtn');
+        if (clearEmoji) {
+            clearEmoji.addEventListener('click', () => {
+                this.clearEmojiAvatar();
+                this.closePictureDialog();
+            });
+        }
+
+        // Emoji picker, rendered once now that the markup exists. If the shared
+        // script did not load, hide the control rather than offer a dead button.
+        const toggle = document.getElementById('userEmojiAvatarBtn');
+        const panel = document.getElementById('userEmojiPanel');
+        if (window.EmojiPicker && toggle && panel) {
+            window.EmojiPicker.render(
+                document.getElementById('userEmojiChoices'),
+                (emoji) => {
+                    this.setEmojiAvatar(emoji);
+                    panel.hidden = true;
+                    toggle.setAttribute('aria-expanded', 'false');
+                });
+        } else if (toggle) {
+            toggle.classList.add('is-hidden');
+        }
+        if (toggle && panel) {
+            toggle.addEventListener('click', () => {
+                const opening = panel.hidden;
+                panel.hidden = !opening;
+                toggle.setAttribute('aria-expanded', String(opening));
+            });
+        }
+    }
+
+    setupAccountDialog() {
+        const launcher = document.getElementById('identityLauncher');
+        const modal = document.getElementById('accountModal');
+        if (!launcher || !modal) return;
+
+        launcher.addEventListener('click', () => this.openAccountDialog());
+        launcher.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.openAccountDialog();
+            }
+        });
+
+        modal.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                this._closeDialog(modal);
+                return;
+            }
+            this._trapDialogFocus(e, modal);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) this._closeDialog(modal);
+        });
+
+        const closeBtn = document.getElementById('closeAccountModal');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this._closeDialog(modal));
+            closeBtn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this._closeDialog(modal);
+                }
+            });
+        }
+
+        document.getElementById('acctViewProfile').addEventListener('click', () => {
+            this._closeDialog(modal);
+            this.switchSection('profile');
+        });
+        document.getElementById('acctSettings').addEventListener('click', () => {
+            this._closeDialog(modal);
+            this.switchSection('settings');
+        });
+        document.getElementById('acctLogout').addEventListener('click', () => AuthAPI.logout());
+    }
+
+    openAccountDialog() {
+        const modal = document.getElementById('accountModal');
+        if (!modal) return;
+
+        const eff = this.getEffectiveProfile();
+        const name = eff.displayName || eff.username || 'User';
+        const nameEl = document.getElementById('accountModalName');
+        const roleEl = document.getElementById('accountModalRole');
+        const avatarEl = document.getElementById('accountModalAvatar');
+
+        if (nameEl) nameEl.textContent = name;
+        if (roleEl) {
+            const label = eff.role
+                ? eff.role.charAt(0).toUpperCase() + eff.role.slice(1)
+                : 'User';
+            roleEl.textContent = label;
+            roleEl.className = 'role-badge ' + (eff.role === 'admin' ? 'admin' : 'user');
+        }
+        if (avatarEl) {
+            const initial = (name || 'U').charAt(0).toUpperCase();
+            this._fillUserAvatarDisc(avatarEl, eff.avatar || avatarUrl(eff), eff.avatarEmoji, initial);
+        }
+        this._renderAccountInfoRows(eff);
+
+        this._openDialog(modal);
+    }
+
+    _renderAccountInfoRows(eff) {
+        const box = document.getElementById('accountInfoRows');
+        if (!box) return;
+        const dash = '<span class="profile-card-hint">Not set</span>';
+        const rows = [
+            ['Username', eff.username || dash],
+            ['Email', eff.email || dash],
+            ['Department', eff.department || dash],
+            ['Phone', eff.phone || dash]
+        ];
+        box.innerHTML = rows.map(([label, value]) => `
+            <div class="profile-row">
+                <dt>${escapeHtml(label)}</dt>
+                <dd class="${value === dash ? '' : 'is-strong'}">${value}</dd>
+            </div>
+        `).join('');
+    }
+
+    getEffectiveProfile() {
+        const user = AuthAPI.getCurrentUser() || {};
+        const local = this.getLocalProfile();
+        return {
+            displayName: local.displayName || user.username || user.email || '',
+            username: user.username || local.username || '',
+            email: local.email || user.email || '',
+            role: local.role || user.role || '',
+            phone: local.phone || '',
+            department: local.department || user.department || '',
+            // The locally-saved data URL wins for offline (O8). Server copy is
+            // fallback. Check user.avatar_url from JWT which may have latest.
+            avatar: local.avatar || avatarUrl(user) || '',
+            avatarEmoji: user.avatar_emoji || local.avatarEmoji || ''
+        };
+    }
+
+    _openDialog(modal, focusEl) {
+        if (!modal) return;
+        this._dialogOpener = document.activeElement;
+        modal.style.display = 'block';
+        const first = focusEl || modal.querySelector(
+            'button:not([disabled]), [href], input:not([disabled]), select, textarea');
+        if (first) first.focus();
+    }
+
+    _closeDialog(modal) {
+        if (!modal) return;
+        modal.style.display = 'none';
+        if (this._dialogOpener && typeof this._dialogOpener.focus === 'function') {
+            this._dialogOpener.focus();
+        }
+        this._dialogOpener = null;
+    }
+
+    _trapDialogFocus(e, modal) {
+        if (e.key !== 'Tab' || !modal || modal.style.display === 'none') return;
+        const focusable = Array.prototype.filter.call(
+            modal.querySelectorAll(
+                'button:not([disabled]), [href], input:not([disabled]), '
+                + 'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+            el => el.offsetParent !== null);
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
     }
 
     handleAvatarFile(file) {
@@ -1759,7 +2268,52 @@ openTicketDetail(id) {
             this.refreshAvatarUI();
             this.renderIdentity();
             this.showToast('Profile picture updated.');
+            // Publish the same resized picture to the server, which is what an
+            // admin sees in the Assigned To column. The resized copy is sent
+            // rather than the original so the server never stores a
+            // multi-megabyte photo.
+            this.syncAvatarToServer(dataUrl);
         });
+    }
+
+    // Push the locally-saved picture to the server so other users can see it.
+    // A failure is reported but never discards the local copy: the picture is
+    // still valid on this device, so the user is not left with nothing.
+    async syncAvatarToServer(dataUrl) {
+        const user = AuthAPI.getCurrentUser();
+        if (!user || !user.id) return;
+        try {
+            const blob = await (await fetch(dataUrl)).blob();
+            // resizeImage always produces JPEG, so name it accordingly: a Blob
+            // appended with no filename arrives as "blob" with no extension.
+            const updated = await uploadAvatar(user.id, blob, 'avatar.jpg');
+            // A photo and an emoji are mutually exclusive, and the server has
+            // just retired the emoji. Clear it locally too, or removing the
+            // photo later would bring back an emoji the server no longer has.
+            this.saveLocalProfile({ avatarPath: updated.avatar_url, avatarEmoji: '' });
+        } catch (err) {
+            this.showToast('Saved on this device, but not uploaded: '
+                + (err.message || 'unknown error'), true);
+        }
+    }
+
+    // Learn whether the account already has a server-side photo, so a device
+    // that has never chosen one still shows it.
+    async loadServerAvatar() {
+        try {
+            const response = await apiFetch(`${API_BASE_URL}/users/me`);
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!data) return;
+            // The photo and the emoji are mutually exclusive server-side, so
+            // only the one that is actually set is cached locally.
+            const patch = {};
+            if (data.avatar_url) patch.avatarPath = data.avatar_url;
+            if (data.avatar_emoji) patch.avatarEmoji = data.avatar_emoji;
+            if (Object.keys(patch).length) this.saveLocalProfile(patch);
+        } catch (err) {
+            // Offline or signed out. The monogram is the honest fallback.
+        }
     }
 
     resizeImage(file, max) {
@@ -1783,37 +2337,63 @@ openTicketDetail(id) {
         });
     }
 
-    refreshAvatarUI() {
-        const local = this.getLocalProfile();
-        const preview = document.getElementById('profileAvatarPreview');
-        const removeBtn = document.getElementById('removeAvatarBtn');
-        if (preview) {
-            preview.innerHTML = local.avatar
-                ? '<img src="' + local.avatar + '" alt="" style="width:100%;height:100%;object-fit:cover;">'
-                : 'U';
+    // Set an emoji avatar, for a user with no picture to upload. Saved locally
+    // first so it renders immediately and offline, then published to the
+    // server so admins see it in the Assigned To column.
+    async setEmojiAvatar(emoji) {
+        this.saveLocalProfile({ avatarEmoji: emoji });
+        this.refreshAvatarUI();
+        this.renderIdentity();
+        this.showToast('Emoji avatar set.');
+        const user = AuthAPI.getCurrentUser();
+        if (!user || !user.id) return;
+        try {
+            await setAvatarEmoji(user.id, emoji);
+        } catch (err) {
+            this.showToast('Set on this device, but not on the server: '
+                + (err.message || 'unknown error'), true);
         }
-        if (removeBtn) removeBtn.style.display = local.avatar ? 'block' : 'none';
     }
+
+    async clearEmojiAvatar() {
+        this.saveLocalProfile({ avatarEmoji: '' });
+        this.refreshAvatarUI();
+        this.renderIdentity();
+        this.showToast('Emoji cleared.');
+        const user = AuthAPI.getCurrentUser();
+        if (!user || !user.id) return;
+        try {
+            await clearAvatarEmoji(user.id);
+        } catch (err) {
+            this.showToast('Cleared on this device, but not on the server: '
+                + (err.message || 'unknown error'), true);
+        }
+    }
+
+    // Re-draws the avatar everywhere it appears after a change. Every one of
+    // the four picture actions mutates localStorage first and then calls this,
+    // so the card, the sidebar preview and the ticket preview stay in step.
+    refreshAvatarUI() {
+        const eff = this.getEffectiveProfile();
+        const initial = (eff.displayName || eff.username || 'U').charAt(0).toUpperCase();
+        this._renderUserAvatarDiscs(eff, initial);
+    }
+
 
     removeAvatar() {
         this.saveLocalProfile({ avatar: '' });
         this.refreshAvatarUI();
         this.renderIdentity();
         this.showToast('Profile picture removed.');
-    }
-
-    saveProfile() {
-        this.saveLocalProfile({
-            displayName: document.getElementById('infoDisplayName').value.trim(),
-            email: document.getElementById('infoEmail').value.trim(),
-            phone: document.getElementById('infoPhone').value.trim(),
-            department: document.getElementById('infoDepartment').value.trim()
-        });
-        this.renderIdentity();
-        const msg = document.getElementById('profileSaveMsg');
-        if (msg) {
-            msg.style.display = 'inline';
-            setTimeout(() => { msg.style.display = 'none'; }, 2500);
+        // Also clear the server copy, or the picture an admin sees in the
+        // Assigned To column would outlive the request to remove it.
+        const user = AuthAPI.getCurrentUser();
+        if (user && user.id) {
+            deleteAvatar(user.id)
+                .then((updated) => this.saveLocalProfile({ avatarPath: updated.avatar_url }))
+                .catch((err) => this.showToast(
+                    'Removed on this device, but not on the server: '
+                    + (err.message || 'unknown error'), true));
         }
     }
 
@@ -1823,44 +2403,89 @@ openTicketDetail(id) {
         if (!usernameInput || !guard) return;
         const saved = (AuthAPI.getCurrentUser() && AuthAPI.getCurrentUser().username) || '';
         const changed = usernameInput.value.trim() !== saved;
-        guard.style.display = changed ? 'block' : 'none';
+        guard.hidden = !changed;
     }
 
-    async saveProfile() {
-        const usernameInput = document.getElementById('infoUsername');
-        const savedUser = AuthAPI.getCurrentUser() || {};
-        const newUsername = usernameInput ? usernameInput.value.trim() : null;
 
+
+    // One save for the whole card. The username has its own password-guarded
+    // endpoint, so it is sent first and aborts the rest if it fails. The three
+    // contact fields go through PUT /api/users/me. The local copy is a cache
+    // for offline rendering, not the save (O3, OFF3).
+    async saveProfile() {
+        const saveBtn = document.getElementById('saveProfileBtn');
+        const msg = document.getElementById('profileSaveMsg');
+        const savedUser = AuthAPI.getCurrentUser() || {};
+        const usernameInput = document.getElementById('infoUsername');
+        const newUsername = usernameInput ? usernameInput.value.trim() : '';
+
+        const fail = (text) => {
+            const msgText = document.getElementById('profileSaveMsgText');
+            if (msgText) msgText.textContent = text.trim();
+            if (msg) {
+                msg.classList.add('is-error');
+                msg.classList.add('is-visible');
+                setTimeout(() => { msg.classList.remove('is-visible'); }, 4000);
+            }
+            if (saveBtn) saveBtn.disabled = false;
+            this.showToast(text.trim(), true);
+        };
+
+        if (saveBtn) saveBtn.disabled = true;
         try {
-            if (newUsername && (savedUser.username || '') !== '' && newUsername !== savedUser.username) {
-                const password = document.getElementById('profileCurrentPassword').value;
+            if (newUsername && savedUser.username && newUsername !== savedUser.username) {
+                const passwordField = document.getElementById('profileCurrentPassword');
+                const password = passwordField ? passwordField.value : '';
                 if (!password) {
-                    this.showToast('Enter your current password to change your username.', true);
-                    document.getElementById('profileCurrentPassword').focus();
+                    fail('Enter your current password to change your username.');
+                    if (passwordField) passwordField.focus();
                     return;
                 }
                 await TicketAPI.changeUsername(newUsername, password);
             }
+
+            await TicketAPI.updateMyProfile({
+                display_name: document.getElementById('infoDisplayName').value.trim(),
+                phone: document.getElementById('infoPhone').value.trim(),
+                email: document.getElementById('infoEmail').value.trim()
+            });
         } catch (err) {
-            this.showToast(err && err.message ? err.message : 'Failed to save profile.', true);
+            // Nothing is reported as saved that the server did not confirm (S2).
+            const offline = !navigator.onLine;
+            fail(offline
+                ? 'Needs a connection. Your edits are still here.'
+                : (err && err.message ? err.message : 'Could not save your profile.'));
             return;
         }
 
         this.saveLocalProfile({
             displayName: document.getElementById('infoDisplayName').value.trim(),
             email: document.getElementById('infoEmail').value.trim(),
-            phone: document.getElementById('infoPhone').value.trim(),
-            department: document.getElementById('infoDepartment').value.trim()
+            phone: document.getElementById('infoPhone').value.trim()
         });
         this.currentUser = AuthAPI.getCurrentUser();
         this.renderIdentity();
         this.renderWelcome();
-        if (this.currentSection === 'profile') await this.loadProfile();
-        const msg = document.getElementById('profileSaveMsg');
-        if (msg) {
-            msg.style.display = 'inline';
-            setTimeout(() => { msg.style.display = 'none'; }, 2500);
+        this._setUserProfileUnsaved(false);
+        this._syncUserProfileIdentity();
+        if (saveBtn) {
+            saveBtn.classList.add('saved');
+            saveBtn.textContent = 'Saved';
         }
+        const okText = document.getElementById('profileSaveMsgText');
+        if (okText) okText.textContent = 'Saved.';
+        if (msg) {
+            msg.classList.remove('is-error');
+            msg.classList.add('is-visible');
+        }
+        setTimeout(() => {
+            if (msg) msg.classList.remove('is-visible');
+            if (saveBtn) {
+                saveBtn.classList.remove('saved');
+                saveBtn.textContent = 'Save Changes';
+                saveBtn.disabled = false;
+            }
+        }, 1800);
     }
 
     async handlePasswordChange(e) {

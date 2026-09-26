@@ -58,19 +58,18 @@
                     <li data-section="knowledge">
                         <a href="#/knowledge"><i data-icon="book" aria-hidden="true"></i><span>Knowledge Base</span></a>
                     </li>
-                    <li data-section="profile">
-                        <a href="#/profile"><i data-icon="user" aria-hidden="true"></i><span>Profile</span></a>
-                    </li>
                     <li data-section="settings">
                         <a href="#/settings"><i data-icon="sliders-h" aria-hidden="true"></i><span>Settings</span></a>
                     </li>
                 </ul>
             </nav>
             <div class="sidebar-footer">
-                <div class="sidebar-avatar" id="sidebarAvatar" aria-hidden="true">U</div>
-                <div class="identity-text">
-                    <span class="identity-name" id="sidebarUserName">User</span>
-                    <span class="identity-role" id="sidebarUserRole">User</span>
+                <div id="identityLauncher" class="identity-launcher" role="button" tabindex="0" aria-controls="accountModal">
+                    <div class="sidebar-avatar" id="sidebarAvatar" aria-hidden="true">U</div>
+                    <div class="identity-text">
+                        <span class="identity-name" id="sidebarUserName">User</span>
+                        <span class="identity-role" id="sidebarUserRole">User</span>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -285,10 +284,8 @@
             
             <section id="profile" class="content-section">
                 <div class="personal-panels" style="grid-template-columns: 1fr 1fr;">
-                    <div class="chart-card" style="grid-column:1 / -1;">
-                        <h3>Account Information</h3>
-                        <p style="font-size:0.85rem;color:#999;margin-bottom:14px;">Update your personal details and profile picture. They are saved on this device and shown in the sidebar and on your tickets.</p>
-                        <div id="accountInfo"><p style="color:#999;">Loading...</p></div>
+                    <div class="account-info-holder">
+                        <div id="accountInfo"><p class="profile-note">Loading your profile...</p></div>
                     </div>
                     <div class="chart-card">
                         <h3>Change Password</h3>
@@ -576,6 +573,52 @@
 
     
 
+    <!-- Account dialog: opened from the sidebar identity launcher. Shows profile navigation items. -->
+    <div id="accountModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="accountModalName">
+        <div class="modal-content profile-card">
+            <span class="close" id="closeAccountModal" aria-label="Close account" role="button" tabindex="0">&times;</span>
+
+            <div class="profile-hero account-hero">
+                <div class="account-hero-body">
+                    <div class="profile-avatar-wrap">
+                        <span class="user-avatar profile-hero-avatar" id="accountModalAvatar" aria-hidden="true"></span>
+                    </div>
+                    <h2 class="profile-name" id="accountModalName">User</h2>
+                    <div class="profile-role"><span class="role-badge user" id="accountModalRole">User</span></div>
+                </div>
+            </div>
+
+            <div class="profile-card-section">
+                <p class="profile-section-title">Account</p>
+                <div class="profile-rows" id="accountInfoRows"></div>
+            </div>
+
+            <div class="profile-card-section">
+                <p class="profile-section-title">Self</p>
+                <div class="profile-rows">
+                    <button type="button" class="profile-row is-action" id="acctViewProfile">
+                        <span class="profile-row-main"><span class="profile-row-icon" data-icon="user" aria-hidden="true"></span>View profile</span>
+                        <span class="profile-row-chevron" data-icon="chevron-right" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="profile-row is-action" id="acctSettings">
+                        <span class="profile-row-main"><span class="profile-row-icon" data-icon="sliders-h" aria-hidden="true"></span>Settings</span>
+                        <span class="profile-row-chevron" data-icon="chevron-right" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="profile-card-section">
+                <p class="profile-section-title">Session</p>
+                <div class="profile-rows">
+                    <button type="button" class="profile-row is-action is-danger" id="acctLogout">
+                        <span class="profile-row-main"><span class="profile-row-icon" data-icon="sign-out-alt" aria-hidden="true"></span>Sign out</span>
+                        <span class="profile-row-chevron" data-icon="chevron-right" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="ticketDetailModal" class="modal">
         <div class="modal-content" style="max-width:600px;">
             <span class="close" id="closeTicketDetail" aria-label="Close" role="button" tabindex="0">&times;</span>
@@ -584,9 +627,46 @@
             </div>
         </div>
     </div>
+
+    <!-- Picture options. Opened from the avatar or the camera badge on the
+         Account Information card, so it comes after it in the DOM and paints
+         above it. Focus returns to whichever control opened it. -->
+    <div id="pictureModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="pictureModalTitle">
+        <div class="modal-content profile-card picture-dialog">
+            <button type="button" class="sheet-back" id="pictureModalBack" aria-label="Back to profile">
+                <i data-icon="chevron-left" aria-hidden="true"></i>
+            </button>
+
+            <h2 class="sheet-title" id="pictureModalTitle">Profile picture</h2>
+            <p class="sheet-sub">Your picture appears wherever your name is shown.</p>
+
+            <div class="picture-options">
+                <button type="button" class="picture-option" id="userUploadAvatarBtn">
+                    <span class="picture-option-icon" data-icon="upload" aria-hidden="true"></span>Upload photo
+                </button>
+                <button type="button" class="picture-option" id="userEmojiAvatarBtn" aria-expanded="false" aria-controls="userEmojiPanel">
+                    <span class="picture-option-icon" data-icon="user" aria-hidden="true"></span>Choose emoji
+                </button>
+                <button type="button" class="picture-option" id="userEmojiClearBtn">
+                    <span class="picture-option-icon" data-icon="user-plus" aria-hidden="true"></span>Use initials
+                </button>
+                <button type="button" class="picture-option is-danger" id="userRemoveAvatarBtn">
+                    <span class="picture-option-icon" data-icon="trash" aria-hidden="true"></span>Remove
+                </button>
+            </div>
+
+            <div class="emoji-picker-panel picture-emoji" id="userEmojiPanel" hidden>
+                <p class="emoji-picker-hint">Pick a character instead. Choosing one replaces any photo on your account.</p>
+                <div id="userEmojiChoices" role="group" aria-label="Avatar emoji choices"></div>
+            </div>
+
+            <input type="file" id="userAvatarFileInput" accept="image/png,image/jpeg,image/gif,image/webp" class="is-visually-hidden" aria-label="Choose a profile picture">
+        </div>
+    </div>
     <script src="/shared/js/api.js"></script>
     <script src="/shared/js/events.js"></script>
     <script src="/shared/js/icons.js"></script>
+    <script src="/shared/js/emoji-picker.js"></script>
     <script src="/shared/js/password-field.js"></script>
     <script src="/shared/js/notification-prefs.js"></script>
     <script src="/shared/js/offline-db.js"></script>
