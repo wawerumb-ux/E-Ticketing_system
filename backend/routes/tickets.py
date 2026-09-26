@@ -10,7 +10,7 @@ from flask_jwt_extended import get_jwt, jwt_required
 from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename
 
-from extensions import db, utcnow
+from extensions import db, logger, utcnow
 from models import Notification, Ticket, TicketAttachment, TicketComment, User
 from helpers import (
     ALLOWED_EXTENSIONS,
@@ -473,7 +473,19 @@ def upload_attachment(ticket_id):
     stored = f"{uuid4().hex}{ext}"
     upload_dir = current_app.config['UPLOAD_FOLDER']
     os.makedirs(upload_dir, exist_ok=True)
-    asset.save(os.path.join(upload_dir, stored))
+    dest = os.path.join(upload_dir, stored)
+    try:
+        asset.save(dest)
+    except OSError as exc:
+        # Almost always a full disk or an unwritable mount. Without this the
+        # request dies as an unhandled 500 and the user is told nothing useful;
+        # the TicketAttachment row is only added after the save succeeds, so
+        # bailing out here leaves no orphan pointing at a missing file.
+        logger.error(f'Attachment upload failed for {original!r} -> {dest}: {exc}')
+        return jsonify({
+            'error': ('The attachment could not be saved. The server may be out '
+                      'of disk space, or the uploads directory is not writable.')
+        }), 507
 
     size = 0
     try:

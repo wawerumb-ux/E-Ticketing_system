@@ -264,3 +264,54 @@ class TicketNumberingTestCase(BaseTestCase):
         num = r.get_json()['ticket_number']
         self.assertNotIn(num, live_before)
         self.assertEqual(num, 'ICT-00002')
+
+
+class AttachmentStorageFailureTestCase(BaseTestCase):
+    """A failed attachment write must surface as a clear error, not a 500.
+
+    The usual cause on Railway is a volume mounted at UPLOAD_FOLDER whose
+    ownership does not match the uid the container runs as, so this is worth
+    pinning down: the requester gets told what happened and the database is
+    left without an attachment row pointing at a file that was never written.
+    """
+
+    def _unwritable_upload_dir(self):
+        import os
+        import shutil
+        import stat
+        import tempfile
+
+        d = tempfile.mkdtemp()
+
+        def cleanup():
+            # addCleanup runs LIFO, so restoring permissions and removing in
+            # one step avoids racing a chmod against an already-deleted path.
+            try:
+                os.chmod(d, stat.S_IRWXU)
+            except OSError:
+                pass
+            shutil.rmtree(d, ignore_errors=True)
+
+        self.addCleanup(cleanup)
+        os.chmod(d, stat.S_IRUSR | stat.S_IXUSR)
+        return d
+
+    def test_upload_failure_returns_507_not_500(self):
+        from models import Ticket, TicketAttachment
+
+        number = self.create_ticket().get_json()['ticket_number']
+        ticket_id = Ticket.query.filter_by(ticket_number=number).first().id
+        self.app.config['UPLOAD_FOLDER'] = self._unwritable_upload_dir()
+
+        r = self.client.post(
+            f'/api/tickets/{ticket_id}/attachments',
+            data={'file': (open(__file__, 'rb'), 'notes.txt')},
+            headers=self.admin_headers(),
+            content_type='multipart/form-data')
+
+        self.assertEqual(r.status_code, 507, r.get_data(as_text=True)[:300])
+        self.assertIn('could not be saved', r.get_json()['error'])
+        # No row may survive for a file that never reached disk, or the
+        # attachment list will offer a download that 404s forever.
+        self.assertEqual(
+            TicketAttachment.query.filter_by(ticket_id=ticket_id).count(), 0)

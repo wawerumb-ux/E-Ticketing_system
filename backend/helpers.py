@@ -264,6 +264,53 @@ def resolve_secret(name):
     return secrets.token_hex(32)
 
 
+# ============ ATTACHMENT STORAGE ============
+
+def verify_upload_storage(upload_folder=None):
+    """Confirm the attachment directory exists and accepts writes.
+
+    Ticket attachments live on the container filesystem, so this is the one
+    piece of state that a redeploy destroys unless a volume is mounted at
+    UPLOAD_FOLDER. A misconfigured volume typically mounts root-owned while
+    the app runs as an unprivileged user, and the symptom is a 500 on the
+    first upload rather than anything at boot.
+
+    Writability is probed with a real create-then-delete rather than
+    os.access(W_OK), which reports success for root on directories it cannot
+    actually write and so hides exactly the failure we are looking for.
+
+    Returns (ok, message). Never raises: a storage problem must not stop the
+    service from booting, since tickets, comments and auth all still work
+    without attachments.
+    """
+    folder = upload_folder or os.getenv('UPLOAD_FOLDER', '').strip()
+    if not folder:
+        return False, ('UPLOAD_FOLDER is not set. Attachments cannot be stored. '
+                       'Set it to a writable path, e.g. /app/uploads.')
+
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except OSError as exc:
+        return False, (f'UPLOAD_FOLDER {folder!r} could not be created: {exc}. '
+                       'Mount a Railway volume at that path, or point '
+                       'UPLOAD_FOLDER at a writable directory.')
+
+    probe = os.path.join(folder, f'.write-probe-{os.getpid()}')
+    try:
+        with open(probe, 'wb') as fh:
+            fh.write(b'ok')
+        os.remove(probe)
+    except OSError as exc:
+        return False, (
+            f'UPLOAD_FOLDER {folder!r} is not writable by uid {os.geteuid()}: {exc}. '
+            'A mounted volume takes its ownership from the volume, not from the '
+            'image, so /app/uploads being chowned in the Dockerfile does not help '
+            'here. Either set the volume owner to match this uid or run the '
+            'container as root once so the directory can be chowned on boot.')
+
+    return True, f'Attachment storage ready at {folder}'
+
+
 # ============ CLOUDFLARE TURNSTILE VERIFICATION ============
 
 TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
