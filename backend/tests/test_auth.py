@@ -2,14 +2,17 @@
 password reset and 2FA setup/verify/disable."""
 
 import hashlib
+import os
 import secrets
 from datetime import timedelta
+from unittest import mock
 
 from models import PasswordResetToken, User
 from tests.base import BaseTestCase
 from totp import totp_now
 
 from extensions import db, utcnow
+from helpers import send_email, smtp_is_configured
 
 
 class LoginTestCase(BaseTestCase):
@@ -114,6 +117,106 @@ class PasswordResetTestCase(BaseTestCase):
         self.assertEqual(r.get_json()['message'],
                          self.client.post('/api/auth/forgot-password',
                                           json={'email': 'nobody@nowhere.com'}).get_json()['message'])
+
+
+class ForgotPasswordHonestyTestCase(BaseTestCase):
+    """The forgot-password reply must not claim an email was sent when SMTP is
+    unconfigured, and must stay identical for every submitted address so it
+    cannot be used to enumerate registered users."""
+
+    SMTP_VARS = ('SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD')
+
+    def _forgot(self, email):
+        r = self.client.post('/api/auth/forgot-password', json={'email': email})
+        return r.status_code, r.get_json()['message']
+
+    def _without_smtp(self, fn, *a):
+        env = {k: v for k, v in os.environ.items() if k not in self.SMTP_VARS}
+        with mock.patch.dict(os.environ, env, clear=True):
+            return fn(*a)
+
+    def test_identical_reply_for_known_unknown_and_malformed(self):
+        """Status code and wording must not vary with account existence.
+
+        This is the property that stops the endpoint being used to discover
+        which email addresses have accounts, so it is asserted across three
+        shapes of input rather than just the existing/missing pair.
+        """
+        codes, messages = set(), set()
+        for email in ('staff@ict.local', 'nobody@nowhere.com', 'not-an-email'):
+            code, message = self._forgot(email)
+            codes.add(code)
+            messages.add(message)
+        self.assertEqual(len(codes), 1, 'status code leaked account existence')
+        self.assertEqual(len(messages), 1, 'wording leaked account existence')
+
+    def test_discloses_unconfigured_delivery_when_smtp_missing(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            _, message = self._forgot('staff@ict.local')
+        self.assertIn('not configured', message)
+        self.assertIn('no link was sent', message)
+
+    def test_no_disclaimer_once_smtp_is_configured(self):
+        env = {'SMTP_HOST': 'smtp.example.com', 'SMTP_USER': 'mailer@example.com'}
+        with mock.patch.dict(os.environ, env, clear=True):
+            _, message = self._forgot('staff@ict.local')
+        self.assertNotIn('not configured', message)
+
+    def test_reply_matches_actual_send_decision(self):
+        """smtp_is_configured() must agree with what send_email actually does.
+
+        The reply is only truthful because both derive the condition from one
+        helper. If they ever drift, the endpoint starts lying again.
+
+        send_email's return value cannot be used to tell the two cases apart:
+        a real attempt against an unreachable relay also returns False. What
+        distinguishes them is whether the SMTP connection was opened at all,
+        so the constructor is patched out.
+        """
+        host, user = 'smtp.example.com', 'mailer@example.com'
+        combinations = [
+            ({}, False),
+            ({'SMTP_HOST': host}, False),
+            ({'SMTP_USER': user}, False),
+            ({'SMTP_HOST': host, 'SMTP_USER': user}, True),
+        ]
+        for env, expected in combinations:
+            with self.subTest(env=sorted(env)):
+                with mock.patch.dict(os.environ, env, clear=True):
+                    self.assertEqual(smtp_is_configured(), expected)
+                    with mock.patch('helpers.smtplib.SMTP') as smtp:
+                        send_email('staff@ict.local', 'Subject', 'Body')
+                        self.assertEqual(smtp.called, expected)
+
+    def test_reset_body_is_never_written_to_the_log(self):
+        """A skipped send must not leak the reset token into the log.
+
+        Anyone able to read deploy logs could otherwise complete a reset.
+        """
+        import logging
+        from io import StringIO
+
+        buf = StringIO()
+        handler = logging.StreamHandler(buf)
+        logger = logging.getLogger('ict_ticketing')
+        # The logger defaults to WARNING, which would suppress the info line
+        # being asserted on and make the whole test pass without capturing
+        # anything. Set the level explicitly, then restore it.
+        previous_level = logger.level
+        logger.setLevel(logging.INFO)
+        logger.addHandler(handler)
+        try:
+            with mock.patch.dict(os.environ, {}, clear=True):
+                self.assertFalse(send_email('staff@ict.local', 'Subject', 'SECRET-TOKEN-abc123'))
+        finally:
+            logger.removeHandler(handler)
+            logger.setLevel(previous_level)
+
+        logged = buf.getvalue()
+        # Positive assertion first: prove the line really was captured, so the
+        # check below cannot pass by observing an empty buffer.
+        self.assertIn('SMTP not configured', logged)
+        self.assertNotIn('SECRET-TOKEN-abc123', logged)
 
 
 class TwoFATestCase(BaseTestCase):
