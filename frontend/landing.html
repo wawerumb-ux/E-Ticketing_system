@@ -50,6 +50,7 @@
   --ghost-hover-border: rgba(255,255,255,0.28);
   --card-bg:            rgba(22,24,31,0.85);
   --rail-bg:            rgba(255,255,255,0.08);
+  --footer-scrim:       color-mix(in srgb, var(--bg) 90%, transparent);
   --btn-ink:            #0e0f14;
   --accent-border-soft: rgba(185,146,74,0.3);   /* hero eyebrow  */
   --accent-border-soft-2: rgba(185,146,74,0.25);/* about icon    */
@@ -115,6 +116,7 @@ body.landing-only {
   --ghost-hover-border: rgba(248,245,240,0.28);
   --card-bg:            rgba(11,8,16,0.82);
   --rail-bg:            rgba(248,245,240,0.14);
+  --footer-scrim:       color-mix(in srgb, var(--bg) 90%, transparent);
   --btn-ink:            #1A1612;      /* warm black ink on amber/coral */
   --accent-border-soft: rgba(111,181,232,0.45);  /* sky badge borders */
   --accent-border-soft-2: rgba(111,181,232,0.40);
@@ -803,6 +805,21 @@ button { font-family: inherit; cursor: pointer; }
 /* ============================================================
    FOOTER
    ============================================================ */
+/* Full-bleed band: local photo + token scrim. The 90% --bg scrim
+   holds footer text above AA over the image's brightest pixels
+   (TXT1, TXT3, BLD5). --footer-scrim is declared in both the
+   offline :root and the online body.landing-only block, because
+   a custom property resolves --bg at its declaration site. */
+footer {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--footer-scrim), var(--footer-scrim)),
+    url("/shared/assets/video/footer-bg.jpg");
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+}
+
 .footer {
   border-top: 1px solid var(--border);
   padding: 2rem clamp(1rem,5vw,3rem);
@@ -838,17 +855,19 @@ button { font-family: inherit; cursor: pointer; }
   flex-wrap: wrap;
 }
 
+/* --text-muted, not --text-dim: over the photo band --text-dim
+   falls to 2.2:1 against the image's white pixels (TXT1). */
 .footer-links a {
   font-size: 0.85rem;
-  color: var(--text-dim);
+  color: var(--text-muted);
   transition: color var(--transition);
 }
 
-.footer-links a:hover { color: var(--text-muted); }
+.footer-links a:hover { color: var(--text); }
 
 .footer-copy {
   font-size: 0.8rem;
-  color: var(--text-dim);
+  color: var(--text-muted);
 }
 
 /* ============================================================
