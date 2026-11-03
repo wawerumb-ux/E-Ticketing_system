@@ -42,27 +42,52 @@
     <div class="app-container">
         <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar" tabindex="-1">
             <div class="sidebar-header">
-                <h2><button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="false"><img src="/favicon.ico" alt="" aria-hidden="true" style="height:1em;width:auto;"></button><span>ICT Tickets</span></h2>
+                <div class="sidebar-brand">
+                    <span class="sidebar-brand-mark"><img src="/favicon.ico" alt="" aria-hidden="true"></span>
+                    <span class="sidebar-brand-text">ICT Tickets</span>
+                    <button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Collapse sidebar" aria-controls="sidebar" aria-expanded="true"><i data-icon="chevron-left" aria-hidden="true"></i></button>
+                    <button id="closeSidebarMobile" class="sidebar-close-btn" type="button" aria-label="Close navigation" aria-controls="sidebar"><i data-icon="chevron-left" aria-hidden="true"></i></button>
+                </div>
             </div>
-            <nav class="sidebar-nav">
-                <ul>
-                    <li class="active" data-section="dashboard">
-                        <a href="#/dashboard" aria-current="page"><i data-icon="chart-pie" aria-hidden="true"></i><span>Dashboard</span></a>
+            <nav class="sidebar-nav" aria-label="Sections">
+                <ul class="nav-groups">
+                    <li class="nav-group" data-group="workspace">
+                        <button class="nav-group-toggle" type="button" aria-expanded="true" aria-controls="nav-group-workspace">
+                            <span class="nav-group-label">Workspace</span>
+                            <i data-icon="chevron-down" aria-hidden="true" class="nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-body" id="nav-group-workspace">
+                            <ul class="nav-group-items">
+                                <li class="active" data-section="dashboard">
+                                    <a href="#/dashboard" aria-current="page"><i data-icon="chart-pie" aria-hidden="true"></i><span class="nav-label">Dashboard</span></a>
+                                </li>
+                                <li data-section="tickets">
+                                    <a href="#/tickets"><i data-icon="list" aria-hidden="true"></i><span class="nav-label">All Tickets</span></a>
+                                </li>
+                                <li data-section="create">
+                                    <a href="#/create"><i data-icon="plus-circle" aria-hidden="true"></i><span class="nav-label">Create Ticket</span></a>
+                                </li>
+                                <li data-section="knowledge">
+                                    <a href="#/knowledge"><i data-icon="book" aria-hidden="true"></i><span class="nav-label">Knowledge Base</span></a>
+                                </li>
+                            </ul>
+                        </div>
                     </li>
-                    <li data-section="tickets">
-                        <a href="#/tickets"><i data-icon="list" aria-hidden="true"></i><span>All Tickets</span></a>
-                    </li>
-                    <li data-section="create">
-                        <a href="#/create"><i data-icon="plus-circle" aria-hidden="true"></i><span>Create Ticket</span></a>
-                    </li>
-                    <li data-section="knowledge">
-                        <a href="#/knowledge"><i data-icon="book" aria-hidden="true"></i><span>Knowledge Base</span></a>
-                    </li>
-                    <li data-section="profile">
-                        <a href="#/profile"><i data-icon="user" aria-hidden="true"></i><span>Profile</span></a>
-                    </li>
-                    <li data-section="settings">
-                        <a href="#/settings"><i data-icon="sliders-h" aria-hidden="true"></i><span>Settings</span></a>
+                    <li class="nav-group" data-group="account">
+                        <button class="nav-group-toggle" type="button" aria-expanded="true" aria-controls="nav-group-account">
+                            <span class="nav-group-label">Account</span>
+                            <i data-icon="chevron-down" aria-hidden="true" class="nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-body" id="nav-group-account">
+                            <ul class="nav-group-items">
+                                <li data-section="profile">
+                                    <a href="#/profile"><i data-icon="user" aria-hidden="true"></i><span class="nav-label">Profile</span></a>
+                                </li>
+                                <li data-section="settings">
+                                    <a href="#/settings"><i data-icon="sliders-h" aria-hidden="true"></i><span class="nav-label">Settings</span></a>
+                                </li>
+                            </ul>
+                        </div>
                     </li>
                 </ul>
             </nav>

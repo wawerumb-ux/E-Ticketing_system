@@ -40,39 +40,74 @@
     <div class="app-container">
         <aside class="sidebar" id="sidebar" role="navigation" aria-label="Sidebar" tabindex="-1">
             <div class="sidebar-header">
-                <h2><button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Toggle sidebar" aria-controls="sidebar" aria-expanded="false"><img src="/favicon.ico" alt="" aria-hidden="true" style="height:1em;width:auto;"></button><span>ICT Admin</span></h2>
+                <div class="sidebar-brand">
+                    <span class="sidebar-brand-mark"><img src="/favicon.ico" alt="" aria-hidden="true"></span>
+                    <span class="sidebar-brand-text">ICT Admin</span>
+                    <button id="toggleSidebar" class="sidebar-brand-toggle" type="button" aria-label="Collapse sidebar" aria-controls="sidebar" aria-expanded="true"><i data-icon="chevron-left" aria-hidden="true"></i></button>
+                    <button id="closeSidebarMobile" class="sidebar-close-btn" type="button" aria-label="Close navigation" aria-controls="sidebar"><i data-icon="chevron-left" aria-hidden="true"></i></button>
+                </div>
             </div>
-            <nav class="sidebar-nav">
-                <ul>
-                    <li class="active" data-section="dashboard">
-                        <a href="#/dashboard" aria-current="page"><i data-icon="chart-pie" aria-hidden="true"></i><span>Dashboard</span></a>
+            <nav class="sidebar-nav" aria-label="Sections">
+                <ul class="nav-groups">
+                    <li class="nav-group" data-group="workspace">
+                        <button class="nav-group-toggle" type="button" aria-expanded="true" aria-controls="nav-group-workspace">
+                            <span class="nav-group-label">Workspace</span>
+                            <i data-icon="chevron-down" aria-hidden="true" class="nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-body" id="nav-group-workspace">
+                            <ul class="nav-group-items">
+                                <li class="active" data-section="dashboard">
+                                    <a href="#/dashboard" aria-current="page"><i data-icon="chart-pie" aria-hidden="true"></i><span class="nav-label">Dashboard</span></a>
+                                </li>
+                                <li data-section="tickets">
+                                    <a href="#/tickets"><i data-icon="list" aria-hidden="true"></i><span class="nav-label">All Tickets</span></a>
+                                </li>
+                                <li data-section="create">
+                                    <a href="#/create"><i data-icon="plus-circle" aria-hidden="true"></i><span class="nav-label">Create Ticket</span></a>
+                                </li>
+                            </ul>
+                        </div>
                     </li>
-                    <li data-section="tickets">
-                        <a href="#/tickets"><i data-icon="list" aria-hidden="true"></i><span>All Tickets</span></a>
+                    <li class="nav-group" data-group="manage">
+                        <button class="nav-group-toggle" type="button" aria-expanded="true" aria-controls="nav-group-manage">
+                            <span class="nav-group-label">Manage</span>
+                            <i data-icon="chevron-down" aria-hidden="true" class="nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-body" id="nav-group-manage">
+                            <ul class="nav-group-items">
+                                <li data-section="users">
+                                    <a href="#/users"><i data-icon="users" aria-hidden="true"></i><span class="nav-label">Users</span></a>
+                                </li>
+                                <li data-section="reports">
+                                    <a href="#/reports"><i data-icon="chart-line" aria-hidden="true"></i><span class="nav-label">Reports</span></a>
+                                </li>
+                                <li data-section="knowledge">
+                                    <a href="#/knowledge"><i data-icon="book" aria-hidden="true"></i><span class="nav-label">Knowledge Base</span></a>
+                                </li>
+                                <li data-section="announcements">
+                                    <a href="#/announcements"><i data-icon="bullhorn" aria-hidden="true"></i><span class="nav-label">Announcements</span></a>
+                                </li>
+                            </ul>
+                        </div>
                     </li>
-                    <li data-section="create">
-                        <a href="#/create"><i data-icon="plus-circle" aria-hidden="true"></i><span>Create Ticket</span></a>
-                    </li>
-                    <li data-section="users">
-                        <a href="#/users"><i data-icon="users" aria-hidden="true"></i><span>Users</span></a>
-                    </li>
-                    <li data-section="reports">
-                        <a href="#/reports"><i data-icon="chart-line" aria-hidden="true"></i><span>Reports</span></a>
-                    </li>
-                    <li data-section="knowledge">
-                        <a href="#/knowledge"><i data-icon="book" aria-hidden="true"></i><span>Knowledge Base</span></a>
-                    </li>
-                    <li data-section="announcements">
-                        <a href="#/announcements"><i data-icon="bullhorn" aria-hidden="true"></i><span>Announcements</span></a>
-                    </li>
-                    <li data-section="integrations">
-                        <a href="#/integrations"><i data-icon="plug" aria-hidden="true"></i><span>Integrations</span></a>
-                    </li>
-                    <li data-section="settings">
-                        <a href="#/settings"><i data-icon="sliders-h" aria-hidden="true"></i><span>Settings</span></a>
-                    </li>
-                    <li data-section="audit">
-                        <a href="#/audit"><i data-icon="history" aria-hidden="true"></i><span>Audit Log</span></a>
+                    <li class="nav-group" data-group="system">
+                        <button class="nav-group-toggle" type="button" aria-expanded="true" aria-controls="nav-group-system">
+                            <span class="nav-group-label">System</span>
+                            <i data-icon="chevron-down" aria-hidden="true" class="nav-group-chevron"></i>
+                        </button>
+                        <div class="nav-group-body" id="nav-group-system">
+                            <ul class="nav-group-items">
+                                <li data-section="integrations">
+                                    <a href="#/integrations"><i data-icon="plug" aria-hidden="true"></i><span class="nav-label">Integrations</span></a>
+                                </li>
+                                <li data-section="settings">
+                                    <a href="#/settings"><i data-icon="sliders-h" aria-hidden="true"></i><span class="nav-label">Settings</span></a>
+                                </li>
+                                <li data-section="audit">
+                                    <a href="#/audit"><i data-icon="history" aria-hidden="true"></i><span class="nav-label">Audit Log</span></a>
+                                </li>
+                            </ul>
+                        </div>
                     </li>
                 </ul>
             </nav>

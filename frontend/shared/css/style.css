@@ -111,6 +111,21 @@ body {
     --sidebar-hover: rgba(255, 255, 255, 0.08);
     --sidebar-border: rgba(255, 255, 255, 0.06);
 
+    /* Sidebar interaction tokens. The rail stays dark navy in every theme,
+       so these are constant like the other --sidebar-* values. Foreground
+       pairs verified at >= AA against --sidebar-bg (THM4/TXT1). */
+    --sidebar-accent: #7cb2ff;
+    --sidebar-accent-soft: rgba(124, 178, 255, 0.16);
+    --sidebar-active-bg: rgba(124, 178, 255, 0.18);
+    --sidebar-active-bar: #7cb2ff;
+    --sidebar-group-label: #93a4ba;
+    --sidebar-divider: rgba(255, 255, 255, 0.08);
+    --sidebar-flyout-bg: #1e293b;
+    --sidebar-flyout-text: #f1f5f9;
+    --sidebar-flyout-border: rgba(255, 255, 255, 0.12);
+    --sidebar-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --sidebar-duration: 260ms;
+
     /* Shadows */
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
     --shadow-md: 0 8px 30px -6px rgba(0, 0, 0, 0.10), 0 2px 4px rgba(0, 0, 0, 0.04);
@@ -470,71 +485,121 @@ a {
     position: fixed;
     height: 100vh;
     height: 100dvh;
-    overflow-y: auto;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    transition: transform 200ms ease-out, width 200ms ease-out;
+    transition: transform var(--sidebar-duration) var(--sidebar-ease),
+                width var(--sidebar-duration) var(--sidebar-ease);
     z-index: var(--z-sidebar);
     box-shadow: 4px 0 30px rgba(0, 0, 0, 0.25);
-    backdrop-filter: blur(12px);
     border-right: 1px solid var(--sidebar-border);
 }
 
 .sidebar-header {
-    padding: 28px 24px 20px;
+    padding: 18px 14px;
     border-bottom: 1px solid var(--sidebar-border);
+    flex-shrink: 0;
 }
 
-.sidebar-header h2 {
-    font-size: 1.3rem;
+.sidebar-brand {
     display: flex;
     align-items: center;
-    gap: 12px;
-    color: var(--sidebar-text-strong);
-    font-weight: 700;
-    letter-spacing: -0.5px;
+    gap: 10px;
+    min-width: 0;
 }
 
-.sidebar-header h2 i {
-    color: var(--primary-light);
-    font-size: 1.5rem;
-}
-
-.sidebar-brand-toggle {
-    background: none;
-    border: none;
-    padding: 0;
+.sidebar-brand-mark {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 10px;
+    background: var(--sidebar-accent-soft);
+    border: 1px solid var(--sidebar-border);
+}
+
+.sidebar-brand-mark img {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+
+.sidebar-brand-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    color: var(--sidebar-text-strong);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar-brand-toggle,
+.sidebar-close-btn {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    padding: 0;
     cursor: pointer;
-    color: inherit;
-    transition: background var(--transition);
+    color: var(--sidebar-text-muted);
+    transition: background var(--transition), color var(--transition);
 }
 
-.sidebar-brand-toggle:hover {
+.sidebar-brand-toggle:hover,
+.sidebar-close-btn:hover {
     background: var(--sidebar-hover);
+    color: var(--sidebar-text-strong);
 }
 
-.sidebar-brand-toggle:focus-visible {
-    outline: 2px solid var(--primary);
+.sidebar-brand-toggle:focus-visible,
+.sidebar-close-btn:focus-visible {
+    outline: 2px solid var(--sidebar-accent);
     outline-offset: 2px;
+}
+
+.sidebar-brand-toggle i,
+.sidebar-close-btn i {
+    display: inline-flex;
+    font-size: 18px;
+}
+
+.sidebar-close-btn {
+    display: none;
+}
+
+.sidebar-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 10px;
+    scrollbar-width: thin;
 }
 
 .sidebar-nav ul {
     list-style: none;
-    padding: 16px 12px;
-    flex: 1;
+    margin: 0;
+    padding: 0;
 }
 
 .sidebar-footer {
-    padding: 16px 18px 20px;
+    padding: 12px 14px 16px;
     border-top: 1px solid var(--sidebar-border);
     display: flex;
     align-items: center;
     gap: 12px;
     min-width: 0;
+    flex-shrink: 0;
 }
 
 .sidebar-avatar {
@@ -796,50 +861,144 @@ html.sidebar-mini .identity-menu.open {
     max-height: 50vh;
 }
 
-.sidebar-nav li {
-    padding: 14px 18px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    border-radius: var(--radius-sm);
-    transition: background var(--transition), box-shadow var(--transition);
-    margin-bottom: 4px;
-    font-weight: 500;
-    color: var(--sidebar-text-muted);
+/* ---- Nav groups (collapsible) ---- */
+.nav-group + .nav-group {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--sidebar-divider);
 }
 
-.sidebar-nav li:hover {
+.nav-group-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--sidebar-group-label);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.3;
+    text-transform: uppercase;
+    text-align: left;
+}
+
+.nav-group-toggle:hover {
     background: var(--sidebar-hover);
     color: var(--sidebar-text-strong);
 }
 
-.sidebar-nav li.active {
-    background: color-mix(in srgb, var(--primary) 25%, transparent);
+.nav-group-toggle:focus-visible {
+    outline: 2px solid var(--sidebar-accent);
+    outline-offset: 2px;
+}
+
+.nav-group-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nav-group-chevron {
+    display: inline-flex;
+    flex-shrink: 0;
+    font-size: 14px;
+    transition: transform var(--sidebar-duration) var(--sidebar-ease);
+}
+
+.nav-group-toggle[aria-expanded="false"] .nav-group-chevron {
+    transform: rotate(-90deg);
+}
+
+.nav-group-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--sidebar-duration) var(--sidebar-ease);
+}
+
+.nav-group-body > .nav-group-items {
+    min-height: 0;
+    overflow: hidden;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-group.is-collapsed .nav-group-body {
+    grid-template-rows: 0fr;
+}
+
+.nav-group-items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 4px;
+}
+
+/* ---- Nav items: the <a> owns the whole row ---- */
+.sidebar-nav li[data-section] {
+    list-style: none;
+}
+
+.sidebar-nav li[data-section] > a {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 40px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--sidebar-text-muted);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.92rem;
+    line-height: 1.35;
+    transition: background var(--transition), color var(--transition);
+}
+
+.sidebar-nav li[data-section] > a:hover {
+    background: var(--sidebar-hover);
     color: var(--sidebar-text-strong);
 }
 
-.sidebar-nav i {
-    width: 22px;
+.sidebar-nav li[data-section] > a:focus-visible {
+    outline: 2px solid var(--sidebar-accent);
+    outline-offset: -2px;
+}
+
+.sidebar-nav li[data-section].active > a {
+    background: var(--sidebar-active-bg);
+    color: var(--sidebar-text-strong);
+    box-shadow: inset 3px 0 0 var(--sidebar-active-bar);
+}
+
+.sidebar-nav li[data-section] > a > i {
+    display: inline-flex;
+    flex-shrink: 0;
+    width: 20px;
     font-size: 1.1rem;
     color: var(--sidebar-icon);
     transition: color var(--transition);
 }
 
-.sidebar-nav li.active i {
-    color: var(--primary-light);
+.sidebar-nav li[data-section] > a:hover > i,
+.sidebar-nav li[data-section].active > a > i {
+    color: var(--sidebar-accent);
 }
 
-/* Sidebar nav items are <a> links (hash-routed). The anchor fills its <li>
-   and reproduces the exact icon+label row the <li> used to own directly. */
-.sidebar-nav li a {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    width: 100%;
-    color: inherit;
-    text-decoration: none;
-    font-weight: inherit;
+.nav-label {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* ==============================
@@ -873,51 +1032,74 @@ html.sidebar-mini .identity-menu.open {
 /* ---- Mini state (html.sidebar-mini): icon rail, icons centred. ---- */
 html.sidebar-mini .sidebar {
     width: var(--rail-width);
-    overflow: visible; /* let flyout labels escape the rail */
 }
 
 html.sidebar-mini .sidebar-header {
-    padding: 24px 0;
+    padding: 14px 0;
     display: flex;
     justify-content: center;
     border-bottom-color: transparent;
 }
 
-html.sidebar-mini .sidebar-header h2 {
+html.sidebar-mini .sidebar-brand {
+    justify-content: center;
     gap: 0;
-    font-size: 1.5rem;
 }
 
-html.sidebar-mini .sidebar-header h2 span,
-html.sidebar-mini .sidebar-nav span,
+html.sidebar-mini .sidebar-brand-mark,
+html.sidebar-mini .sidebar-brand-text,
 html.sidebar-mini .identity-text {
     display: none;
 }
 
-html.sidebar-mini .sidebar-nav ul {
-    padding: 16px 8px;
+html.sidebar-mini .sidebar-brand-toggle i {
+    transform: rotate(180deg);
 }
 
-html.sidebar-mini .sidebar-nav li {
+html.sidebar-mini .sidebar-nav {
+    padding: 10px 8px;
+}
+
+html.sidebar-mini .nav-group + .nav-group {
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+html.sidebar-mini .nav-group-toggle {
+    display: none;
+}
+
+/* The rail shows every destination; group collapse is an Expanded-only
+   affordance, so a collapsed group is forced open here (and its body is
+   not inert — SidebarManager re-syncs inert on every state change). */
+html.sidebar-mini .nav-group-body,
+html.sidebar-mini .nav-group.is-collapsed .nav-group-body {
+    grid-template-rows: 1fr;
+}
+
+html.sidebar-mini .nav-group-items {
+    gap: 2px;
+    padding-top: 0;
+}
+
+html.sidebar-mini .sidebar-nav li[data-section] > a {
     justify-content: center;
     gap: 0;
-    padding: 14px 0;
+    padding: 10px 0;
 }
 
-html.sidebar-mini .sidebar-nav li i {
+html.sidebar-mini .sidebar-nav li[data-section] > a > i {
     width: auto;
     font-size: 1.2rem;
 }
 
-/* In the rail the anchor stops stretching full-width so the icon stays
-   horizontally centered by the <li>'s justify-content. */
-html.sidebar-mini .sidebar-nav li a {
-    width: auto;
+html.sidebar-mini .nav-label {
+    display: none;
 }
 
 html.sidebar-mini .sidebar-footer {
     justify-content: center;
-    padding: 16px 0 20px;
+    padding: 12px 0 16px;
     border-top-color: transparent;
 }
 
@@ -925,37 +1107,32 @@ html.sidebar-mini .main-content {
     margin-left: var(--rail-width);
 }
 
-/* ---- Mini flyout labels: CSS-only, to the right of the icon, fade + slide.
-   Appears on hover AND :focus-visible (nav items are keyboard-focusable). */
-html.sidebar-mini .sidebar-nav li {
-    position: relative;
-}
-
-html.sidebar-mini .sidebar-nav li::after {
-    content: attr(data-label);
-    position: absolute;
-    left: calc(100% + 10px);
-    top: 50%;
-    transform: translateY(-50%) translateX(-5px);
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border);
-    padding: 8px 12px;
-    border-radius: var(--radius-sm);
+/* ---- Rail tooltips. SidebarManager portals this element to <body> so it
+   is never clipped by the rail's scroll container (TIP3) and always sits
+   above the sidebar (z-tooltip > z-sidebar). Position is set inline. ---- */
+.sidebar-flyout {
+    position: fixed;
+    z-index: var(--z-tooltip);
+    max-width: 240px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--sidebar-flyout-bg);
+    color: var(--sidebar-flyout-text);
+    border: 1px solid var(--sidebar-flyout-border);
+    box-shadow: var(--shadow-md);
     font-size: 0.8rem;
     font-weight: 500;
-    white-space: nowrap;
-    z-index: var(--z-tooltip);
-    box-shadow: var(--shadow-md);
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    pointer-events: none;
     opacity: 0;
     visibility: hidden;
+    transform: translateY(-50%) translateX(-4px);
     transition: opacity 120ms ease-out, transform 120ms ease-out;
-    pointer-events: none;
 }
 
-html.sidebar-mini .sidebar-nav li:hover::after,
-html.sidebar-mini .sidebar-nav li:focus-visible::after,
-html.sidebar-mini .sidebar-nav li:focus-within::after {
+.sidebar-flyout.is-visible {
     opacity: 1;
     visibility: visible;
     transform: translateY(-50%) translateX(0);
@@ -986,7 +1163,8 @@ html.sidebar-mini .sidebar-nav li:focus-within::after {
     min-height: 100vh;
     min-height: 100dvh;
     background: var(--bg);
-    transition: margin-left 200ms ease-out, background var(--transition);
+    transition: margin-left var(--sidebar-duration) var(--sidebar-ease),
+                background var(--transition);
 }
 
 .top-header {
@@ -2734,7 +2912,17 @@ body.focus-mode .service-status-badge {
 @media (max-width: 768px) {
     .sidebar {
         transform: translateX(-100%);
-        width: 280px;
+        width: min(280px, calc(100vw - 48px));
+    }
+
+    /* In the drawer the collapse chevron is meaningless (there is no rail);
+       the dedicated close button is shown instead. */
+    .sidebar-brand-toggle {
+        display: none;
+    }
+
+    .sidebar-close-btn {
+        display: inline-flex;
     }
 
     /* Drawer OPEN on this breakpoint: html.sidebar-mobile-open present =

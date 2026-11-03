@@ -106,7 +106,7 @@ class TicketingApp {
             this.renderNotificationList();
         });
 
-        document.querySelectorAll('.sidebar-nav li').forEach(item => {
+        document.querySelectorAll('.sidebar-nav li[data-section]').forEach(item => {
             item.addEventListener('click', () => this.switchSection(item.dataset.section));
         });
 
@@ -241,7 +241,7 @@ class TicketingApp {
 
     renderSection(sectionId) {
         if (!SECTION_TITLES[sectionId]) sectionId = 'dashboard';
-        document.querySelectorAll('.sidebar-nav li').forEach(item => {
+        document.querySelectorAll('.sidebar-nav li[data-section]').forEach(item => {
             const isActive = item.dataset.section === sectionId;
             item.classList.toggle('active', isActive);
             // Phase 4 converts the items to <a href="#/...">; until then keep
@@ -259,6 +259,9 @@ class TicketingApp {
         document.querySelectorAll('.content-section').forEach(section => {
             section.classList.toggle('active', section.id === sectionId);
         });
+
+        SidebarManager.revealGroupFor(sectionId);
+        SidebarManager.closeMobile();
 
         const pageTitle = document.getElementById('pageTitle');
         const pageTitleText = SECTION_TITLES[sectionId] || 'Dashboard';
@@ -2214,27 +2217,33 @@ openTicketDetail(id) {
     }
 }
 
-// ============ Sidebar (YouTube-style three states, persistent) ============
-// Sidebar states (YouTube-style three-state behaviour):
+// ============ Sidebar (three states + collapsible groups) ============
+// Sidebar states:
 //   Expanded (full) <-> Mini (icon rail) on wide screens (>1024px).
 //   The 769-1024px band is Mini-fixed; the hamburger opens Expanded as an
 //   overlay there. <=768px the sidebar is Hidden; the hamburger toggles an
-//   overlay drawer.
+//   overlay drawer with focus trap + inert background.
 //   The user's chosen desktop state ('expanded'|'mini') persists in
 //   localStorage 'sidebar:state' and is only ever written by an explicit
-//   hamburger click — never by a resize. Legacy 'sidebarMode' / session
-//   'sidebarCollapsed' values migrate to it.
+//   click — never by a resize. Collapsed nav groups persist in
+//   localStorage 'sidebar:groups'. Legacy 'sidebarMode' / session
+//   'sidebarCollapsed' values migrate to 'sidebar:state'.
 //   Classes live on <html>, matching the pre-paint <head> bootstrap:
 //   .sidebar-mini (effective Mini), .sidebar-expanded-overlay (mid-size
 //   overlay), .sidebar-mobile-open (mobile drawer + body scroll lock).
+//   In Mini the item label is shown by a tooltip portaled to <body>, never
+//   by a CSS ::after inside the rail's scroll container.
 var SidebarManager = (function () {
     var STATE_KEY = 'sidebar:state';
+    var GROUPS_KEY = 'sidebar:groups';
     var BREAKPOINT_MOBILE = 768;
     var BREAKPOINT_WIDE = 1025;
     var remembered = 'expanded';
     var drawerOpen = false;      // <=768px overlay drawer
     var expandedOverlay = false; // 769-1024px overlay
-    var sidebarHover = false;    // transient rail expand while pointer/focus is on it
+    var collapsedGroups = {};
+    var flyout = null;
+    var flyoutAnchor = null;
 
     function matches(query) {
         try { return window.matchMedia(query).matches; } catch (e) { return false; }
@@ -2242,6 +2251,7 @@ var SidebarManager = (function () {
 
     function isMobile() { return matches('(max-width: ' + BREAKPOINT_MOBILE + 'px)'); }
     function isWide() { return matches('(min-width: ' + BREAKPOINT_WIDE + 'px)'); }
+    function isMini() { return document.documentElement.classList.contains('sidebar-mini'); }
 
     function readRemembered() {
         try {
@@ -2257,18 +2267,84 @@ var SidebarManager = (function () {
         try { localStorage.setItem(STATE_KEY, m); } catch (e) { /* non-fatal */ }
     }
 
+    function readGroups() {
+        collapsedGroups = {};
+        try {
+            var raw = localStorage.getItem(GROUPS_KEY);
+            var arr = raw ? JSON.parse(raw) : [];
+            if (Array.isArray(arr)) {
+                arr.forEach(function (key) {
+                    if (typeof key === 'string' && key) collapsedGroups[key] = true;
+                });
+            }
+        } catch (e) { collapsedGroups = {}; }
+    }
+
+    function writeGroups() {
+        try { localStorage.setItem(GROUPS_KEY, JSON.stringify(Object.keys(collapsedGroups))); } catch (e) { /* non-fatal */ }
+    }
+
+    // A collapsed group's body is inert (not tabbable, not clickable) in
+    // Expanded; in Mini every destination is visible, so inert is cleared.
+    function syncGroupInert() {
+        var mini = isMini();
+        document.querySelectorAll('.sidebar-nav .nav-group').forEach(function (group) {
+            var body = group.querySelector('.nav-group-body');
+            if (!body) return;
+            body.inert = group.classList.contains('is-collapsed') && !mini;
+        });
+    }
+
+    function applyGroup(group) {
+        if (!group) return;
+        var key = group.getAttribute('data-group');
+        var toggle = group.querySelector('.nav-group-toggle');
+        var collapsed = !!collapsedGroups[key];
+        group.classList.toggle('is-collapsed', collapsed);
+        if (toggle) toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        syncGroupInert();
+    }
+
+    function revealGroupFor(sectionId) {
+        if (!/^[a-z_]+$/.test(sectionId || '')) return;
+        var item = document.querySelector('.sidebar-nav li[data-section="' + sectionId + '"]');
+        if (!item || !item.closest) return;
+        var group = item.closest('.nav-group');
+        if (!group) return;
+        var key = group.getAttribute('data-group');
+        if (collapsedGroups[key]) {
+            delete collapsedGroups[key];
+            writeGroups();
+            applyGroup(group);
+        }
+    }
+
+    function syncInert() {
+        var small = isMobile();
+        var sidebar = document.getElementById('sidebar');
+        var main = document.querySelector('.main-content');
+        if (sidebar) sidebar.inert = small && !drawerOpen;
+        if (main) main.inert = small && drawerOpen;
+    }
+
     function apply() {
         var el = document.documentElement;
         var small = isMobile();
         var wide = isWide();
         el.classList.toggle('sidebar-mobile-open', small && drawerOpen);
         el.classList.toggle('sidebar-expanded-overlay', !small && !wide && expandedOverlay);
-        el.classList.toggle('sidebar-mini', small ? false : (sidebarHover ? false : (wide ? remembered === 'mini' : !expandedOverlay)));
+        el.classList.toggle('sidebar-mini', small ? false : (wide ? remembered === 'mini' : !expandedOverlay));
+        var expanded = small ? drawerOpen : (!wide ? expandedOverlay : remembered === 'expanded');
         var btn = document.getElementById('toggleSidebar');
         var btnMobile = document.getElementById('toggleSidebarMobile');
-        var expanded = small ? drawerOpen : (!wide ? expandedOverlay : remembered === 'expanded');
-        if (btn) btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        if (btn) {
+            btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            btn.setAttribute('aria-label', expanded ? 'Collapse sidebar' : 'Expand sidebar');
+        }
         if (btnMobile) btnMobile.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        syncInert();
+        syncGroupInert();
+        if (!isMini()) hideFlyout();
     }
 
     function focusSidebar() {
@@ -2283,15 +2359,117 @@ var SidebarManager = (function () {
         if (btn && typeof btn.focus === 'function') btn.focus();
     }
 
+    function getFocusable(root) {
+        var sel = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+        return Array.prototype.filter.call(root.querySelectorAll(sel), function (el) {
+            if (el.closest('[inert]')) return false;
+            return el.getClientRects().length > 0;
+        });
+    }
+
+    function trapTab(e) {
+        if (!drawerOpen || !isMobile()) return;
+        var sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        var items = getFocusable(sidebar);
+        if (!items.length) return;
+        var first = items[0];
+        var last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
+    function ensureFlyout() {
+        if (flyout) return flyout;
+        flyout = document.createElement('div');
+        flyout.className = 'sidebar-flyout';
+        flyout.id = 'sidebarFlyout';
+        flyout.setAttribute('role', 'tooltip');
+        document.body.appendChild(flyout);
+        return flyout;
+    }
+
+    function showFlyout(anchor) {
+        if (!isMini() || isMobile()) return;
+        if (flyoutAnchor === anchor && flyout && flyout.classList.contains('is-visible')) return;
+        var label = anchor.querySelector('.nav-label');
+        if (!label || !label.textContent) return;
+        var el = ensureFlyout();
+        el.textContent = label.textContent;
+        el.classList.remove('is-visible');
+        el.style.left = '0px';
+        el.style.top = '0px';
+        var width = el.offsetWidth;
+        var height = el.offsetHeight;
+        var rect = anchor.getBoundingClientRect();
+        var left = rect.right + 10;
+        if (left + width > window.innerWidth - 8) {
+            left = Math.max(8, window.innerWidth - width - 8);
+        }
+        var top = rect.top + rect.height / 2;
+        if (top - height / 2 < 8) top = height / 2 + 8;
+        if (top + height / 2 > window.innerHeight - 8) top = window.innerHeight - height / 2 - 8;
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+        el.classList.add('is-visible');
+        if (!anchor.hasAttribute('aria-describedby')) {
+            anchor.setAttribute('aria-describedby', 'sidebarFlyout');
+        }
+        flyoutAnchor = anchor;
+    }
+
+    function hideFlyout() {
+        if (flyout) flyout.classList.remove('is-visible');
+        if (flyoutAnchor) {
+            if (flyoutAnchor.getAttribute('aria-describedby') === 'sidebarFlyout') {
+                flyoutAnchor.removeAttribute('aria-describedby');
+            }
+            flyoutAnchor = null;
+        }
+    }
+
+    function bindFlyouts() {
+        var nav = document.querySelector('.sidebar-nav');
+        if (!nav) return;
+        nav.addEventListener('mouseover', function (e) {
+            var link = e.target.closest ? e.target.closest('li[data-section] > a') : null;
+            if (link) showFlyout(link);
+        });
+        nav.addEventListener('mouseout', function (e) {
+            var link = e.target.closest ? e.target.closest('li[data-section] > a') : null;
+            if (!link) return;
+            if (e.relatedTarget && link.contains(e.relatedTarget)) return;
+            hideFlyout();
+        });
+        nav.addEventListener('focusin', function (e) {
+            var link = e.target.closest ? e.target.closest('li[data-section] > a') : null;
+            if (link) showFlyout(link);
+        });
+        nav.addEventListener('focusout', hideFlyout);
+        nav.addEventListener('scroll', hideFlyout, true);
+        window.addEventListener('scroll', hideFlyout, true);
+    }
+
     function closeOverlay(returnFocus) {
         var wasOpen = drawerOpen || expandedOverlay;
         drawerOpen = false;
         expandedOverlay = false;
+        hideFlyout();
         apply();
         if (wasOpen && returnFocus) focusToggle();
     }
 
+    function closeMobile() {
+        if (drawerOpen) closeOverlay(true);
+    }
+
     function toggle() {
+        hideFlyout();
         if (isMobile()) {
             drawerOpen = !drawerOpen;
             apply();
@@ -2313,67 +2491,52 @@ var SidebarManager = (function () {
         if (!document.getElementById('sidebar')) return;
 
         remembered = readRemembered();
+        readGroups();
         drawerOpen = false;
         expandedOverlay = false;
 
-        // Flyout labels (Mini state) come straight from each item's label.
-        document.querySelectorAll('.sidebar-nav li').forEach(function (item) {
-            var span = item.querySelector('span');
-            if (span && span.textContent && !item.getAttribute('data-label')) {
-                item.setAttribute('data-label', span.textContent);
-            }
+        document.querySelectorAll('.sidebar-nav .nav-group').forEach(function (group) {
+            applyGroup(group);
+            var groupBtn = group.querySelector('.nav-group-toggle');
+            if (!groupBtn) return;
+            groupBtn.addEventListener('click', function () {
+                var key = group.getAttribute('data-group');
+                if (collapsedGroups[key]) delete collapsedGroups[key];
+                else collapsedGroups[key] = true;
+                writeGroups();
+                applyGroup(group);
+            });
         });
 
         var btn = document.getElementById('toggleSidebar');
         var btnMobile = document.getElementById('toggleSidebarMobile');
+        var btnClose = document.getElementById('closeSidebarMobile');
         var backdrop = document.getElementById('sidebarBackdrop');
 
         if (btn) btn.addEventListener('click', toggle);
         if (btnMobile) btnMobile.addEventListener('click', toggle);
-        if (backdrop) backdrop.addEventListener('click', function () {
-            closeOverlay(true);
-        });
-
-        // Transient expand-on-hover (Mini rail): while the pointer is over the
-        // rail — or keyboard focus is inside it — the sidebar renders at full
-        // Expanded width with the labels in-line, so a flyout never floats over
-        // the content pane: the layout reflows out of the way instead. This is
-        // never persisted and never overwrites the remembered state.
-        var sidebarEl = document.getElementById('sidebar');
-        function setSidebarHover(on) {
-            if (isMobile()) return;
-            if (sidebarHover === on) return;
-            sidebarHover = on;
-            apply();
-        }
-        if (sidebarEl) {
-            sidebarEl.addEventListener('pointerenter', function () { setSidebarHover(true); });
-            sidebarEl.addEventListener('pointerleave', function () { setSidebarHover(false); });
-            sidebarEl.addEventListener('focusin', function () { setSidebarHover(true); });
-            sidebarEl.addEventListener('focusout', function (e) {
-                if (sidebarEl.contains(e.relatedTarget)) return;
-                setSidebarHover(false);
-            });
-        }
+        if (btnClose) btnClose.addEventListener('click', function () { closeOverlay(true); });
+        if (backdrop) backdrop.addEventListener('click', function () { closeOverlay(true); });
 
         document.addEventListener('keydown', function (e) {
+            if (e.key === 'Tab') { trapTab(e); return; }
             if ((e.key || '').toLowerCase() !== 'escape') return;
+            hideFlyout();
             if (drawerOpen || expandedOverlay) closeOverlay(true);
         });
 
-        document.querySelectorAll('.sidebar-nav li').forEach(function (item) {
-            // Choosing a section closes any open overlay afterwards.
-            item.addEventListener('click', function () {
-                if (drawerOpen || expandedOverlay) closeOverlay(false);
+        var nav = document.querySelector('.sidebar-nav');
+        if (nav) {
+            // Choosing a section closes any open overlay afterwards. The
+            // group toggles are not inside li[data-section], so they never
+            // match here.
+            nav.addEventListener('click', function (e) {
+                var link = e.target.closest ? e.target.closest('li[data-section] > a') : null;
+                if (link && (drawerOpen || expandedOverlay)) closeOverlay(true);
             });
-            // Keyboard activation for the focusable nav items.
-            item.addEventListener('keydown', function (e) {
-                if (e.key !== 'Enter' && e.key !== ' ') return;
-                if (document.activeElement !== item) return;
-                e.preventDefault();
-                item.click();
-            });
-        });
+        }
+
+        bindFlyouts();
 
         // Resize recomputes the effective state. The remembered desktop
         // state is never overwritten here — only explicit clicks persist.
@@ -2383,6 +2546,7 @@ var SidebarManager = (function () {
             resizeTimer = setTimeout(function () {
                 expandedOverlay = false;
                 drawerOpen = false;
+                hideFlyout();
                 apply();
             }, 150);
         });
@@ -2390,7 +2554,7 @@ var SidebarManager = (function () {
         apply();
     }
 
-    return { init: init };
+    return { init: init, closeMobile: closeMobile, revealGroupFor: revealGroupFor };
 })();
 
 let app;
