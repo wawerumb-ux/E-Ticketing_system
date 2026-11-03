@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <title>Profile Dialog — E-Ticketing demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- E-Ticketing themed CSS (includes ProfileDialog styles) -->
+  <link rel="stylesheet" href="/shared/css/style.css">
+  <!-- Icons system (hydrate on DOMContentLoaded) -->
+  <script src="/shared/js/icons.js" defer></script>
+  <style>
+    /* Minimal demo page reset */
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    .demo-wrapper { padding: 2rem; }
+  </style>
+</head>
+<body>
+  <div class="demo-wrapper">
+    <!-- Profile trigger button -->
+    <button class="profile-dialog-trigger" aria-haspopup="dialog"
+            aria-expanded="false" id="profileTrigger">
+      My Profile
+    </button>
+  </div>
+
+  <script defer src="/user/js/ProfileDialog.js"></script>
+
+  <script>
+    // ProfileDialog class is globally available because the script loaded with defer.
+    // It will be instantiated after DOMContentLoaded (which fires after all deferred
+    // scripts, including icons.js, have executed).
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof ProfileDialog !== 'undefined') {
+        window.profileDialog = new ProfileDialog('#profileTrigger');
+      }
+    });
+  </script>
+</body>
+</html>
