@@ -649,22 +649,24 @@ class TicketingApp {
 
         menu.addEventListener('keydown', (e) => this.handleIdentityMenuKeydown(e));
 
-        launcher.addEventListener('click', () => this.toggleIdentityMenu());
+        launcher.addEventListener('click', () => { if (window.profileDialog) window.profileDialog.open(); });
         launcher.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                this.toggleIdentityMenu();
+                if (window.profileDialog) window.profileDialog.open();
             }
         });
 
         // Mini-state flyout: reveal on hover, dismiss on leave (keyboard path
         // still uses click / Enter / Space / Escape).
         launcher.addEventListener('mouseenter', () => {
-            if (document.documentElement.classList.contains('sidebar-mini')) this.openIdentityMenu();
+            if (document.documentElement.classList.contains('sidebar-mini')) {
+                if (window.profileDialog) window.profileDialog.open();
+            }
         });
         menu.addEventListener('mouseleave', () => {
             if (document.documentElement.classList.contains('sidebar-mini') && document.activeElement === launcher) {
-                this.closeIdentityMenu(false);
+                if (window.profileDialog) window.profileDialog.close();
             }
         });
 

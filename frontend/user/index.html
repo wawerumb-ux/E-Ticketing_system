@@ -34,7 +34,7 @@
     </script>
     <script src="/vendor/qrcode.min.js"></script>
 </head>
-<body>
+<body data-portal="user">
     <div id="offlineBanner" style="display:none;align-items:center;justify-content:center;gap:8px;padding:10px 16px;background:var(--danger,#dc2626);color:#ffffff;font-size:0.9rem;font-weight:500;" role="status">
         <i data-icon="wifi" aria-hidden="true" style="transform:rotate(180deg);"></i> You are offline — your ticket submission will be saved and sent when you reconnect.
     </div>
@@ -616,6 +616,7 @@
     <script src="/shared/js/password-field.js"></script>
     <script src="/shared/js/notification-prefs.js"></script>
     <script src="/shared/js/offline-db.js"></script>
+    <script src="/user/js/ProfileDialog.js"></script>
     <script src="/user/js/app.js"></script>
     <script>
         // Register the offline-capability service worker. Scope '/' is honoured

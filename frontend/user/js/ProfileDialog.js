@@ -1,507 +1,204 @@
-/**
- * ProfileDialog — vanilla JS implementation following the project's existing
- * patterns (TicketingApp class structure, Icons.render, CSS variables, focus
- * trap from session-expired dialog). No frameworks, no JSX, no build step.
- *
- * Keyboard:
- *   - Open: Trigger button (Enter/Space)
- *   - Flip:   ArrowRight front→back, ArrowLeft back→front when focus is on the
- *             dialog container or non-list controls. When focus is inside an
- *             option list (quick links, toggle buttons), arrows rove within the
- *             list instead.
- *   - Close:  Escape key, focus returns to trigger
- *   - Trigger:  aria-haspopup="dialog", aria-expanded
- *   - RTL:      mirror flip direction and swap arrow key bindings
- *   - Reduced-motion: 150ms crossfade via prefers-reduced-motion
- */
-
+/* Profile settings dialog shared by the staff and admin portals. */
 class ProfileDialog {
-  /**
-   * @param {string} triggerSel  CSS selector for the profile trigger button
-   */
-  constructor(triggerSel) {
-    this.trigger = document.querySelector(triggerSel);
-    if (!this.trigger) {
-      console.error('ProfileDialog: trigger not found', triggerSel);
-      return;
+    constructor() {
+        this.trigger = document.getElementById('identityLauncher');
+        if (!this.trigger) return;
+        this.themeKey = document.body.dataset.portal === 'admin' ? 'admin_theme' : 'user_theme';
+        this.panels = ['Profile', 'Appearance', 'Notifications', 'Account'];
+        this.index = 0;
+        this.opened = false;
+        this.notificationsLoaded = false;
+        this.motion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        this.build();
     }
 
-    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.flipState = 'closed'; // 'closed' | 'front' | 'back'
-    this.dialog = null;
-    this.portal = null;
-    this.flipCard = null;
-    this.frontFace = null;
-    this.backFace = null;
-    this.liveRegion = null;
-    this.focusableInFront = [];
-    this.focusableInBack = [];
+    build() {
+        this.portal = document.createElement('div');
+        this.portal.className = 'profile-dialog-portal';
+        this.portal.hidden = true;
+        this.dialog = document.createElement('section');
+        this.dialog.className = 'profile-dialog';
+        this.dialog.setAttribute('role', 'dialog');
+        this.dialog.setAttribute('aria-modal', 'true');
+        this.dialog.setAttribute('aria-labelledby', 'profileDialogTitle');
+        this.dialog.tabIndex = -1;
+        this.portal.appendChild(this.dialog);
+        document.body.appendChild(this.portal);
 
-    this.init();
-  }
+        this.dialog.innerHTML = `
+            <header class="profile-dialog-header">
+                <button type="button" class="profile-nav profile-nav-prev" aria-label="Previous panel">${Icons.render('chevron-left')}</button>
+                <div class="profile-panel-position" aria-live="polite" aria-atomic="true"><span id="profilePanelName"></span><span id="profilePanelCount"></span></div>
+                <button type="button" class="profile-nav profile-nav-next" aria-label="Next panel">${Icons.render('chevron-right')}</button>
+                <button type="button" class="profile-dialog-close" aria-label="Close profile settings">${Icons.render('x')}</button>
+            </header>
+            <div class="profile-dialog-body" id="profileDialogPanels" aria-live="polite"></div>
+            <span class="visually-hidden" id="profileDialogTitle">Profile settings</span>`;
+        this.body = this.dialog.querySelector('.profile-dialog-body');
+        this.prev = this.dialog.querySelector('.profile-nav-prev');
+        this.next = this.dialog.querySelector('.profile-nav-next');
+        this.closeBtn = this.dialog.querySelector('.profile-dialog-close');
+        this.nameLabel = this.dialog.querySelector('#profilePanelName');
+        this.countLabel = this.dialog.querySelector('#profilePanelCount');
+        this.renderPanels();
+        this.prev.addEventListener('click', () => this.navigate(-1));
+        this.next.addEventListener('click', () => this.navigate(1));
+        this.closeBtn.addEventListener('click', () => this.close());
+        this.trigger.addEventListener('click', () => this.opened ? this.close() : this.open());
+        this.portal.addEventListener('pointerdown', e => { if (e.target === this.portal) this.close(); });
+        document.addEventListener('keydown', e => this.onKeydown(e));
+        window.addEventListener('resize', () => { if (this.opened) this.position(); });
+    }
 
-  /** ----------------------------------------------------------- creation */
-  init() {
-    // 1. portal
-    this.portal = document.createElement('div');
-    this.portal.className = 'profile-dialog-portal';
-    document.body.appendChild(this.portal);
+    user() { return (window.AuthAPI && AuthAPI.getCurrentUser()) || {}; }
 
-    // 2. dialog element
-    this.dialog = document.createElement('div');
-    this.dialog.className = 'profile-dialog';
-    this.portal.appendChild(this.dialog);
+    renderPanels() {
+        const user = this.user();
+        const username = user.username || 'User';
+        const displayName = user.name || username;
+        const themes = [
+            ['daylight', 'Daylight'], ['quiet-light', 'Quiet Light'], ['solarized-light', 'Solarized Light'],
+            ['abyss', 'Abyss'], ['night-owl', 'Night Owl'], ['high-contrast', 'High Contrast'],
+            ['flexoki-light', 'Flexoki Light'], ['catppuccin-latte', 'Catppuccin Latte'],
+            ['catppuccin-mocha', 'Catppuccin Mocha'], ['nord', 'Nord'], ['gruvbox', 'Gruvbox']
+        ];
+        const themeOptions = themes.map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+        const safeName = this.escape(displayName);
+        const safeUser = this.escape(username);
+        const safeEmail = this.escape(user.email || 'No email on file');
+        const storedTheme = localStorage.getItem(this.themeKey) || document.documentElement.dataset.theme || 'daylight';
+        const notify = typeof NotificationPrefs !== 'undefined';
+        this.body.innerHTML = `
+            <section class="profile-panel is-current" data-panel="0" aria-labelledby="profileName">
+                <div class="profile-avatar-wrap" aria-hidden="true">${Icons.render('user')}</div>
+                <h2 class="profile-name" id="profileName">${safeName}</h2>
+                <p class="profile-handle">@${safeUser}</p>
+                <p class="profile-detail">${safeEmail}</p>
+                <label class="profile-field">Availability
+                    <select data-profile-status aria-label="Availability status">
+                        <option>Available</option><option>Away</option><option>Busy</option>
+                    </select>
+                </label>
+                <p class="profile-feedback" aria-live="polite">Availability is shown for this session.</p>
+            </section>
+            <section class="profile-panel" data-panel="1" aria-label="Appearance" aria-hidden="true" inert>
+                <h2>Appearance</h2><p class="profile-panel-intro">Choose how this portal looks on this device.</p>
+                <label class="profile-field">Color theme<select data-profile-theme aria-label="Color theme">${themeOptions}</select></label>
+                <label class="profile-setting-row"><span><strong>Compact density</strong><small>Fit more information on screen</small></span><input type="checkbox" role="switch" data-profile-density aria-label="Compact density"></label>
+                <p class="profile-feedback" data-appearance-feedback aria-live="polite">Changes apply immediately and are saved on this device.</p>
+            </section>
+            <section class="profile-panel" data-panel="2" aria-label="Notifications" aria-hidden="true" inert>
+                <h2>Notifications</h2><p class="profile-panel-intro">Manage the ticket updates you receive.</p>
+                <div class="profile-notification-content">${notify ? '<p>Loading notification preferences…</p>' : '<p>Notification settings are unavailable right now.</p>'}</div>
+            </section>
+            <section class="profile-panel" data-panel="3" aria-label="Account" aria-hidden="true" inert>
+                <h2>Account</h2><p class="profile-panel-intro">Signed in as <strong>${safeUser}</strong></p>
+                <p class="profile-detail">${safeEmail}</p>
+                <button type="button" class="profile-signout">${Icons.render('sign-out-alt')}<span>Sign out</span></button>
+            </section>`;
+        this.panelsEls = Array.from(this.body.querySelectorAll('[data-panel]'));
+        this.body.querySelector('[data-profile-theme]').value = themes.some(t => t[0] === storedTheme) ? storedTheme : 'daylight';
+        const savedDensity = localStorage.getItem('profile_density');
+        this.body.querySelector('[data-profile-density]').checked = savedDensity
+            ? savedDensity === 'compact'
+            : document.documentElement.classList.contains('density-compact');
+        if (savedDensity) document.documentElement.classList.toggle('density-compact', savedDensity === 'compact');
+        this.body.querySelector('[data-profile-status]').value = sessionStorage.getItem('profile_status') || 'Available';
+        this.body.querySelector('[data-profile-status]').addEventListener('change', e => {
+            sessionStorage.setItem('profile_status', e.target.value);
+            e.target.closest('.profile-panel').querySelector('.profile-feedback').textContent = `Availability set to ${e.target.value}.`;
+        });
+        this.body.querySelector('[data-profile-theme]').addEventListener('change', e => this.applyTheme(e.target.value));
+        this.body.querySelector('[data-profile-density]').addEventListener('change', e => {
+            document.documentElement.classList.toggle('density-compact', e.target.checked);
+            localStorage.setItem('profile_density', e.target.checked ? 'compact' : 'comfortable');
+            this.body.querySelector('[data-appearance-feedback]').textContent = e.target.checked ? 'Compact density is on.' : 'Comfortable density is on.';
+        });
+        this.body.querySelector('.profile-signout').addEventListener('click', () => AuthAPI.logout());
+        this.showPanel(0, false);
+    }
 
-    // 3. flip card + faces
-    this.flipCard = document.createElement('div');
-    this.flipCard.className = 'profile-flip-card';
-    this.dialog.appendChild(this.flipCard);
+    escape(value) { return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-    this.frontFace = document.createElement('div');
-    this.frontFace.className = 'profile-face profile-front';
-    this.flipCard.appendChild(this.frontFace);
+    applyTheme(theme) {
+        const dark = ['abyss', 'night-owl', 'high-contrast', 'catppuccin-mocha', 'nord', 'gruvbox'].includes(theme);
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.classList.toggle('dark-theme', dark);
+        localStorage.setItem(this.themeKey, theme);
+        this.body.querySelector('[data-appearance-feedback]').textContent = `${theme.replace(/-/g, ' ')} theme applied.`;
+    }
 
-    this.backFace = document.createElement('div');
-    this.backFace.className = 'profile-face profile-back';
-    this.flipCard.appendChild(this.backFace);
-
-    // 4. live region for aria-live announcements
-    this.liveRegion = document.createElement('div');
-    this.liveRegion.className = 'profile-live-region';
-    this.liveRegion.setAttribute('role', 'status');
-    this.liveRegion.setAttribute('aria-live', 'polite');
-    this.liveRegion.setAttribute('aria-busy', 'false');
-    document.body.appendChild(this.liveRegion);
-
-    // 5. populate faces
-    this._populateFrontFace();
-    this._populateBackFace();
-
-    // 6. flip buttons (chevron) on each face
-    this._addFlipButtons();
-
-    // 7. trigger button click opens/closes the dialog
-    this.trigger.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (this.isOpen()) this.close();
-      else this._open();
-    });
-
-    // 7. focus trap setup
-    this._setupFocusTrap();
-
-    // 8. keyboard handling
-    this._setupKeyHandlers();
-
-    // 9. initial ARIA on trigger
-    this._updateTriggerAria('expanded', false);
-
-  /** ----------------------------------------------------------- content */
-  _populateFrontFace() {
-    // avatar area
-    const avatarWrap = document.createElement('div');
-    avatarWrap.className = 'profile-avatar-wrap';
-    const initialSVG = Icons.render('user');
-    avatarWrap.innerHTML = initialSVG;
-    this.frontFace.appendChild(avatarWrap);
-
-    const name = document.createElement('div');
-    name.className = 'profile-name';
-    name.textContent = 'Jane Doe';
-    this.frontFace.appendChild(name);
-
-    const handle = document.createElement('div');
-    handle.className = 'profile-handle';
-    handle.textContent = '@jdoe';
-    this.frontFace.appendChild(handle);
-
-    // status selector
-    const statusWrap = document.createElement('div');
-    statusWrap.className = 'profile-status';
-    const statusLabel = document.createElement('span');
-    statusLabel.textContent = 'Status:';
-    statusWrap.appendChild(statusLabel);
-    const statusChoices = ['Online', 'Away', 'Busy'];
-    statusChoices.forEach((choice, i) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'profile-status-btn';
-      btn.dataset.value = choice;
-      btn.tabIndex = 0;
-      btn.textContent = choice;
-      if (i === 0) btn.classList.add('profile-status-btn--selected');
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.profile-status-btn')
-          .forEach(b => b.classList.remove('profile-status-btn--selected'));
-        btn.classList.add('profile-status-btn--selected');
-      });
-      this.frontFace.appendChild(btn);
-    });
-
-    // quick links (option list — arrow roving navigation applies here)
-    const quickLinks = document.createElement('ul');
-    quickLinks.className = 'profile-quick-links';
-    quickLinks.setAttribute('role', 'list');
-    const links = ['Tickets', 'Knowledge', 'Settings', 'Help'];
-    links.forEach(text => {
-      const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.href = '#';
-      a.textContent = text;
-      a.className = 'profile-quick-link';
-      li.appendChild(a);
-      quickLinks.appendChild(li);
-    });
-    this.frontFace.appendChild(quickLinks);
-
-    this.focusableInFront = this._getFocusable(this.frontFace);
-  }
-
-  _populateBackFace() {
-    // grouped settings
-    const settings = document.createElement('div');
-    settings.className = 'profile-settings';
-
-    // Appearance toggle
-    const appearance = this._makeToggleRow('Appearance', 'Light', 'Dark', 'High contrast');
-    settings.appendChild(appearance);
-
-    // Language toggle
-    const language = this._makeToggleRow('Language', 'English', 'Français', 'Español');
-    settings.appendChild(language);
-
-    // Notifications toggle
-    const notifications = this._makeToggleRow('Notifications', 'On', 'Off');
-    settings.appendChild(notifications);
-
-    // Sign-out pinned at bottom
-    const signout = document.createElement('div');
-    signout.className = 'profile-signout-section';
-    const signBtn = document.createElement('button');
-    signBtn.className = 'profile-signout';
-    signBtn.textContent = 'Sign out';
-    signBtn.addEventListener('click', () => this._handleSignOut());
-    signout.appendChild(signBtn);
-    settings.appendChild(signout);
-
-    this.backFace.appendChild(settings);
-
-    this.focusableInBack = this._getFocusable(this.backFace);
-  }
-
-  _makeToggleRow(label, opt1, opt2, fallback) {
-    const row = document.createElement('div');
-    row.className = 'profile-toggle-row';
-
-    const lbl = document.createElement('span');
-    lbl.textContent = label;
-    row.appendChild(lbl);
-
-    const grp = document.createElement('div');
-    grp.className = 'profile-toggle-group';
-
-    const r1 = document.createElement('button');
-    r1.type = 'button';
-    r1.className = 'profile-toggle-btn';
-    r1.dataset.value = opt1;
-    r1.tabIndex = 0;
-    r1.textContent = opt1;
-    r1.addEventListener('click', () => this._toggleSelect(r1, opt1));
-
-    const r2 = document.createElement('button');
-    r2.type = 'button';
-    r2.className = 'profile-toggle-btn';
-    r2.classList.add('profile-toggle-btn--secondary');
-    r2.data.value = opt2;
-    r2.tabIndex = 0;
-    r2.textContent = opt2;
-    r2.addEventListener('click', () => this._toggleSelect(r2, opt2));
-
-    grp.appendChild(r1);
-    grp.appendChild(r2);
-    row.appendChild(grp);
-
-    return row;
-  }
-
-  _toggleSelect(selectedBtn, value) {
-    document.querySelectorAll('.profile-toggle-btn')
-      .forEach(b => b.classList.remove('profile-toggle-btn--selected'));
-    selectedBtn.classList.add('profile-toggle-btn--selected');
-  }
-
-  _addFlipButtons() {
-    // front face flip button
-    const frontBtn = document.createElement('button');
-    frontBtn.className = 'profile-flip-button';
-    frontBtn.setAttribute('aria-label', 'Show settings');
-    frontBtn.innerHTML = Icons.render('chevron-down');
-    frontBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this._flipTo('back');
-    });
-    this.frontFace.appendChild(frontBtn);
-
-    // back face flip button
-    const backBtn = document.createElement('button');
-    backBtn.className = 'profile-flip-button';
-    backBtn.setAttribute('aria-label', 'Show profile');
-    backBtn.innerHTML = Icons.render('chevron-up');
-    backBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this._flipTo('front');
-    });
-    this.backFace.appendChild(backBtn);
-  }
-
-  /** ----------------------------------------------------------- focus trap */
-  _setupFocusTrap() {
-    // collect all focusable elements within the dialog (portal-level)
-    this._dialogFocusables = this._getFocusable(this.dialog);
-
-    this.dialog.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.close();
-        return;
-      }
-      if (e.key !== 'Tab') return;
-
-      const focusables = this._dialogFocusables;
-      if (focusables.length === 0) return;
-
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      const previouslyFocused = document.activeElement;
-
-      if (e.shiftKey) {
-        if (previouslyFocused === first) {
-          e.preventDefault();
-          last.focus();
+    showPanel(index, animate = true, direction = 1) {
+        this.index = index;
+        this.panelsEls.forEach((panel, i) => {
+            const active = i === index;
+            panel.classList.toggle('is-current', active);
+            panel.classList.remove('slide-from-left', 'slide-from-right');
+            if (active && animate && !this.motion) panel.classList.add(direction > 0 ? 'slide-from-right' : 'slide-from-left');
+            panel.toggleAttribute('inert', !active);
+            panel.setAttribute('aria-hidden', active ? 'false' : 'true');
+        });
+        this.nameLabel.textContent = this.panels[index];
+        this.countLabel.textContent = `${index + 1} of ${this.panels.length}`;
+        this.prev.disabled = index === 0;
+        this.next.disabled = index === this.panels.length - 1;
+        if (index === 2 && !this.notificationsLoaded && typeof NotificationPrefs !== 'undefined') {
+            this.notificationsLoaded = true;
+            NotificationPrefs.render(this.body.querySelector('.profile-notification-content'));
         }
-      } else {
-        if (previouslyFocused === last) {
-          e.preventDefault();
-          first.focus();
+    }
+
+    navigate(delta) {
+        const target = Math.max(0, Math.min(this.panels.length - 1, this.index + delta));
+        if (target !== this.index) this.showPanel(target, true, delta);
+    }
+
+    open() {
+        if (this.opened) return;
+        this.opened = true;
+        this.portal.hidden = false;
+        this.portal.classList.add('profile-dialog-portal--active');
+        this.trigger.setAttribute('aria-expanded', 'true');
+        this.trigger.classList.add('is-profile-active');
+        this.position();
+        requestAnimationFrame(() => this.dialog.classList.add('is-open'));
+        this.closeBtn.focus();
+    }
+
+    close() {
+        if (!this.opened) return;
+        this.opened = false;
+        this.trigger.setAttribute('aria-expanded', 'false');
+        this.trigger.classList.remove('is-profile-active');
+        this.dialog.classList.remove('is-open');
+        this.portal.hidden = true;
+        this.portal.classList.remove('profile-dialog-portal--active');
+        this.trigger.focus();
+    }
+
+    position() {
+        const rect = this.trigger.getBoundingClientRect();
+        const width = Math.min(440, window.innerWidth - 32);
+        this.dialog.style.width = `${width}px`;
+        const maxRight = Math.max(16, window.innerWidth - width - 16);
+        const right = Math.min(maxRight, Math.max(16, window.innerWidth - rect.right));
+        this.dialog.style.right = `${right}px`;
+        this.dialog.style.top = `${Math.max(16, Math.min(rect.bottom + 12, window.innerHeight - Math.min(620, window.innerHeight - 32) - 16))}px`;
+    }
+
+    onKeydown(e) {
+        if (!this.opened) return;
+        if (e.key === 'Escape') { e.preventDefault(); this.close(); return; }
+        if (e.key === 'Tab') {
+            const items = Array.from(this.dialog.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(el => !el.closest('[inert]'));
+            if (!items.length) { e.preventDefault(); this.dialog.focus(); return; }
+            const first = items[0], last = items[items.length - 1];
+            if (e.shiftKey && (document.activeElement === first || !this.dialog.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && (document.activeElement === last || !this.dialog.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
         }
-      }
-    });
-  }
-
-  /** ----------------------------------------------------------- key handling */
-  _setupKeyHandlers() {
-    // global keydown: arrow flip, escape close
-    const rtl = document.documentElement.getAttribute('dir') === 'rtl';
-    const arrowMap = {
-      // LTR: ArrowRight = front→back, ArrowLeft = back→front
-      // RTL:  ArrowRight = back→front,  ArrowLeft = front→back
-      // we build the direction map dynamically below
-    };
-
-    document.addEventListener('keydown', (e) => {
-      // Escape always closes when pressing outside the dialog or from inside
-      if (e.key === 'Escape') {
-        if (this.isOpen()) this.close();
-        return;
-      }
-
-      // Arrow flips only when dialog is open and focus is in the right place
-      if (!this.isOpen()) return;
-      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-
-      // Determine if focus is inside an option list that should use roving nav
-      const focusedInOptionList = this._focusedInOptionList(e.target);
-      if (focusedInOptionList) {
-        // handle roving navigation within the option list
-        this._roveWithinOptionList(e);
-        return;
-      }
-
-      // Determine flip direction, accounting for RTL
-      const isRightKey = e.key === 'ArrowRight';
-      // In LTR: right arrow = front→back (if currently front) or back→front (if currently back)
-      // In RTL: right arrow = back→front, left arrow = front→back (mirrored)
-      const forwardKey = rtl ? !isRightKey : isRightKey; // ArrowRight maps to "forward" direction
-      const to = forwardKey
-        ? this.flipState === 'front' ? 'back' : 'front'
-        : this.flipState === 'back' ? 'front' : 'back';
-      this._flipTo(to);
-    });
-  }
-
-  _focusedInOptionList(target) {
-    // Check if the focused element (or its ancestor) is inside a quick-links
-    // or settings option list where arrow roving takes precedence over flip.
-    const candidates = [
-      ...document.querySelectorAll('.profile-quick-links li'),
-      ...document.querySelectorAll('.profile-toggle-btn'),
-      ...document.querySelectorAll('.profile-option'),
-    ];
-    return candidates.some(el => el.contains(target) || target === el);
-  }
-
-  /** ----------------------------------------------------------- roving navigation within option lists */
-  _roveWithinOptionList(e) {
-    // determine direction: ArrowRight = next, ArrowLeft = previous
-    const isRTL = document.documentElement.getAttribute('dir') === 'rtl';
-    const step = isRTL ? (e.key === 'ArrowLeft' ? 1 : -1) : (e.key === 'ArrowRight' ? 1 : -1);
-
-    // find which option list the focused element belongs to, and move focus
-    const focusableSelectors = [
-      '.profile-quick-links li a',
-      '.profile-toggle-btn',
-    ].join(', ');
-
-    const focusableEls = Array.from(document.querySelectorAll(focusableSelectors));
-    const currentIdx = focusableEls.indexOf(document.activeElement);
-    if (currentIdx === -1) return; // not currently in a list
-
-    const nextIdx = (currentIdx + step + focusableEls.length) % focusableEls.length;
-    focusableEls[nextIdx].focus();
-  }
-
-  /** ----------------------------------------------------------- flip logic */
-  _flipTo(target) {
-    if (this.flipState === target) return;
-
-    // Announce
-    this._announceFace(target);
-
-    // Reduced-motion crossfade
-    if (this.reducedMotion) {
-      this._crossfadeTo(target);
-      this.flipState = target;
-      this._moveFocusToFirstFocusable(target);
-      return;
     }
-
-    // 3D flip — mirror direction in RTL
-    const rtl = document.documentElement.getAttribute('dir') === 'rtl';
-    const card = this.flipCard;
-    this.flipState = target;
-
-    if (target === 'front') {
-      // Back→front: normally rotate -180deg (direction continuity)
-      // In RTL, mirror by using +180deg
-      card.classList.toggle('flipped', !rtl);
-      card.classList.toggle('flipped-reverse', rtl);
-    } else {
-      // front→back: normally rotate +180deg
-      // In RTL, mirror by using -180deg
-      card.classList.toggle('flipped', rtl);
-      card.classList.toggle('flipped-reverse', !rtl);
-    }
-    // force a style recalc so the transition animates from the current state
-    card.offsetWidth; // eslint-disable-line
-
-    // focus moves to the revealed face
-    this._moveFocusToFirstFocusable(target);
-
-    // remove transition classes after animation so the next flip starts clean
-    const resolve = () => {
-      card.classList.remove('flipped', 'flipped-reverse');
-    };
-    setTimeout(resolve, 600);
-  }
-
-  _crossfadeTo(target) {
-    // swap opacities instead of 3D transform
-    const fromFace = this.flipState === 'front' ? this.frontFace : this.backFace;
-    const toFace = target === 'front' ? this.frontFace : this.backFace;
-
-    fromFace.style.transition = 'opacity 150ms ease-in-out';
-    toFace.style.transition = 'opacity 150ms ease-in-out';
-
-    fromFace.style.opacity = '0';
-    toFace.style.opacity = '1';
-
-    // after animation, reset classes / inline styles so the next crossfade works
-    setTimeout(() => {
-      fromFace.style.opacity = '';
-      fromFace.style.transition = '';
-      toFace.style.opacity = '';
-      toFace.style.transition = '';
-    }, 150);
-  }
-
-  _moveFocusToFirstFocusable(target) {
-    const focusables = target === 'front'
-      ? this.focusableInFront
-      : this.focusableInBack;
-    // When focus lands on the back face, pick the first focusable that is
-    // NOT a toggle button, so that ArrowLeft/Right default to flipping
-    // rather than roving within the toggle list.
-    if (target === 'back') {
-      const nonToggle = focusables.filter(el => !el.classList.contains('profile-toggle-btn'));
-      if (nonToggle.length > 0) {
-        nonToggle[0].focus();
-        return;
-      }
-    }
-    if (focusables.length > 0) {
-      focusables[0].focus();
-    }
-  }
-
-  /** ----------------------------------------------------------- announcements */
-  _announceFace(face) {
-    const texts = {
-      front: 'Profile front face visible',
-      back: 'Settings face visible',
-    };
-    this.liveRegion.textContent = texts[face] || '';
-    this.liveRegion.setAttribute('aria-busy', 'false');
-  }
-
-  /** ----------------------------------------------------------- open/close */
-  _open() {
-    this.dialog.classList.add('profile-dialog--open');
-    this.portal.classList.add('profile-dialog-portal--active');
-    this.trigger.setAttribute('aria-expanded', 'true');
-    // move focus into the dialog
-    const firstFocusable = this._dialogFocusables[0];
-    if (firstFocusable) firstFocusable.focus();
-    this._updateTriggerAria('expanded', true);
-  }
-
-  close() {
-    if (!this.isOpen()) return;
-
-    this.dialog.classList.remove('profile-dialog--open');
-    this.portal.classList.remove('profile-dialog-portal--active');
-    this.trigger.setAttribute('aria-expanded', 'false');
-    // restore focus to trigger
-    if (typeof this.trigger.focus === 'function') this.trigger.focus();
-    this._updateTriggerAria('expanded', false);
-  }
-
-  isOpen() {
-    return this.dialog.classList.contains('profile-dialog--open');
-  }
-
-  _updateTriggerAria(prop, value) {
-    this.trigger.setAttribute(prop, value);
-  }
-
-  /** ----------------------------------------------------------- sign out */
-  _handleSignOut() {
-    // destructive action — just close the dialog for this demo
-    this.close();
-    // in a real app: show confirmation, clear session, etc.
-  }
-
-  /** ----------------------------------------------------------- utility */
-  _getFocusable(container) {
-    const selectors = [
-      'a[href]',
-      'button:not([disabled])',
-      'input:not([disabled])',
-      'select:not([disabled])',
-      'textarea:not([disabled])',
-      '[tabindex]:not([tabindex="-1"])',
-    ];
-    return Array.from(container.querySelectorAll(selectors))
-      .filter(el => el.offsetParent !== null); // visible
-  }
 }
 
-/* eslint-disable no-unused-vars */
+document.addEventListener('DOMContentLoaded', () => {
+    queueMicrotask(() => { window.profileDialog = new ProfileDialog(); });
+});

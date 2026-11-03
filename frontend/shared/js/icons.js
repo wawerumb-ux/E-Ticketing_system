@@ -122,5 +122,10 @@
 
     document.addEventListener('DOMContentLoaded', hydrate);
 
+// 'x' icon: simple close cross
+    ICONS['x'] = {
+        body: '<line x1="1" y1="1" x2="23" y2="23"/><line x1="1" y1="23" x2="23" y2="1"/>',
+    };
+
     window.Icons = { render: render, hydrate: hydrate };
 })();
