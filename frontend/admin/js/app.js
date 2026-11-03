@@ -657,19 +657,7 @@ class TicketingApp {
             }
         });
 
-        // Mini-state flyout: reveal on hover, dismiss on leave (keyboard path
-        // still uses click / Enter / Space / Escape).
-        launcher.addEventListener('mouseenter', () => {
-            if (document.documentElement.classList.contains('sidebar-mini')) {
-                if (window.profileDialog) window.profileDialog.open();
-            }
-        });
-        menu.addEventListener('mouseleave', () => {
-            if (document.documentElement.classList.contains('sidebar-mini') && document.activeElement === launcher) {
-                if (window.profileDialog) window.profileDialog.close();
-            }
-        });
-
+        // Profile popup is click / keyboard driven; no hover reveal/dismiss.
         this.rebindIdentityMenuItems();
 
         document.addEventListener('pointerdown', (e) => {
