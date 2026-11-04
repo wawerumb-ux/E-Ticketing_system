@@ -4,11 +4,15 @@ class ProfileDialog {
         this.trigger = document.getElementById('identityLauncher');
         if (!this.trigger) return;
         this.themeKey = document.body.dataset.portal === 'admin' ? 'admin_theme' : 'user_theme';
-        this.panels = ['Profile', 'Appearance', 'Notifications', 'Account'];
+        this.panels = ['Profile', 'Appearance', 'Notifications', 'Account', 'Security'];
         this.index = 0;
         this.opened = false;
         this.notificationsLoaded = false;
         this.motion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        this.security2faEnabled = false;
+        this.security2faSetup = null;
+        this.securityBusy = false;
+        this.securityFeedback = null;
         this.build();
     }
 
@@ -27,22 +31,16 @@ class ProfileDialog {
 
         this.dialog.innerHTML = `
             <header class="profile-dialog-header">
-                <button type="button" class="profile-nav profile-nav-prev" aria-label="Previous panel">${Icons.render('chevron-left')}</button>
                 <div class="profile-panel-position" aria-live="polite" aria-atomic="true"><span id="profilePanelName"></span><span id="profilePanelCount"></span></div>
-                <button type="button" class="profile-nav profile-nav-next" aria-label="Next panel">${Icons.render('chevron-right')}</button>
                 <button type="button" class="profile-dialog-close" aria-label="Close profile settings">${Icons.render('x')}</button>
             </header>
             <div class="profile-dialog-body" id="profileDialogPanels" aria-live="polite"></div>
             <span class="visually-hidden" id="profileDialogTitle">Profile settings</span>`;
         this.body = this.dialog.querySelector('.profile-dialog-body');
-        this.prev = this.dialog.querySelector('.profile-nav-prev');
-        this.next = this.dialog.querySelector('.profile-nav-next');
         this.closeBtn = this.dialog.querySelector('.profile-dialog-close');
         this.nameLabel = this.dialog.querySelector('#profilePanelName');
         this.countLabel = this.dialog.querySelector('#profilePanelCount');
         this.renderPanels();
-        this.prev.addEventListener('click', () => this.navigate(-1));
-        this.next.addEventListener('click', () => this.navigate(1));
         this.closeBtn.addEventListener('click', () => this.close());
         this.trigger.addEventListener('click', () => this.opened ? this.close() : this.open());
         this.portal.addEventListener('pointerdown', e => { if (e.target === this.portal) this.close(); });
@@ -95,6 +93,30 @@ class ProfileDialog {
                 <h2>Account</h2><p class="profile-panel-intro">Signed in as <strong>${safeUser}</strong></p>
                 <p class="profile-detail">${safeEmail}</p>
                 <button type="button" class="profile-signout">${Icons.render('sign-out-alt')}<span>Sign out</span></button>
+            </section>
+            <section class="profile-panel" data-panel="4" aria-labelledby="profileSecurityTitle" aria-hidden="true" inert>
+                <h2 id="profileSecurityTitle">Security</h2>
+                <p class="profile-panel-intro">Strengthen this account's sign-in posture with two-factor authentication and keep credentials current.</p>
+                <div class="profile-setting-row">
+                    <span><strong>Two-factor authentication</strong><small>${this.security2faEnabled ? 'Enabled - a second factor is required at sign-in.' : 'Disabled - sign-in currently uses only a password.'}</small></span>
+                    <button type="button" class="profile-setting-action" data-profile-2fa-action>${Icons.render('shield-alt')}<span>${this.security2faEnabled ? 'Manage two-factor authentication' : 'Enable two-factor authentication'}</span></button>
+                </div>
+                <div class="profile-2fa-setup" hidden>
+                    <p class="profile-detail">Scan the secret with your authenticator app, then enter the six-digit code to finish enabling.</p>
+                    <p class="profile-detail">Secret: <span class="profile-2fa-secret"></span></p>
+                    <label class="profile-field">Authenticator code<input type="text" inputmode="numeric" maxlength="6" class="profile-2fa-setup-code" aria-label="Two-factor authentication code"></label>
+                    <button type="button" class="profile-2fa-setup-verify" disabled>Verify and enable</button>
+                </div>
+                <div class="profile-2fa-disable" hidden>
+                    <label class="profile-field">Authenticator code<input type="text" inputmode="numeric" maxlength="6" class="profile-2fa-disable-code" aria-label="Two-factor authentication code"></label>
+                    <button type="button" class="profile-2fa-disable-verify" disabled>Disable two-factor authentication</button>
+                </div>
+                <h3 class="profile-security-subhead">Change password</h3>
+                <label class="profile-field">Current password<input type="password" autocomplete="current-password" class="profile-password-current" aria-label="Current password"></label>
+                <label class="profile-field">New password<input type="password" autocomplete="new-password" class="profile-password-new" aria-label="New password"></label>
+                <label class="profile-field">Confirm new password<input type="password" autocomplete="new-password" class="profile-password-confirm" aria-label="Confirm new password"></label>
+                <button type="button" class="profile-password-save" disabled>Update password</button>
+                <p class="profile-feedback" data-security-feedback aria-live="polite"></p>
             </section>`;
         this.panelsEls = Array.from(this.body.querySelectorAll('[data-panel]'));
         this.body.querySelector('[data-profile-theme]').value = themes.some(t => t[0] === storedTheme) ? storedTheme : 'daylight';
@@ -115,6 +137,131 @@ class ProfileDialog {
             this.body.querySelector('[data-appearance-feedback]').textContent = e.target.checked ? 'Compact density is on.' : 'Comfortable density is on.';
         });
         this.body.querySelector('.profile-signout').addEventListener('click', () => AuthAPI.logout());
+
+        const securityPanel = this.body.querySelector('[data-panel="4"]');
+        const securityFeedback = securityPanel.querySelector('.profile-security-feedback');
+        const setSecurityFeedback = (message) => { if (securityFeedback) securityFeedback.textContent = message || ''; };
+        const security2faAction = securityPanel.querySelector('[data-profile-2fa-action]');
+        const security2faSetup = securityPanel.querySelector('.profile-2fa-setup');
+        const security2faSetupCode = securityPanel.querySelector('.profile-2fa-setup-code');
+        const security2faSetupVerify = securityPanel.querySelector('.profile-2fa-setup-verify');
+        const security2faDisable = securityPanel.querySelector('.profile-2fa-disable');
+        const security2faDisableCode = securityPanel.querySelector('.profile-2fa-disable-code');
+        const security2faDisableVerify = securityPanel.querySelector('.profile-2fa-disable-verify');
+        const securityPasswordCurrent = securityPanel.querySelector('.profile-password-current');
+        const securityPasswordNew = securityPanel.querySelector('.profile-password-new');
+        const securityPasswordConfirm = securityPanel.querySelector('.profile-password-confirm');
+        const securityPasswordSave = securityPanel.querySelector('.profile-password-save');
+        const refreshSecurity2FA = async () => {
+            const status = await AuthAPI.get2FAStatus();
+            this.security2faEnabled = !!status.enabled;
+            const row = securityPanel.querySelector('.profile-setting-row');
+            const small = row ? row.querySelector('small') : null;
+            if (small) small.textContent = this.security2faEnabled ? 'Enabled - a second factor is required at sign-in.' : 'Disabled - sign-in currently uses only a password.';
+            if (security2faAction) {
+                security2faAction.disabled = false;
+                security2faAction.innerHTML = `${Icons.render('shield-alt')}<span>${this.security2faEnabled ? 'Manage two-factor authentication' : 'Enable two-factor authentication'}</span>`;
+            }
+            if (security2faSetup) security2faSetup.hidden = !this.security2faEnabled;
+            if (security2faDisable) security2faDisable.hidden = this.security2faEnabled;
+            if (security2faSetupVerify) security2faSetupVerify.disabled = true;
+            if (security2faDisableVerify) security2faDisableVerify.disabled = true;
+        };
+
+        security2faAction.addEventListener('click', async () => {
+            if (this.securityBusy) return;
+            this.securityBusy = true;
+            setSecurityFeedback('');
+            try {
+                if (!this.security2faEnabled) {
+                    const setup = await AuthAPI.setup2FA();
+                    this.security2faSetup = setup;
+                    security2faSetup.hidden = false;
+                    security2faDisable.hidden = true;
+                    const setupSecret = security2faSetup.querySelector('.profile-2fa-secret');
+                    if (setupSecret) setupSecret.textContent = setup.secret || '';
+                    security2faSetupCode.value = '';
+                    security2faSetupVerify.disabled = true;
+                    security2faAction.disabled = true;
+                } else {
+                    security2faDisable.hidden = false;
+                    security2faSetup.hidden = true;
+                    security2faDisableCode.value = '';
+                    security2faDisableVerify.disabled = true;
+                    security2faAction.disabled = true;
+                }
+            } catch (error) {
+                setSecurityFeedback(error && error.message ? error.message : 'Two-factor authentication setup failed.');
+            } finally {
+                this.securityBusy = false;
+            }
+        });
+        security2faSetupVerify.addEventListener('click', async () => {
+            const code = security2faSetupCode.value.trim();
+            if (this.securityBusy || code.length < 6) return;
+            this.securityBusy = true;
+            setSecurityFeedback('');
+            try {
+                const result = await AuthAPI.verify2FASetup(code);
+                this.security2faEnabled = !!result.enabled;
+                security2faSetup.hidden = true;
+                security2faDisable.hidden = true;
+                security2faSetupVerify.disabled = true;
+                security2faAction.disabled = false;
+                await refreshSecurity2FA();
+            } catch (error) {
+                setSecurityFeedback(error && error.message ? error.message : 'Two-factor verification failed.');
+            } finally {
+                this.securityBusy = false;
+            }
+        });
+        security2faDisableVerify.addEventListener('click', async () => {
+            const code = security2faDisableCode.value.trim();
+            if (this.securityBusy || code.length < 6) return;
+            this.securityBusy = true;
+            setSecurityFeedback('');
+            try {
+                const result = await AuthAPI.disable2FA(code);
+                this.security2faEnabled = !!result.enabled;
+                security2faDisable.hidden = true;
+                security2faDisableVerify.disabled = true;
+                security2faAction.disabled = false;
+                await refreshSecurity2FA();
+            } catch (error) {
+                setSecurityFeedback(error && error.message ? error.message : 'Two-factor disable failed.');
+            } finally {
+                this.securityBusy = false;
+            }
+        });
+        security2faSetupCode.addEventListener('input', () => { if (security2faSetupVerify) security2faSetupVerify.disabled = security2faSetupCode.value.trim().length < 6; });
+        security2faDisableCode.addEventListener('input', () => { if (security2faDisableVerify) security2faDisableVerify.disabled = security2faDisableCode.value.trim().length < 6; });
+        securityPasswordCurrent.addEventListener('input', () => { setSecurityFeedback(''); });
+        securityPasswordNew.addEventListener('input', () => { setSecurityFeedback(''); });
+        securityPasswordConfirm.addEventListener('input', () => { setSecurityFeedback(''); });
+        securityPasswordSave.addEventListener('click', async () => {
+            if (this.securityBusy) return;
+            const current = securityPasswordCurrent.value;
+            const next = securityPasswordNew.value;
+            const confirm = securityPasswordConfirm.value;
+            if (!current || !next) { setSecurityFeedback('Enter your current password and a new password.'); return; }
+            if (next.length < 8) { setSecurityFeedback('New password must be at least 8 characters.'); return; }
+            if (next !== confirm) { setSecurityFeedback('New passwords do not match.'); return; }
+            this.securityBusy = true;
+            setSecurityFeedback('');
+            try {
+                const result = await AuthAPI.changePassword(current, next);
+                securityPasswordCurrent.value = '';
+                securityPasswordNew.value = '';
+                securityPasswordConfirm.value = '';
+                setSecurityFeedback(result && result.message ? result.message : 'Password updated successfully.');
+            } catch (error) {
+                setSecurityFeedback(error && error.message ? error.message : 'Password change failed.');
+            } finally {
+                this.securityBusy = false;
+            }
+        });
+
+        this.refreshSecurity2FA();
         this.showPanel(0, false);
     }
 
@@ -126,6 +273,28 @@ class ProfileDialog {
         document.documentElement.classList.toggle('dark-theme', dark);
         localStorage.setItem(this.themeKey, theme);
         this.body.querySelector('[data-appearance-feedback]').textContent = `${theme.replace(/-/g, ' ')} theme applied.`;
+    }
+
+    async refreshSecurity2FA() {
+        const status = await AuthAPI.get2FAStatus();
+        this.security2faEnabled = !!status.enabled;
+        const panel = this.body.querySelector('[data-panel="4"]');
+        if (!panel) return;
+        const small = panel.querySelector('.profile-setting-row small');
+        if (small) small.textContent = this.security2faEnabled ? 'Enabled - a second factor is required at sign-in.' : 'Disabled - sign-in currently uses only a password.';
+        const action = panel.querySelector('[data-profile-2fa-action]');
+        if (action) {
+            action.disabled = false;
+            action.innerHTML = `${Icons.render('shield-alt')}<span>${this.security2faEnabled ? 'Manage two-factor authentication' : 'Enable two-factor authentication'}</span>`;
+        }
+        const setup = panel.querySelector('.profile-2fa-setup');
+        const disable = panel.querySelector('.profile-2fa-disable');
+        if (setup) setup.hidden = !this.security2faEnabled;
+        if (disable) disable.hidden = this.security2faEnabled;
+        const setupVerify = panel.querySelector('.profile-2fa-setup-verify');
+        const disableVerify = panel.querySelector('.profile-2fa-disable-verify');
+        if (setupVerify) setupVerify.disabled = true;
+        if (disableVerify) disableVerify.disabled = true;
     }
 
     showPanel(index, animate = true, direction = 1) {
@@ -140,8 +309,6 @@ class ProfileDialog {
         });
         this.nameLabel.textContent = this.panels[index];
         this.countLabel.textContent = `${index + 1} of ${this.panels.length}`;
-        this.prev.disabled = index === 0;
-        this.next.disabled = index === this.panels.length - 1;
         if (index === 2 && !this.notificationsLoaded && typeof NotificationPrefs !== 'undefined') {
             this.notificationsLoaded = true;
             NotificationPrefs.render(this.body.querySelector('.profile-notification-content'));
@@ -177,13 +344,8 @@ class ProfileDialog {
     }
 
     position() {
-        const rect = this.trigger.getBoundingClientRect();
         const width = Math.min(440, window.innerWidth - 32);
         this.dialog.style.width = `${width}px`;
-        const maxRight = Math.max(16, window.innerWidth - width - 16);
-        const right = Math.min(maxRight, Math.max(16, window.innerWidth - rect.right));
-        this.dialog.style.right = `${right}px`;
-        this.dialog.style.top = `${Math.max(16, Math.min(rect.bottom + 12, window.innerHeight - Math.min(620, window.innerHeight - 32) - 16))}px`;
     }
 
     onKeydown(e) {
@@ -196,6 +358,8 @@ class ProfileDialog {
             if (e.shiftKey && (document.activeElement === first || !this.dialog.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
             else if (!e.shiftKey && (document.activeElement === last || !this.dialog.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
         }
+        if (e.key === 'ArrowRight') { e.preventDefault(); this.navigate(1); return; }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); this.navigate(-1); return; }
     }
 }
 
