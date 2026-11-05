@@ -31,6 +31,7 @@ class ProfileDialog {
 
         this.dialog.innerHTML = `
             <header class="profile-dialog-header">
+                <button type="button" class="profile-back" data-profile-back aria-label="Back to previous section" hidden>${Icons.render('chevron-left')}</button>
                 <div class="profile-panel-position" aria-live="polite" aria-atomic="true"><span id="profilePanelName"></span><span id="profilePanelCount"></span></div>
                 <button type="button" class="profile-dialog-close" aria-label="Close profile settings">${Icons.render('x')}</button>
             </header>
@@ -38,10 +39,12 @@ class ProfileDialog {
             <span class="visually-hidden" id="profileDialogTitle">Profile settings</span>`;
         this.body = this.dialog.querySelector('.profile-dialog-body');
         this.closeBtn = this.dialog.querySelector('.profile-dialog-close');
+        this.backBtn = this.dialog.querySelector('[data-profile-back]');
         this.nameLabel = this.dialog.querySelector('#profilePanelName');
         this.countLabel = this.dialog.querySelector('#profilePanelCount');
         this.renderPanels();
         this.closeBtn.addEventListener('click', () => this.close());
+        this.backBtn.addEventListener('click', () => { if (this.index > 0) this.navigate(-1); });
         this.trigger.addEventListener('click', () => this.opened ? this.close() : this.open());
         this.portal.addEventListener('pointerdown', e => { if (e.target === this.portal) this.close(); });
         document.addEventListener('keydown', e => this.onKeydown(e));
@@ -299,6 +302,7 @@ class ProfileDialog {
 
     showPanel(index, animate = true, direction = 1) {
         this.index = index;
+        this.backBtn.hidden = index === 0;
         this.panelsEls.forEach((panel, i) => {
             const active = i === index;
             panel.classList.toggle('is-current', active);

@@ -106,6 +106,14 @@ class TicketingApp {
             this.renderNotificationList();
         });
 
+        const identityLauncher = document.getElementById('identityLauncher');
+        if (identityLauncher) {
+            identityLauncher.addEventListener('click', () => { if (window.profileDialog) window.profileDialog.open(); });
+            identityLauncher.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (window.profileDialog) window.profileDialog.open(); }
+            });
+        }
+
         document.querySelectorAll('.sidebar-nav li[data-section]').forEach(item => {
             item.addEventListener('click', () => this.switchSection(item.dataset.section));
         });
