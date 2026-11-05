@@ -23,7 +23,7 @@
  */
 'use strict';
 
-const CACHE_NAME = 'e-ticketing-shell-v7';
+const CACHE_NAME = 'e-ticketing-shell-v8';
 
 const SHELL_URLS = [
     '/user/index.html',
