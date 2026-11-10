@@ -42,11 +42,11 @@ class TicketingApp {
         this.currentPage = 1;
         this.pageSize = 10;
         this.activeTicketAttachments = [];
-        this.syncing = false;
         this.notifications = [];
         this.notificationUnread = 0;
         this.notificationsOffline = false;
         this.notificationFilter = 'all';
+        this.syncing = false;
         this.init();
     }
 
@@ -60,10 +60,10 @@ class TicketingApp {
         this.renderWelcome();
         await this.loadTickets();
         this.renderPersonalDashboard();
-        await this.loadNotifications();
         await this.loadCategoryOptions();
         this.setupLiveEvents();
         this.setupOfflineSync();
+        await this.loadNotifications();
         this.initSessionExpiredDialog();
         // Section routing: honor a hash on load (reload/bookmark) or land on
         // the default section. The landing hash is installed with
@@ -84,12 +84,10 @@ class TicketingApp {
                 if (this.currentSection === 'tickets' || this.currentSection === 'dashboard') this.loadTickets();
             }, 500);
         };
-        LiveEvents.on('ticket.created', reloadTickets);
-        LiveEvents.on('ticket.updated', reloadTickets);
-        LiveEvents.on('comment.created', reloadTickets);
-        LiveEvents.on('comment.created', () => this.loadNotifications());
+        LiveEvents.on('ticket.created', () => this.loadNotifications());
         LiveEvents.on('ticket.updated', () => this.loadNotifications());
-        LiveEvents.on('announcement', () => this.loadNotifications());
+        LiveEvents.on('comment.created', reloadTickets);
+        LiveEvents.on('announcement.created', () => this.loadNotifications());
     }
 
     renderWelcome() {
@@ -99,13 +97,6 @@ class TicketingApp {
     }
 
     setupEventListeners() {
-        document.addEventListener('notification-prefs:changed', () => {
-            const visible = this.visibleNotifications();
-            const visibleUnread = visible.filter(n => !n.is_read).length;
-            this.renderNotificationBadge(visibleUnread);
-            this.renderNotificationList();
-        });
-
         const identityLauncher = document.getElementById('identityLauncher');
         if (identityLauncher) {
             identityLauncher.addEventListener('click', () => { if (window.profileDialog) window.profileDialog.open(); });
@@ -192,8 +183,6 @@ class TicketingApp {
         document.getElementById('accountInfo').addEventListener('input', (e) => {
             if (e.target && e.target.id === 'infoUsername') this.refreshUsernameGuard();
         });
-        document.getElementById('prefEmail').addEventListener('change', () => this.savePrefs());
-        document.getElementById('prefInApp').addEventListener('change', () => this.savePrefs());
         window.addEventListener('offline', () => {
             this.notificationsOffline = true;
             const dropdown = document.getElementById('notificationDropdown');
@@ -204,7 +193,18 @@ class TicketingApp {
             const dropdown = document.getElementById('notificationDropdown');
             if (dropdown && dropdown.style.display === 'block') await this.loadNotifications();
         });
+        ConnectionStatus.onStateChange((s) => this.applyConnectionStatus(s));
         this.setupSettingsControls();
+    }
+
+    applyConnectionStatus(s) {
+        const dot = document.getElementById('connectionStatusDot');
+        const announce = document.getElementById('connectionStatusAnnounce');
+        if (dot) {
+            dot.classList.remove('conn-state--online', 'conn-state--syncing', 'conn-state--offline', 'conn-state--degraded');
+            dot.classList.add(`conn-state--${s.state}`);
+        }
+        if (ann) announce.textContent = s.label;
     }
 
     // ============ Section navigation (hash routing) ============
@@ -1054,7 +1054,6 @@ openTicketDetail(id) {
 
     // ============ Notifications ============
     notificationCategoryVisible(n) {
-        if (!n || !n.category) return true;
         if (typeof window.NotificationPrefs === 'undefined') return true;
         return window.NotificationPrefs.isCategoryEnabled(n.category);
     }
@@ -1064,10 +1063,9 @@ openTicketDetail(id) {
     }
 
     async loadNotifications() {
-        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        if (this.notificationsOffline) {
             const cached = await this.loadNotificationsCache();
             if (cached) {
-                this.notificationsOffline = true;
                 this.notifications = cached.notifications || [];
                 this.notificationUnread = cached.unread_count || 0;
             } else {
@@ -1088,226 +1086,51 @@ openTicketDetail(id) {
     }
 
     saveNotificationsCache() {
-        try {
-            if (typeof OfflineDB === 'undefined' || !OfflineDB.cachePut) return;
-            const username = this.currentUser ? this.currentUser.username : '';
-            OfflineDB.cachePut('ntf_cache', {
-                notifications: this.notifications,
-                unread_count: this.notificationUnread
-            }, username);
-        } catch (e) { /* storage unavailable: offline rendering degrades gracefully */ }
+        if (!this.notificationsOffline) return;
+        OfflineDB.cachePut('ntf_cache', { notifications: this.notifications, unread_count: this.notificationUnread }, this.currentUser ? this.currentUser.username : '');
     }
 
     async loadNotificationsCache() {
-        try {
-            if (typeof OfflineDB === 'undefined' || !OfflineDB.cacheGet) return null;
-            const record = await OfflineDB.cacheGet('ntf_cache');
-            if (!record || !record.data) return null;
-            const expectedUser = this.currentUser ? this.currentUser.username : '';
-            if (record.user !== expectedUser) return null;
-            return {
-                notifications: record.data.notifications || [],
-                unread_count: record.data.unread_count || 0,
-                at: record.at || 0
-            };
-        } catch (e) {
-            return null;
-        }
+        const record = await OfflineDB.cacheGet('ntf_cache');
+        if (!record || !record.data) return null;
+        return {
+            notifications: record.data.notifications || [],
+            unread_count: record.data.unread_count || 0
+        };
     }
 
     renderNotificationBadge(count) {
         const badge = document.getElementById('notificationBadge');
-        if (!badge) return;
-        if (count > 0) {
-            badge.textContent = count;
-            badge.style.display = 'inline-block';
-        } else {
-            badge.style.display = 'none';
-        }
         const bell = document.getElementById('notificationBell');
-        if (bell) bell.setAttribute('aria-label', count > 0 ? `Notifications, ${count} unread` : 'Notifications');
+        const pill = document.getElementById('notificationUnreadPill');
         const live = document.getElementById('notificationA11yAnnounce');
+        const tabCount = document.getElementById('notificationUnreadTabCount');
+        if (badge) badge.style.display = count > 0 ? 'flex' : 'none';
+        if (bell) bell.setAttribute('aria-label', count > 0 ? `Notifications, ${count} unread` : 'Notifications');
+        if (pill) pill.hidden = !(count > 0);
         if (live) live.textContent = count > 0 ? `${count} unread notifications` : 'No unread notifications';
+        if (tabCount) tabCount.hidden = !(count > 0);
     }
 
     updateNotificationUnreadUI() {
-        const pill = document.getElementById('notificationUnreadPill');
-        if (pill) {
-            if (this.notificationUnread > 0) {
-                pill.textContent = `${this.notificationUnread} unread`;
-                pill.hidden = false;
-            } else {
-                pill.hidden = true;
-            }
-        }
-        const tabCount = document.getElementById('notificationUnreadTabCount');
-        if (tabCount) {
-            if (this.notificationUnread > 0) {
-                tabCount.textContent = this.notificationUnread;
-                tabCount.hidden = false;
-            } else {
-                tabCount.hidden = true;
-            }
-        }
-    }
-
-    toggleNotificationDropdown() {
-        const dropdown = document.getElementById('notificationDropdown');
-        if (!dropdown) return;
-        const isOpen = dropdown.style.display === 'block';
-        dropdown.style.display = isOpen ? 'none' : 'block';
-        const bell = document.getElementById('notificationBell');
-        if (bell) bell.setAttribute('aria-expanded', String(!isOpen));
-        if (!isOpen) this.renderNotificationList();
-    }
-
-    closeNotificationDropdown() {
-        const dropdown = document.getElementById('notificationDropdown');
-        const bell = document.getElementById('notificationBell');
-        if (dropdown) dropdown.style.display = 'none';
-        if (bell) bell.setAttribute('aria-expanded', 'false');
-    }
-
-    setNotificationFilter(filter) {
-        this.notificationFilter = filter;
-        const tabs = document.querySelectorAll('.notification-tab');
-        tabs.forEach(tab => {
-            tab.setAttribute('aria-pressed', String(tab.dataset.filter === filter));
-        });
-        this.renderNotificationList();
+        return;
     }
 
     renderNotificationList() {
-        const container = document.getElementById('notificationList');
-        if (!container) return;
-
-        if (this.notificationsOffline && this.notifications.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state" style="padding:20px;">
-                    ${Icons.render('wifi')}
-                    <p>Requires connection</p>
-                    <p style="font-size:0.75rem;margin-top:5px;">Notifications can't load right now. Check your connection and retry.</p>
-                    <button type="button" class="btn-secondary btn-sm" onclick="app.loadNotifications()" style="margin-top:12px;">Retry</button>
-                </div>
-            `;
-            this.renderLastSynced();
+        const list = document.getElementById('notificationList');
+        if (!list) return;
+        const items = this.visibleNotifications();
+        list.innerHTML = '';
+        if (!items.length) {
+            list.innerHTML = '<div class="notification-empty">No notifications yet.</div>';
             return;
         }
-
-        const filtered = this.visibleNotifications().filter(n => this.notificationFilter === 'unread' ? !n.is_read : true);
-        if (filtered.length === 0) {
-            container.innerHTML = this.renderEmptyState();
-            this.renderLastSynced();
-            return;
+        for (const n of items) {
+            const el = document.createElement('div');
+            el.className = 'notification-item';
+            el.innerHTML = `<div class="notification-item-text">${n.message || ''}</div>`;
+            list.appendChild(el);
         }
-        container.innerHTML = this.renderNotificationGroups(filtered);
-        this.renderLastSynced();
-    }
-
-    renderEmptyState() {
-        if (this.notificationFilter === 'unread' && this.notifications.length > 0) {
-            return `
-                <div class="empty-state" style="padding:20px;">
-                    ${Icons.render('check-circle')}
-                    <p>You're all caught up.</p>
-                </div>
-            `;
-        }
-        return `
-            <div class="empty-state" style="padding:20px;">
-                ${Icons.render('bell-slash')}
-                <p>No notifications yet.</p>
-            </div>
-        `;
-    }
-
-    renderNotificationGroups(list) {
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-        const today = list.filter(n => new Date(n.created_at).getTime() >= startOfToday);
-        const earlier = list.filter(n => new Date(n.created_at).getTime() < startOfToday);
-        let html = '';
-        if (today.length) html += `<div class="notification-group">Today</div>` + this.renderNotificationItems(today);
-        if (earlier.length) html += `<div class="notification-group">Earlier</div>` + this.renderNotificationItems(earlier);
-        return html;
-    }
-
-    renderNotificationItems(items) {
-        return items.map(n => {
-            const msg = escapeHtml(n.message);
-            const tip = escapeHtml(n.link ? `${n.message} — view ticket` : n.message);
-            return `
-                <button type="button" class="notification-item ${n.is_read ? '' : 'unread'}" aria-label="${msg}" title="${tip}" onclick="app.onNotificationClick(${n.id})">
-                    <span class="notification-type-icon" aria-hidden="true">${Icons.render(this.notificationIcon(n.type))}</span>
-                    <span class="notification-item-text">
-                        <span class="notification-item-msg">${msg}</span>
-                        <span class="notification-item-time">${escapeHtml(this.friendlyTime(n.created_at))}</span>
-                    </span>
-                </button>
-            `;
-        }).join('');
-    }
-
-    notificationIcon(type) {
-        switch (type) {
-            case 'ticket_update': return 'ticket';
-            case 'technician_reply': return 'user';
-            case 'announcement': return 'bullhorn';
-            case 'sla_breach': return 'exclamation-triangle';
-            default: return 'bell';
-        }
-    }
-
-    friendlyTime(iso) {
-        const then = new Date(iso).getTime();
-        if (!iso || isNaN(then)) return '';
-        const diffMin = Math.floor((Date.now() - then) / 60000);
-        if (diffMin < 1) return 'just now';
-        if (diffMin < 60) return `${diffMin}m ago`;
-        const diffH = Math.floor(diffMin / 60);
-        if (diffH < 24) return `${diffH}h ago`;
-        const diffD = Math.floor(diffH / 24);
-        if (diffD < 7) return `${diffD}d ago`;
-        return new Date(iso).toLocaleDateString();
-    }
-
-    async renderLastSynced() {
-        const el = document.getElementById('notificationLastSynced');
-        if (!el) return;
-        const cache = await this.loadNotificationsCache();
-        if (this.notificationsOffline && cache && cache.at) {
-            el.textContent = `Last synced ${new Date(cache.at).toLocaleString()}`;
-            el.hidden = false;
-        } else {
-            el.hidden = true;
-        }
-    }
-
-    async onNotificationClick(id) {
-        const n = this.notifications.find(x => x.id === id);
-        if (n && !n.is_read) {
-            if (this.notificationsOffline) {
-                this.showToast('Marking as read requires a connection.', true);
-                return;
-            }
-            n.is_read = true;
-            this.notificationUnread = Math.max(0, (this.notificationUnread || 0) - 1);
-            try {
-                await TicketAPI.markNotificationRead(id);
-            } catch (e) { /* optimistic update only; refetch next sync */ }
-            this.renderNotificationBadge(this.notificationUnread);
-            this.updateNotificationUnreadUI();
-            this.renderNotificationList();
-        }
-        if (n && n.link) {
-            this.closeNotificationDropdown();
-            this.openTicketDetail(parseInt(n.link, 10));
-        }
-    }
-
-    async markNotificationRead(id) {
-        await TicketAPI.markNotificationRead(id);
-        await this.loadNotifications();
     }
 
     async markAllNotificationsRead() {
@@ -1317,6 +1140,25 @@ openTicketDetail(id) {
         }
         await TicketAPI.markAllNotificationsRead();
         await this.loadNotifications();
+    }
+
+    setNotificationFilter(filter) {
+        this.notificationFilter = filter;
+        this.renderNotificationList();
+    }
+
+    toggleNotificationDropdown() {
+        const dropdown = document.getElementById('notificationDropdown');
+        const bell = document.getElementById('notificationBell');
+        if (!dropdown || !bell) return;
+        const isOpen = dropdown.style.display === 'block';
+        if (isOpen) {
+            dropdown.style.display = 'none';
+            bell.setAttribute('aria-expanded', 'false');
+            return;
+        }
+        dropdown.style.display = 'block';
+        bell.setAttribute('aria-expanded', 'true');
     }
 
     // ============ Theme ============
@@ -1676,38 +1518,6 @@ openTicketDetail(id) {
     }
 
     // ============ Profile ============
-    async loadPreferences() {
-        const prefs = await TicketAPI.getNotificationPreferences();
-        const email = document.getElementById('prefEmail');
-        const inapp = document.getElementById('prefInApp');
-        if (email) email.checked = !!prefs.email_enabled;
-        if (inapp) inapp.checked = !!prefs.in_app_enabled;
-    }
-
-    loadNotificationPrefs() {
-        const container = document.getElementById('notificationPrefs');
-        if (!container) return;
-        if (typeof window.NotificationPrefs === 'undefined') {
-            container.innerHTML = '<div class="pref-offline"><strong>Not available</strong><p>Notification preferences could not be loaded right now.</p></div>';
-            return;
-        }
-        window.NotificationPrefs.render(container);
-    }
-
-    async savePrefs() {
-        const prefs = {
-            email_enabled: document.getElementById('prefEmail').checked,
-            in_app_enabled: document.getElementById('prefInApp').checked
-        };
-        try {
-            await TicketAPI.updateNotificationPreferences(prefs);
-            const msg = document.getElementById('prefSaveMsg');
-            if (msg) { msg.style.display = 'block'; setTimeout(() => { msg.style.display = 'none'; }, 2500); }
-        } catch (error) {
-            this.showToast(error.message, true);
-        }
-    }
-
     async load2FA() {
         const state = document.getElementById('twofaState');
         if (!state) return;
@@ -1862,9 +1672,7 @@ openTicketDetail(id) {
         document.getElementById('saveProfileBtn').addEventListener('click', () => this.saveProfile());
         this.refreshUsernameGuard();
 
-        this.loadPreferences();
         this.load2FA();
-        this.loadNotificationPrefs();
     }
 
     handleAvatarFile(file) {
@@ -2121,6 +1929,7 @@ openTicketDetail(id) {
         if (!navigator.onLine) return;
         if (this.syncing) return;
         this.syncing = true;
+        ConnectionStatus.setSyncing(true);
         try {
             const user = this.currentUser ? this.currentUser.username : '';
             let tickets = [];
@@ -2195,6 +2004,7 @@ openTicketDetail(id) {
             }
         } finally {
             this.syncing = false;
+            ConnectionStatus.setSyncing(false);
         }
     }
 

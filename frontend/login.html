@@ -360,6 +360,14 @@
 
   function switchForm(type){
     var isSignin = type === 'signin';
+    var authCardEl = document.querySelector('.auth-card');
+    if (authCardEl) {
+        authCardEl.classList.remove('auth-card-anim-left', 'auth-card-anim-right');
+        void authCardEl.offsetWidth;
+        authCardEl.classList.add(isSignin ? 'auth-card-anim-right' : 'auth-card-anim-left');
+    }
+    var authShellEl = document.querySelector('.auth-shell');
+    if (authShellEl) authShellEl.classList.toggle('auth-shell-swap', !isSignin);
     tabSignin.setAttribute('aria-selected', String(isSignin));
     tabSignup.setAttribute('aria-selected', String(!isSignin));
     tabSignin.className  = 'auth-tab';

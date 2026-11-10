@@ -113,6 +113,10 @@
                     <button class="btn-secondary btn-sm" id="focusModeToggleBtn" data-tooltip="Reduce visual clutter and motion">
                         <i data-icon="eye" aria-hidden="true"></i> Focus Mode
                     </button>
+                    <div class="conn-status" id="connectionStatus">
+                        <span class="conn-dot" id="connectionStatusDot" data-state="online" aria-hidden="true"></span>
+                        <span class="visually-hidden" id="connectionStatusAnnounce" aria-live="polite">Online</span>
+                    </div>
                     <button type="button" class="notification-badge" id="notificationBell" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" data-tooltip="Notifications">
                         <i data-icon="bell" aria-hidden="true"></i>
                         <span class="badge" id="notificationBadge" style="display:none;">0</span>
@@ -336,21 +340,6 @@
                             </div>
                             <button type="submit" class="btn-primary">Update Password</button>
                         </form>
-                    </div>
-                <div class="chart-card">
-                        <h3>Notification Preferences</h3>
-                        <p style="font-size:0.85rem;color:#999;margin-bottom:12px;">Choose how you want to hear about ticket updates and announcements.</p>
-                        <div style="display:flex;flex-direction:column;gap:12px;">
-                            <label style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:12px;">
-                                <span><strong>Email notifications</strong><div style="font-size:0.8rem;color:#999;">Receive ticket updates in your inbox</div></span>
-                                <span class="toggle-switch"><input type="checkbox" id="prefEmail" checked><span class="slider"></span></span>
-                            </label>
-                            <label style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:12px;">
-                                <span><strong>In-app notifications</strong><div style="font-size:0.8rem;color:#999;">Show alerts in the notification bell</div></span>
-                                <span class="toggle-switch"><input type="checkbox" id="prefInApp" checked><span class="slider"></span></span>
-                            </label>
-                            <p id="prefSaveMsg" style="font-size:0.8rem;color:var(--success,#22c55e);display:none;">Preferences saved.</p>
-                        </div>
                     </div>
                     <div class="chart-card">
                         <h3>Two-Factor Authentication</h3>
@@ -593,10 +582,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="chart-card">
-                        <h3>Notifications</h3>
-                        <div id="notificationPrefs" data-notification-prefs></div>
-                    </div>
                 </div>
             </section>
 
@@ -615,6 +600,7 @@
     </div>
     <script src="/shared/js/api.js"></script>
     <script src="/shared/js/events.js"></script>
+    <script src="/shared/js/connection-status.js"></script>
     <script src="/shared/js/icons.js"></script>
     <script src="/shared/js/password-field.js"></script>
     <script src="/shared/js/notification-prefs.js"></script>
